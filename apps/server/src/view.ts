@@ -40,11 +40,14 @@ export function viewFor(room: Room, seat: SeatId): RoomView {
     players[playerSeat] = publicPlayer(player);
   }
   return {
+    role: 'player',
     code: room.code,
     config: room.config,
     you: seat,
     hostSeat: room.hostSeat,
+    isHost: seat === room.hostSeat,
     players,
+    spectators: [],
     match: room.match ? publicMatch(room.match, seat) : null,
     // The phase timer, not the internal wake-up time (which may be a reconnect-grace expiry).
     deadline: room.phaseDeadline,

@@ -1,4 +1,4 @@
-import type { BotLevel, MatchState, PublicPlayer, RoomConfig, SeatId } from '@rps/shared';
+import type { BotLevel, MatchState, PublicPlayer, PublicSpectator, RoomConfig, SeatId } from '@rps/shared';
 
 /**
  * Server-side player. `token` is the secret session token and must never reach a client view.
@@ -6,6 +6,16 @@ import type { BotLevel, MatchState, PublicPlayer, RoomConfig, SeatId } from '@rp
  * disconnected, and always for bots); a newer rejoin with the token takes the seat over.
  */
 export type Player = PublicPlayer & { token: string; socketId: string | null };
+
+/**
+ * Server-side spectator: watches, never plays. Same secrets as a player (`token`, `socketId`).
+ * `disconnectedAt` starts the reconnect grace period after which the ticker drops the spectator.
+ */
+export type Spectator = PublicSpectator & {
+  token: string;
+  socketId: string | null;
+  disconnectedAt: number | null;
+};
 
 /** Full authoritative room state. Clients only ever see `RoomView` (see `viewFor`). */
 export interface Room {
@@ -17,8 +27,9 @@ export interface Room {
   players: Partial<Record<SeatId, Player>>;
   match: MatchState | null;
   /**
-   * Epoch ms at which the ticker must look at the room next: the earlier of `phaseDeadline` and
-   * the first reconnect-grace expiry of a disconnected seat. Null if nothing is pending.
+   * Epoch ms at which the ticker must look at the room next: the earliest of `phaseDeadline`,
+   * the first reconnect-grace expiry of a disconnected seat and that of a disconnected spectator
+   * (the latter only to drop the spectator). Null if nothing is pending.
    */
   deadline: number | null;
   /** Epoch ms at which the current match phase times out (what clients count down to). */
@@ -35,4 +46,14 @@ export interface Room {
   idleRounds?: number;
   /** Whether a human picked or announced in the current round. Missing counts as false. */
   roundActed?: boolean;
+  /**
+   * People watching the room (in join order). They never count as players.
+   * Optional: rooms stored before this field existed have none (see `spectatorsOf`).
+   */
+  spectators?: Spectator[];
+}
+
+/** The room's spectators; an empty list for rooms stored before spectators existed. */
+export function spectatorsOf(room: Room): Spectator[] {
+  return room.spectators ?? [];
 }

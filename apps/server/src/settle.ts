@@ -10,7 +10,8 @@ import {
 } from '@rps/shared';
 import type { MatchState, SeatId, Team } from '@rps/shared';
 import { chooseBotEmote, chooseBotGesture } from './bot';
-import type { Player, Room } from './room';
+import { spectatorsOf } from './room';
+import type { Player, Room, Spectator } from './room';
 
 /**
  * Derived-state bookkeeping shared by every engine operation: bot moves, the endless-draw guard,
@@ -42,6 +43,15 @@ export function graceEnd(room: Room, player: Player): number | null {
   if (player.isBot || player.connected || player.disconnectedAt === null) return null;
   if (isForfeited(room, player.seat)) return null;
   return player.disconnectedAt + RECONNECT_GRACE_MS;
+}
+
+/**
+ * Grace end of a disconnected spectator, or null. Spectators are never players: this only tells
+ * the ticker when to drop them, it never feeds `graceEnd`, `isAbandoned` or `phaseDeadline`.
+ */
+export function spectatorGraceEnd(spectator: Spectator): number | null {
+  if (spectator.connected || spectator.disconnectedAt === null) return null;
+  return spectator.disconnectedAt + RECONNECT_GRACE_MS;
 }
 
 /** True once no human can act in the room anymore (all gone past grace or forfeited). */
@@ -144,12 +154,26 @@ function schedule(prev: MatchState | null, room: Room, now: number): Room {
       roundActed = false;
     }
   }
-  const wakeUps = humans(room)
-    .map((p) => graceEnd(room, p))
-    .filter((t): t is number => t !== null);
-  if (phaseDeadline !== null) wakeUps.push(phaseDeadline);
-  const deadline = wakeUps.length > 0 ? Math.min(...wakeUps) : null;
-  return { ...room, phaseDeadline, nextReady, roundActed, deadline };
+  return { ...room, phaseDeadline, nextReady, roundActed, deadline: wakeUp(room, phaseDeadline) };
+}
+
+/** Earliest of the phase timeout and every pending grace expiry (players and spectators). */
+function wakeUp(room: Room, phaseDeadline: number | null): number | null {
+  const wakeUps = [
+    ...humans(room).map((p) => graceEnd(room, p)),
+    ...spectatorsOf(room).map(spectatorGraceEnd),
+    phaseDeadline,
+  ].filter((t): t is number => t !== null);
+  return wakeUps.length > 0 ? Math.min(...wakeUps) : null;
+}
+
+/**
+ * Recomputes only the wake-up `deadline`, for changes that concern spectators alone: the match,
+ * `phaseDeadline`, `nextReady` and the idle-round state stay exactly as they are.
+ */
+export function rescheduleWakeUp(room: Room): Room {
+  const deadline = wakeUp(room, room.phaseDeadline);
+  return deadline === room.deadline ? room : { ...room, deadline };
 }
 
 /**

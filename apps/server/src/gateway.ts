@@ -121,7 +121,12 @@ export function createGateway(
     async function bind(room: Room, seat: SeatId): Promise<void> {
       socket.data.code = room.code;
       await socket.join([room.code, seatChannel(room.code, seat)]);
-      socket.emit('room:joined', { code: room.code, token: room.players[seat]!.token, seat });
+      socket.emit('room:joined', {
+        code: room.code,
+        token: room.players[seat]!.token,
+        role: 'player',
+        seat,
+      });
       broadcast(room);
     }
 
@@ -175,7 +180,9 @@ export function createGateway(
         let seat: SeatId = 'a0';
         const room = await store.update(p.code, (current) => {
           const joined = joinRoom(current, p.nickname, p.avatar, clock(), socket.id);
-          seat = joined.seat;
+          // Spectators are not wired up yet: keep the previous behavior (nothing is stored).
+          if (joined.who.role !== 'player') throw new ProtocolError('room_full');
+          seat = joined.who.seat;
           return joined.room;
         });
         if (!room) throw new ProtocolError('room_not_found');
@@ -187,7 +194,9 @@ export function createGateway(
         let previous: string | null = null;
         const room = await store.update(p.code, (current) => {
           const result = rejoinRoom(current, p.token, clock(), socket.id);
-          seat = result.seat;
+          // Unreachable until spectators are wired up (the gateway never stores one).
+          if (result.who.role !== 'player') throw new ProtocolError('bad_token');
+          seat = result.who.seat;
           previous = result.previousSocketId;
           return result.room;
         });

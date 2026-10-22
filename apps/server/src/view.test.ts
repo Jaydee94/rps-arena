@@ -122,14 +122,17 @@ describe('viewFor', () => {
     const room = { ...roomWith(null), deadline: 999, phaseDeadline: 1234 };
     const view = viewFor(room, 'b0');
     expect(view).toEqual({
+      role: 'player',
       code: 'ABCD',
       config: { mode: 'classic', bestOf: 3 },
       you: 'b0',
       hostSeat: 'a0',
+      isHost: false,
       players: {
         a0: { seat: 'a0', nickname: 'Ann', avatar: 'fox', connected: true, disconnectedAt: null, isBot: false },
         b0: { seat: 'b0', nickname: 'Ben', avatar: 'owl', connected: true, disconnectedAt: null, isBot: false },
       },
+      spectators: [],
       match: null,
       deadline: 1234,
     });
