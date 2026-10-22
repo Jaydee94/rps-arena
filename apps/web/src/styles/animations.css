@@ -283,6 +283,43 @@
 
   /* ==== COUNTDOWN ==== */
 
+  /* The two ? stickers hop on every beat, the words pop in when they appear. */
+  .qmark {
+    animation: pump var(--dur-beat) ease-in-out infinite;
+  }
+
+  .word {
+    animation: beat var(--dur-beat) var(--ease-pop) both;
+  }
+
+  @keyframes beat {
+    0% {
+      scale: 0.2;
+      opacity: 0;
+      rotate: -16deg;
+    }
+    55% {
+      scale: 1.18;
+      opacity: 1;
+    }
+    100% {
+      scale: 1;
+      rotate: -5deg;
+    }
+  }
+
+  @keyframes pump {
+    0%,
+    100% {
+      translate: 0 0;
+      rotate: -8deg;
+    }
+    45% {
+      translate: 0 -44px;
+      rotate: 8deg;
+    }
+  }
+
   /* ==== REVEAL (slam, speed lines, flash, burst, loser) ==== */
 
   /* ==== RESULT and LOBBY ==== */
