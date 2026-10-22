@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { gestureBeats } from '@rps/shared';
   import { t } from '../lib/i18n';
   import GestureButton from './GestureButton.svelte';
 
@@ -11,11 +12,14 @@
 
   let { gestures, picked, onpick }: Props = $props();
 
+  // What each gesture beats comes from the same circle rule as the duel itself.
+  const beats = (gesture: string) => gestureBeats({ gestures }, gesture);
+
   // Roving tabindex: only the active button is in the tab order, arrow keys move between them.
   let active = $state(0);
 
   function onkeydown(event: KeyboardEvent) {
-    const group = (event.currentTarget as HTMLElement).parentElement;
+    const group = (event.currentTarget as HTMLElement).closest('[role="radiogroup"]');
     const buttons = [...(group?.querySelectorAll('button') ?? [])];
     const count = buttons.length;
     const index = buttons.indexOf(event.currentTarget as HTMLButtonElement);
@@ -39,6 +43,7 @@
       tabindex={index === active ? 0 : -1}
       tone={index}
       large={gestures.length <= 5}
+      beats={beats(gesture)}
       {onpick}
       {onkeydown}
       onfocus={() => (active = index)}
@@ -54,5 +59,6 @@
     justify-content: center;
     gap: var(--space-3);
     padding-top: 8px; /* room for the raised middle tile */
+    container: pad / inline-size; /* the rule hints pick their side by the number of columns */
   }
 </style>

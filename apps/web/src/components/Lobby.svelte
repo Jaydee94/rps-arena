@@ -4,6 +4,7 @@
   import { t } from '../lib/i18n';
   import { canStart, isHost } from '../lib/seats';
   import CopyRow from './CopyRow.svelte';
+  import RulesPanel from './RulesPanel.svelte';
   import SeatSlot from './SeatSlot.svelte';
 
   const TEAM_SEATS: { team: 'a' | 'b'; seats: SeatId[] }[] = [
@@ -68,6 +69,8 @@
         {@render slot('b0')}
       </div>
     {/if}
+
+    <RulesPanel mode={view.config.mode} />
 
     {#if host}
       <button type="button" class="btn btn-primary" disabled={!canStart(view)} onclick={() => startMatch()}>
