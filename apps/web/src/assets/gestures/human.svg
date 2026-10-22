@@ -1,0 +1,8 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <path class="line" style="stroke-width:15;fill:none" d="M18 28 L8 12 M46 28 L56 12"/>
+  <path class="st-skin" style="stroke-width:7;fill:none" d="M18 28 L8 12 M46 28 L56 12"/>
+  <path class="blue" d="M18 52 L18 62 L30 62 L32 52 L34 62 L46 62 L46 52 Z"/>
+  <path class="red" d="M16 26 Q32 22 48 26 L46 54 L18 54 Z"/>
+  <circle class="skin" cx="32" cy="13" r="10"/>
+  <path class="n" style="stroke-width:3" d="M27 11 V14 M37 11 V14 M27 18 Q32 22 37 18"/>
+</svg>

@@ -1,0 +1,10 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <circle class="blue" cx="32" cy="32" r="29"/>
+  <path class="brown" d="M12 8 L26 16 L14 24 Z"/><path class="brown" d="M52 8 L38 16 L50 24 Z"/>
+  <ellipse class="brown" cx="32" cy="36" rx="21" ry="21"/>
+  <path class="skin" style="stroke:none" d="M20 50 Q32 60 44 50 Q32 54 20 50 Z"/>
+  <circle class="white" cx="23" cy="31" r="10"/><circle class="white" cx="41" cy="31" r="10"/>
+  <circle class="line" style="stroke:none" cx="24" cy="32" r="4.5"/><circle class="line" style="stroke:none" cx="40" cy="32" r="4.5"/>
+  <circle class="white" style="stroke:none" cx="25.5" cy="30" r="1.4"/><circle class="white" style="stroke:none" cx="41.5" cy="30" r="1.4"/>
+  <path class="orange" d="M27 40 L37 40 L32 50 Z"/>
+</svg>

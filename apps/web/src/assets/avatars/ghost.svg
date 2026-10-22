@@ -1,0 +1,7 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <circle class="blue" cx="32" cy="32" r="29"/>
+  <path class="white" d="M14 54 L14 30 C14 18 22 10 32 10 C42 10 50 18 50 30 L50 54 L43 48 L37 55 L32 48 L27 55 L21 48 Z"/>
+  <ellipse class="line" style="stroke:none" cx="25" cy="29" rx="3.5" ry="5"/><ellipse class="line" style="stroke:none" cx="39" cy="29" rx="3.5" ry="5"/>
+  <ellipse class="pink" style="stroke-width:3" cx="32" cy="40" rx="4.5" ry="5.5"/>
+  <circle class="pink" style="stroke:none;opacity:.6" cx="19" cy="38" r="3"/><circle class="pink" style="stroke:none;opacity:.6" cx="45" cy="38" r="3"/>
+</svg>

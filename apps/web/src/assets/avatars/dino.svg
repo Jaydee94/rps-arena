@@ -1,0 +1,10 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <circle class="yellow" cx="32" cy="32" r="29"/>
+  <path class="orange" d="M22 14 L26 5 L31 14 Z M31 14 L36 5 L41 14 Z" />
+  <path class="green" d="M32 12 C46 12 54 22 54 34 C54 48 46 56 32 56 C18 56 10 48 10 34 C10 22 18 12 32 12 Z"/>
+  <circle class="white" cx="22" cy="28" r="6.5"/><circle class="white" cx="42" cy="28" r="6.5"/>
+  <circle class="line" style="stroke:none" cx="23" cy="29" r="3"/><circle class="line" style="stroke:none" cx="41" cy="29" r="3"/>
+  <ellipse class="teal" cx="32" cy="45" rx="14" ry="9"/>
+  <circle class="line" style="stroke:none" cx="27" cy="43" r="1.8"/><circle class="line" style="stroke:none" cx="37" cy="43" r="1.8"/>
+  <path class="white" style="stroke-width:2.5" d="M22 50 L25 55 L28 50 M36 50 L39 55 L42 50"/>
+</svg>
