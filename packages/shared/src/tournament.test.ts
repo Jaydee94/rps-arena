@@ -286,7 +286,7 @@ describe('knockout', () => {
     ]);
   });
 
-  it('a forfeit of both inside a match leaves a bye for the next opponent', () => {
+  it('a forfeit of both in both semifinals still crowns a champion by coin among them', () => {
     let s = createTournament('knockout', ids(4), seeded(14));
     const [semi1, semi2] = round(s, 1).map((p) => must(p));
     s = recordResult(s, must(semi1).id, { winner: null, score: { a: 0, b: 0 }, forfeit: 'both' }, fixed(0));
@@ -298,10 +298,76 @@ describe('knockout', () => {
     expect(sorted(s.forfeited)).toEqual(sorted([must(semi1?.a), must(semi1?.b)]));
     s = recordResult(s, must(semi2).id, { winner: null, score: { a: 1, b: 1 }, forfeit: 'both' }, fixed(0));
     const final = must(round(s, 2)[0]);
-    expect(final).toMatchObject({ a: null, b: null, result: { winner: null, score: null, decidedBy: 'none' } });
+    // both final slots are empty: the coin picks among everyone who got furthest (join order)
+    expect(final).toMatchObject({ a: null, b: null, result: { winner: 'p1', score: null, decidedBy: 'coin' } });
     expect(isFinished(s)).toBe(true);
     expect(nextPairing(s)).toBeNull();
-    expect(podium(s)).toEqual([{ rank: 3, ids: ids(4) }]);
+    expect(podium(s)).toEqual([
+      { rank: 1, ids: ['p1'] },
+      { rank: 3, ids: ['p2', 'p3', 'p4'] },
+    ]);
+  });
+
+  describe('the final always produces a champion', () => {
+    function toFinal(seed: number): { s: TournamentState; final: Pairing } {
+      let s = createTournament('knockout', ids(4), seeded(seed));
+      s = playAll(s, (a) => a, fixed(0), 2);
+      return { s, final: must(round(s, 2)[0]) };
+    }
+    const finalResult = (s: TournamentState, final: Pairing) =>
+      must(s.pairings.find((p) => p.id === final.id)).result;
+
+    for (const [coin, side] of [
+      [0.49, 'a'],
+      [0.5, 'b'],
+    ] as const) {
+      it(`both finalists forfeited → coin flip (rng ${coin} → ${side})`, () => {
+        const { s, final } = toFinal(40);
+        const after = recordResult(s, final.id, { winner: null, score: { a: 1, b: 1 }, forfeit: 'both' }, fixed(coin));
+        const champion = must(final[side]);
+        expect(finalResult(after, final)).toEqual({ winner: champion, score: { a: 1, b: 1 }, decidedBy: 'coin' });
+        expect(sorted(after.forfeited)).toEqual(sorted([must(final.a), must(final.b)]));
+        expect(isFinished(after)).toBe(true);
+        expect(rankOf(after, champion)).toBe(1);
+        expect(podium(after)[0]).toEqual({ rank: 1, ids: [champion] });
+      });
+
+      it(`a final without a winner and a level score → coin flip (rng ${coin} → ${side})`, () => {
+        const { s, final } = toFinal(41);
+        const after = recordResult(s, final.id, noWinner(1, 1), fixed(coin));
+        expect(finalResult(after, final)).toEqual({ winner: final[side], score: { a: 1, b: 1 }, decidedBy: 'coin' });
+        expect(podium(after)[0]).toEqual({ rank: 1, ids: [final[side]] });
+      });
+    }
+
+    it('a final without a winner goes to the side with more rounds won', () => {
+      const { s, final } = toFinal(42);
+      let calls = 0;
+      const counting = () => {
+        calls++;
+        return 0;
+      };
+      const after = recordResult(s, final.id, noWinner(0, 1), counting);
+      expect(finalResult(after, final)).toEqual({ winner: final.b, score: { a: 0, b: 1 }, decidedBy: 'match' });
+      expect(calls).toBe(0);
+      const both = recordResult(s, final.id, { winner: null, score: { a: 2, b: 1 }, forfeit: 'both' }, counting);
+      expect(finalResult(both, final)).toEqual({ winner: final.a, score: { a: 2, b: 1 }, decidedBy: 'match' });
+      expect(calls).toBe(0);
+    });
+
+    it('a finalist left alone against an empty slot wins even if forfeited', () => {
+      // 8 players: the second semifinal ends with both forfeited, the first semifinal winner drops out
+      let s = createTournament('knockout', ids(8), seeded(43));
+      s = playAll(s, (a) => a, fixed(0), 4);
+      const [sf1, sf2] = round(s, 2).map((p) => must(p));
+      s = recordResult(s, must(sf1).id, win('a'), fixed(0));
+      s = markForfeited(s, must(must(sf1).a), fixed(0));
+      s = recordResult(s, must(sf2).id, { winner: null, score: { a: 0, b: 0 }, forfeit: 'both' }, fixed(0));
+      const final = must(round(s, 3)[0]);
+      expect(final.result).toEqual({ winner: must(sf1).a, score: null, decidedBy: 'bye' });
+      expect(isFinished(s)).toBe(true);
+      expect(podium(s)[0]).toEqual({ rank: 1, ids: [must(sf1).a] });
+    });
   });
 });
 
@@ -586,7 +652,8 @@ describe('whole tournaments with pseudo-random outcomes', () => {
             const score = { a: Math.floor(rng() * 3), b: Math.floor(rng() * 3) };
             let outcome: MatchOutcome;
             if (roll < 0.2) outcome = { winner: null, score, forfeit: null };
-            else if (roll < 0.25) outcome = { winner: rng() < 0.5 ? 'a' : 'b', score, forfeit: 'b' };
+            else if (roll < 0.25)
+              outcome = { winner: rng() < 0.5 ? 'a' : 'b', score, forfeit: rng() < 0.5 ? 'a' : 'b' };
             else if (roll < 0.27) outcome = { winner: null, score, forfeit: 'both' };
             else outcome = { winner: rng() < 0.5 ? 'a' : 'b', score, forfeit: null };
             s = recordResult(s, p.id, outcome, rng);
@@ -600,8 +667,8 @@ describe('whole tournaments with pseudo-random outcomes', () => {
           expect(ranks).toEqual([...ranks].sort((x, y) => x - y));
           rows.forEach((r, i) => {
             expect(r.rank).toBeGreaterThanOrEqual(1);
-            // knockout ranks are the placement reached, so without a champion they may start at 2+
-            if (format === 'roundrobin') expect(r.rank).toBeLessThanOrEqual(i + 1);
+            // knockout ranks are the placement reached; after double forfeits there may be gaps
+            if (format === 'roundrobin' || i === 0) expect(r.rank).toBeLessThanOrEqual(i + 1);
             expect(r.wins + r.losses).toBeLessThanOrEqual(r.played);
           });
 
@@ -623,6 +690,11 @@ describe('whole tournaments with pseudo-random outcomes', () => {
           if (format === 'roundrobin') expect(first?.ids).toHaveLength(1);
           else expect(first === undefined || first.ids.length === 1).toBe(true);
           if (first) expect(rows.filter((r) => r.rank === 1)).toHaveLength(1);
+          if (format === 'knockout') {
+            // the final always produces a champion
+            expect(rows.filter((r) => r.rank === 1)).toHaveLength(1);
+            expect(podium(s)[0]?.rank).toBe(1);
+          }
         }
       });
     }

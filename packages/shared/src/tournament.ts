@@ -23,7 +23,23 @@
  * - Match without a winner: knockout → more rounds won advances, else a coin flip
  *   (`decidedBy: 'coin'`); round-robin → lost for both (`decidedBy: 'none'`).
  * - Forfeit: a forfeited participant (via `markForfeited` or a forfeit inside a match) loses every
- *   open pairing automatically (`decidedBy: 'forfeit'`); if both sides are out nobody wins.
+ *   open pairing automatically (`decidedBy: 'forfeit'`); if both sides are out nobody wins, and
+ *   in the knockout bracket the next opponent gets a bye.
+ * - The knockout final always produces a champion. A final without a winner (no-winner match,
+ *   both forfeited inside it, or both finalists already out) is decided like any no-winner
+ *   knockout match: more rounds won if a score exists, otherwise a coin flip among the finalists
+ *   (`decidedBy: 'coin'`, the rng is consumed only then). With one real finalist left and an
+ *   empty slot, that finalist wins (`decidedBy: 'bye'`). With both final slots empty, the coin
+ *   picks among the participants who got furthest (eliminated in the latest round), in join order.
+ *
+ * UI-facing notes:
+ * - The champion may be a forfeited participant who has already left the room.
+ * - A round-robin winner may be forfeited as well (forfeits only lose the remaining pairings).
+ * - A semifinal decided by "both forfeited" adds both to the shared 3rd place, so 3rd place can
+ *   hold three IDs.
+ * - All matches of one tie-break round-robin share one `round` number.
+ * - In a running knockout, a forfeited participant still shows rank 1 until their next pairing
+ *   exists and is decided automatically.
  */
 import { TIEBREAK_MAX_ROUNDS, TOURNAMENT_MAX_PLAYERS, TOURNAMENT_MIN_PLAYERS } from './constants';
 
@@ -109,7 +125,7 @@ export function nextPairing(state: TournamentState): Pairing | null {
 export function settleAutomatic(state: TournamentState, rng: Rng): TournamentState {
   let s = state;
   for (;;) {
-    const decided = decideAutomatic(s);
+    const decided = decideAutomatic(s, rng);
     if (decided !== s.pairings) s = { ...s, pairings: decided };
     if (!s.pairings.every((p) => p.result !== null)) return s;
 
@@ -154,15 +170,16 @@ export function recordResult(
     const gone = outcome.forfeit === 'both' ? [a, b] : [outcome.forfeit === 'a' ? a : b];
     forfeited = [...forfeited, ...gone.filter((id) => !forfeited.includes(id))];
     const winner = outcome.forfeit === 'both' ? null : outcome.forfeit === 'a' ? b : a;
-    result = { winner, score, decidedBy: 'forfeit' };
+    result =
+      winner === null && isKnockoutFinal(state, pairing)
+        ? knockoutNoWinner(state, pairing, score, rng)
+        : { winner, score, decidedBy: 'forfeit' };
   } else if (outcome.winner !== null) {
     result = { winner: outcome.winner === 'a' ? a : b, score, decidedBy: 'match' };
   } else if (state.format === 'roundrobin') {
     result = { winner: null, score, decidedBy: 'none' };
-  } else if (score.a !== score.b) {
-    result = { winner: score.a > score.b ? a : b, score, decidedBy: 'match' };
   } else {
-    result = { winner: rng() < 0.5 ? a : b, score, decidedBy: 'coin' };
+    result = knockoutNoWinner(state, pairing, score, rng);
   }
 
   const pairings = state.pairings.map((p) => (p.id === pairingId ? { ...p, result } : p));
@@ -319,13 +336,14 @@ function roundRobin(ids: readonly string[], firstRound: number, tiebreak: boolea
 }
 
 /** Decides open pairings that involve a bye slot or a forfeited participant. */
-function decideAutomatic(state: TournamentState): Pairing[] {
+function decideAutomatic(state: TournamentState, rng: Rng): Pairing[] {
   const forfeited = new Set(state.forfeited);
   let changed = false;
   const pairings = state.pairings.map((p) => {
     if (p.result !== null) return p;
-    const result = automaticResult(p, forfeited);
+    let result = automaticResult(p, forfeited);
     if (result === null) return p;
+    if (result.winner === null && isKnockoutFinal(state, p)) result = knockoutNoWinner(state, p, null, rng);
     changed = true;
     return { ...p, result };
   });
@@ -343,7 +361,46 @@ function automaticResult(p: Pairing, forfeited: Set<string>): PairingResult | nu
   return { winner, score: null, decidedBy: gone === null ? 'bye' : 'forfeit' };
 }
 
-/** Knockout rank = placement reached: still in → 1, lost in round r of R → 2^(R - r) + 1. */
+function isKnockoutFinal(state: TournamentState, p: Pairing): boolean {
+  return state.format === 'knockout' && p.round === knockoutRounds(state);
+}
+
+/**
+ * A knockout pairing without a winner: more rounds won advances, otherwise a coin flip among the
+ * pairing's participants. Used for every no-winner match and, for the final only, also when both
+ * finalists are out (see the header comment).
+ */
+function knockoutNoWinner(
+  state: TournamentState,
+  p: Pairing,
+  score: { a: number; b: number } | null,
+  rng: Rng,
+): PairingResult {
+  if (score !== null && score.a !== score.b && p.a !== null && p.b !== null) {
+    return { winner: score.a > score.b ? p.a : p.b, score, decidedBy: 'match' };
+  }
+  const inPairing = [p.a, p.b].filter((id): id is string => id !== null);
+  const pool = inPairing.length > 0 ? inPairing : furthest(state, p.round);
+  if (pool.length <= 1) return { winner: pool[0] ?? null, score, decidedBy: pool.length === 1 ? 'bye' : 'none' };
+  const winner = pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))] ?? null;
+  return { winner, score, decidedBy: 'coin' };
+}
+
+/** Participants (join order) eliminated in the latest decided round before `round`. */
+function furthest(state: TournamentState, round: number): string[] {
+  const reached = new Map<string, number>();
+  for (const p of state.pairings) {
+    if (p.round >= round || p.result === null) continue;
+    for (const id of [p.a, p.b]) if (id !== null) reached.set(id, Math.max(reached.get(id) ?? 0, p.round));
+  }
+  const best = Math.max(0, ...reached.values());
+  return state.participants.filter((id) => reached.get(id) === best);
+}
+
+/**
+ * Knockout rank = placement reached: still in → 1, lost in round r of R → 2^(R - r) + 1; the
+ * final's winner is always rank 1 (even when drawn from earlier rounds, see the header).
+ */
 function knockoutRanks(state: TournamentState): Map<string, number> {
   const total = knockoutRounds(state);
   const ranks = new Map<string, number>();
@@ -353,6 +410,8 @@ function knockoutRanks(state: TournamentState): Map<string, number> {
       if (id !== null && id !== p.result.winner) ranks.set(id, 2 ** (total - p.round) + 1);
     }
   }
+  const champion = state.pairings.find((p) => p.round === total)?.result?.winner;
+  if (champion != null) ranks.set(champion, 1);
   return ranks;
 }
 
