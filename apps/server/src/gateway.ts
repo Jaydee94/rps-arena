@@ -3,6 +3,7 @@ import type {
   ClientEventName,
   ClientEventPayloads,
   ErrorCode,
+  RoomJoined,
   RuleErrorCode,
   SeatId,
   ServerEvents,
@@ -77,6 +78,28 @@ export const spectatorChannel = (code: string) => `${code}:spec`;
 const channelOf = (code: string, who: Who) =>
   who.role === 'player' ? seatChannel(code, who.seat) : spectatorChannel(code);
 
+function sameWho(a: Who, b: Who): boolean {
+  if (a.role === 'player') return b.role === 'player' && a.seat === b.seat;
+  return b.role === 'spectator' && a.id === b.id;
+}
+
+/** Marks a player seat or a spectator as disconnected (starting its reconnect grace). */
+function markGone(room: Room, who: Who, now: number): Room {
+  return who.role === 'player'
+    ? markDisconnected(room, who.seat, now)
+    : markSpectatorDisconnected(room, who.id, now);
+}
+
+/** What `room:joined` tells the bound socket; null if `who` is not in the room. */
+function joinedMessage(room: Room, who: Who): RoomJoined | null {
+  if (who.role === 'player') {
+    const player = room.players[who.seat];
+    return player ? { code: room.code, token: player.token, role: 'player', seat: who.seat } : null;
+  }
+  const spectator = spectatorsOf(room).find((s) => s.id === who.id);
+  return spectator ? { code: room.code, token: spectator.token, role: 'spectator', seat: null } : null;
+}
+
 function errorCodeOf(error: unknown): ErrorCode {
   if (error instanceof ProtocolError) return error.code;
   if (error instanceof RuleError) return RULE_ERRORS[error.code];
@@ -139,26 +162,31 @@ export function createGateway(
     });
 
     async function bind(room: Room, who: Who): Promise<void> {
+      // Resolve first, so an (unreachable) inconsistency cannot leave the socket half bound.
+      const joined = joinedMessage(room, who);
+      if (!joined) throw new ProtocolError('internal');
       socket.data.code = room.code;
       await socket.join([room.code, channelOf(room.code, who)]);
-      if (who.role === 'player') {
-        socket.emit('room:joined', {
-          code: room.code,
-          token: room.players[who.seat]!.token,
-          role: 'player',
-          seat: who.seat,
-        });
-      } else {
-        const spectator = spectatorsOf(room).find((s) => s.id === who.id);
-        if (!spectator) throw new ProtocolError('internal');
-        socket.emit('room:joined', {
-          code: room.code,
-          token: spectator.token,
-          role: 'spectator',
-          seat: null,
-        });
-      }
+      socket.emit('room:joined', joined);
       broadcast(room);
+    }
+
+    /**
+     * `store.update` that also hands out a typed side result of `fn` (the stored room plus
+     * e.g. who joined). Throws `room_not_found` for an unknown code.
+     */
+    async function updateWith<T>(
+      code: string,
+      fn: (current: Room) => { room: Room; result: T },
+    ): Promise<{ room: Room; result: T }> {
+      const box: { out: { result: T } | null } = { out: null };
+      const room = await store.update(code, (current) => {
+        const { room: next, result } = fn(current);
+        box.out = { result };
+        return next;
+      });
+      if (!room || !box.out) throw new ProtocolError('room_not_found');
+      return { room, result: box.out.result };
     }
 
     /** Leaves the room this socket sits in (switching rooms counts as a disconnect there). */
@@ -172,17 +200,15 @@ export function createGateway(
         const who = whoOfSocket(current, socket.id);
         if (!who) return null;
         changed = true;
-        return who.role === 'player'
-          ? markDisconnected(current, who.seat, clock())
-          : markSpectatorDisconnected(current, who.id, clock());
+        return markGone(current, who, clock());
       });
       if (room && changed) broadcast(room);
     }
 
     /**
-     * Runs `fn` for this socket's own seat, atomically, then broadcasts. A spectator socket gets
-     * `not_player` and the room stays as it is (after `beforeBroadcast`,
-     * e.g. moving sockets to new seat channels).
+     * Runs `fn` for this socket's own seat, atomically, then broadcasts (after `beforeBroadcast`,
+     * e.g. moving sockets to new seat channels). A spectator socket gets `not_player` and the
+     * room stays as it is.
      */
     async function asSeat(
       fn: (room: Room, seat: SeatId, now: number) => Room,
@@ -211,27 +237,33 @@ export function createGateway(
         throw new ProtocolError('internal');
       },
       'room:join': async (p) => {
+        // Policy: a join always makes a new player or spectator, even into the room this socket
+        // is already in. The old binding is released like any room switch (it is marked
+        // disconnected and its slot frees up once its reconnect grace runs out).
         await release();
-        let who: Who | null = null;
-        const room = await store.update(p.code, (current) => {
+        const { room, result: who } = await updateWith(p.code, (current) => {
           const joined = joinRoom(current, p.nickname, p.avatar, clock(), socket.id);
-          who = joined.who;
-          return joined.room;
+          return { room: joined.room, result: joined.who };
         });
-        if (!room || !who) throw new ProtocolError('room_not_found');
         await bind(room, who);
       },
       'room:rejoin': async (p) => {
         if (socket.data.code !== p.code) await release();
-        let who: Who | null = null;
-        let previous: string | null = null;
-        const room = await store.update(p.code, (current) => {
-          const result = rejoinRoom(current, p.token, clock(), socket.id);
-          who = result.who;
-          previous = result.previousSocketId;
-          return result.room;
+        const { room, result } = await updateWith(p.code, (current) => {
+          const now = clock();
+          // Within the same room the socket may hold another binding (e.g. a spectator rejoining
+          // with a player token): release it, or it would stay connected forever as a ghost.
+          // Rejoining the own binding again changes nothing here.
+          const before = whoOfSocket(current, socket.id);
+          const rejoined = rejoinRoom(current, p.token, now, socket.id);
+          const stale = before && !sameWho(before, rejoined.who) ? before : null;
+          return {
+            room: stale ? markGone(rejoined.room, stale, now) : rejoined.room,
+            result: { who: rejoined.who, previous: rejoined.previousSocketId, stale },
+          };
         });
-        if (!room || !who) throw new ProtocolError('room_not_found');
+        const { who, previous, stale } = result;
+        if (stale) await socket.leave(channelOf(room.code, stale));
         if (previous) {
           // The seat (or spectator) now belongs to this socket; cut the old one (on any replica)
           // off the room.

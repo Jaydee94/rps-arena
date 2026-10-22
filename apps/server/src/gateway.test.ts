@@ -7,8 +7,10 @@ import { CODE_ALPHABET, RECONNECT_GRACE_MS } from '@rps/shared';
 import type { PlayerView as RoomView, RoomConfig, RoomJoined, SpectatorView } from '@rps/shared';
 import type { Server } from 'socket.io';
 import { createGateway, spectatorChannel } from './gateway';
-import type { GatewayOptions } from './gateway';
+import type { Gateway, GatewayOptions } from './gateway';
 import { createIoServer } from './io';
+import { spectatorsOf } from './room';
+import type { Room as RoomState } from './room';
 import { MemoryRoomStore } from './store';
 import { startTicker } from './ticker';
 import type { Ticker } from './ticker';
@@ -33,6 +35,7 @@ interface Harness {
   clock: { now: number };
   ticker: Ticker;
   io: Server;
+  gateway: Gateway;
   client(opts?: { origin?: string }): Promise<Client>;
 }
 
@@ -111,7 +114,7 @@ async function harness(options: GatewayOptions = {}): Promise<Harness> {
       },
     };
   };
-  return { url, store, clock, ticker, io, client };
+  return { url, store, clock, ticker, io, gateway, client };
 }
 
 /** rng that yields the given room code through `generateCode`, then 0.5 forever. */
@@ -495,6 +498,23 @@ const PLAYER_VIEW_KEYS = [
   'you',
 ];
 
+/** Waits until the server dropped socket `id` and processed every pending event (its release). */
+async function serverForgot(h: Harness, id: string): Promise<void> {
+  for (let i = 0; i < 100 && h.io.sockets.sockets.has(id); i++) {
+    await new Promise((r) => setTimeout(r, 10));
+  }
+  expect(h.io.sockets.sockets.has(id)).toBe(false);
+  await h.gateway.idle();
+}
+
+/** Every connected entry (seat or spectator) bound to socket `id`. */
+function bindingsOf(room: RoomState, id: string): string[] {
+  return [
+    ...Object.values(room.players).filter((p) => p?.connected && p.socketId === id).map((p) => p!.seat),
+    ...spectatorsOf(room).filter((x) => x.connected && x.socketId === id).map((x) => `spec:${x.id}`),
+  ];
+}
+
 const states = (c: Client) => c.events.filter((e) => e.event === 'room:state');
 
 describe('gateway: spectators', () => {
@@ -663,7 +683,13 @@ describe('gateway: spectators', () => {
     s.send('game:pick', { gesture: 'rock' });
     expect((await errorOf(s)).code).toBe('bad_token');
     // The old socket's disconnect must not mark the spectator as disconnected.
+    const oldId = s.socket.id!;
     s.socket.disconnect();
+    await serverForgot(h, oldId);
+    expect(spectatorsOf((await h.store.get(aJoined.code))!)[0]).toMatchObject({
+      connected: true,
+      socketId: tab2.socket.id,
+    });
     b.send('game:pick', { gesture: 'paper' });
     const reveal = await tab2.next<SpectatorView>('room:state', (v) => v.match?.phase === 'reveal');
     expect(reveal.spectators[0]?.connected).toBe(true);
@@ -700,5 +726,65 @@ describe('gateway: spectators', () => {
     expect(s.socket.connected).toBe(true);
     expect(h.io.sockets.adapter.rooms.get(spectatorChannel(code))).toBeUndefined();
     expect(h.io.sockets.adapter.rooms.get(code)).toBeUndefined();
+  });
+});
+
+describe('gateway: switching bindings within one room', () => {
+  it('a spectator socket rejoining with a player token releases its spectator slot', async () => {
+    const h = await harness();
+    const { a, b, aJoined, bJoined } = await startedDuel(h);
+    const { s, joined } = await spectate(h, aJoined.code);
+    b.socket.disconnect();
+    await a.next<RoomView>('room:state', (v) => v.players.b0?.connected === false);
+    s.send('room:rejoin', { code: aJoined.code, token: bJoined.token });
+    expect(await s.next<RoomJoined>('room:joined')).toEqual(bJoined);
+    expect((await s.next<RoomView>('room:state', (v) => v.role === 'player')).you).toBe('b0');
+    const room = (await h.store.get(aJoined.code))!;
+    expect(bindingsOf(room, s.socket.id!)).toEqual(['b0']);
+    expect(spectatorsOf(room)).toEqual([
+      expect.objectContaining({ connected: false, socketId: null, token: joined.token }),
+    ]);
+    expect(h.io.sockets.adapter.rooms.get(spectatorChannel(aJoined.code))).toBeUndefined();
+    // The released spectator is dropped once its grace runs out; the slot is free again.
+    h.clock.now += RECONNECT_GRACE_MS;
+    await h.ticker.runOnce();
+    const later = (await h.store.get(aJoined.code))!;
+    expect(spectatorsOf(later)).toEqual([]);
+    expect(later.players.b0).toMatchObject({ connected: true, socketId: s.socket.id });
+  });
+
+  it('a player socket rejoining with a spectator token releases its seat', async () => {
+    const h = await harness();
+    const { a, b, aJoined } = await startedDuel(h);
+    const { s, joined } = await spectate(h, aJoined.code);
+    const sId = s.socket.id!;
+    s.socket.disconnect();
+    await serverForgot(h, sId);
+    b.send('room:rejoin', { code: aJoined.code, token: joined.token });
+    expect(await b.next<RoomJoined>('room:joined')).toEqual(joined);
+    expect((await b.next<SpectatorView>('room:state', (v) => v.role === 'spectator')).me).toBeNull();
+    await a.next<RoomView>('room:state', (v) => v.players.b0?.connected === false);
+    const room = (await h.store.get(aJoined.code))!;
+    expect(bindingsOf(room, b.socket.id!)).toEqual([`spec:${spectatorsOf(room)[0]!.id}`]);
+    expect(room.players.b0).toMatchObject({ connected: false, socketId: null });
+    expect(h.io.sockets.adapter.rooms.get(`${aJoined.code}:b0`)).toBeUndefined();
+    // The released seat forfeits once its grace runs out.
+    h.clock.now += RECONNECT_GRACE_MS;
+    await h.ticker.runOnce();
+    const end = await b.next<SpectatorView>('room:state', (v) => v.match?.phase === 'finished');
+    expect(end.match?.forfeited).toEqual(['b0']);
+  });
+
+  it('rejoining the own binding in the same room changes nothing', async () => {
+    const h = await harness();
+    const { aJoined } = await startedDuel(h);
+    const { s, joined } = await spectate(h, aJoined.code);
+    s.send('room:rejoin', { code: aJoined.code, token: joined.token });
+    expect(await s.next<RoomJoined>('room:joined')).toEqual(joined);
+    const room = (await h.store.get(aJoined.code))!;
+    expect(spectatorsOf(room)).toEqual([
+      expect.objectContaining({ connected: true, socketId: s.socket.id, disconnectedAt: null }),
+    ]);
+    expect(h.io.sockets.adapter.rooms.get(spectatorChannel(aJoined.code))?.has(s.socket.id!)).toBe(true);
   });
 });
