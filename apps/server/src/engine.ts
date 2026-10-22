@@ -168,6 +168,11 @@ export function createRoom(input: CreateRoomInput, now: number, rng: Rng = Math.
  * In the lobby (no match yet) takes the first free seat, else `room_full`. Once a match exists
  * (running or finished) the joiner becomes a spectator, up to MAX_SPECTATORS; seats, match and
  * timers stay untouched.
+ *
+ * Two spectator rules live only in code: MAX_SPECTATORS also counts disconnected spectators that
+ * are still inside their reconnect grace period (their slot is only freed once the ticker drops
+ * them), and a repeated disconnect of the same spectator resets `disconnectedAt`, so the grace
+ * period starts over from the latest disconnect.
  */
 export function joinRoom(
   room: Room,
