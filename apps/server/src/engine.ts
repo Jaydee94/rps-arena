@@ -11,6 +11,7 @@ import {
   generateCode,
   parseNickname,
   pick,
+  scoreWinner,
   timeoutPhase,
 } from '@rps/shared';
 import type { BotLevel, ErrorCode, MatchState, RoomConfig, SeatId } from '@rps/shared';
@@ -320,7 +321,12 @@ export function tick(room: Room, now: number, rng: Rng = Math.random): Room {
 function countIdleRound(room: Room): Room {
   if (room.roundActed) return room;
   const idleRounds = (room.idleRounds ?? 0) + 1;
-  if (idleRounds < IDLE_ROUNDS_LIMIT || !room.match) return { ...room, idleRounds };
+  // A match the timed-out round already decided by score (the bot reached the winning score, the
+  // match is in its last reveal or finished) keeps its real winner: the abandonment rule must not
+  // overwrite it with "no winner".
+  if (idleRounds < IDLE_ROUNDS_LIMIT || !room.match || scoreWinner(room.match) !== null) {
+    return { ...room, idleRounds };
+  }
   return { ...room, idleRounds, match: { ...room.match, phase: 'finished', winner: null } };
 }
 

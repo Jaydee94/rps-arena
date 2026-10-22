@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { BLUFF_EMOTES } from './constants';
-import { activeSeats, advance, announce, createMatch, forfeitSeat, pick, RuleError, timeoutPhase } from './match';
+import {
+  activeSeats,
+  advance,
+  announce,
+  createMatch,
+  forfeitSeat,
+  pick,
+  RuleError,
+  scoreWinner,
+  timeoutPhase,
+} from './match';
 import type { MatchState, SeatId } from './match';
 
 /** Deep copy for asserting that inputs are not mutated. */
@@ -99,6 +109,21 @@ describe('series length', () => {
   it('advance outside reveal throws wrong_phase', () => {
     const s = createMatch({ mode: 'classic', bestOf: 3 });
     expect(ruleCode(() => advance(s))).toBe('wrong_phase');
+  });
+});
+
+describe('scoreWinner', () => {
+  it('is null until a side has the round wins the best-of needs, even in the last reveal', () => {
+    let s = createMatch({ mode: 'classic', bestOf: 5 });
+    expect(scoreWinner(s)).toBeNull();
+    for (let won = 1; won <= 2; won++) {
+      s = advance(playRound(s, ...A_WINS));
+      expect(scoreWinner(s)).toBeNull();
+    }
+    s = playRound(s, ...A_WINS); // third round win: decided while still in the reveal phase
+    expect(s.phase).toBe('reveal');
+    expect(scoreWinner(s)).toBe('a');
+    expect(scoreWinner(advance(s))).toBe('a');
   });
 });
 

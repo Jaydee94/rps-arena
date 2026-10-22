@@ -139,13 +139,19 @@ export function pick(s: MatchState, seat: SeatId, gesture: string): MatchState {
   return everyoneDone(next, next.picks) ? resolveRound(next) : next;
 }
 
+/** The team that has reached the round wins needed for the best-of, if any (the score decides). */
+export function scoreWinner(s: MatchState): Team | null {
+  const needed = Math.ceil(s.config.bestOf / 2);
+  if (s.score.a >= needed) return 'a';
+  if (s.score.b >= needed) return 'b';
+  return null;
+}
+
 export function advance(s: MatchState): MatchState {
   if (s.phase !== 'reveal') throw new RuleError('wrong_phase');
 
-  const needed = Math.ceil(s.config.bestOf / 2);
-  if (s.score.a >= needed || s.score.b >= needed) {
-    return { ...s, phase: 'finished', winner: s.score.a >= needed ? 'a' : 'b' };
-  }
+  const decided = scoreWinner(s);
+  if (decided !== null) return { ...s, phase: 'finished', winner: decided };
   return {
     ...s,
     phase: s.config.mode === 'bluff' ? 'announce' : 'pick',

@@ -501,6 +501,18 @@ describe('abandonment rule (idle rounds)', () => {
     expect(room.deadline).toBeNull();
   });
 
+  it('(c2) a natural winner is kept: the bot reaching the winning score in the last idle round still wins', () => {
+    const bot = createRoom({ config: { mode: 'classic', bestOf: 5 }, nickname: 'Ann', avatar: 'fox', vsBot: 'easy' }, T0);
+    const { room } = idleRounds(bot, 3);
+    // Bo5 needs 3 round wins: the bot wins the three idle rounds, so the score has decided the
+    // match. The abandonment rule must leave it alone; the last reveal then ends it normally.
+    expect(room.idleRounds).toBe(3);
+    expect(room.match).toMatchObject({ phase: 'reveal', winner: null, score: { a: 0, b: 3 } });
+    const done = tick(room, room.deadline!, fixed(0));
+    expect(done.match).toMatchObject({ phase: 'finished', winner: 'b', score: { a: 0, b: 3 } });
+    expect(done.deadline).toBeNull();
+  });
+
   it('(d) ghost seats (connected, bound to dead sockets, never acting) end the same way', () => {
     const ghost = duelRoom(); // both connected with socket ids nobody uses any more
     expect(ghost.players.a0?.connected && ghost.players.b0?.connected).toBe(true);
