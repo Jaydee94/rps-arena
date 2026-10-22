@@ -27,8 +27,10 @@
   let localPick = $state<string | null>(null);
   let localAnnounced = $state(false);
   let statusEl = $state<HTMLElement>();
+  // A primitive key: equal-phase room updates must not wipe the optimistic state before the ack.
+  const phaseKey = $derived(`${match.round}:${match.phase}`);
   $effect(() => {
-    void [match.round, match.phase];
+    void phaseKey;
     localPick = null;
     localAnnounced = false;
   });

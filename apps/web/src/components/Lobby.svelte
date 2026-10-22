@@ -15,6 +15,11 @@
 
   const inviteLink = $derived($room ? `${location.origin}/?room=${$room.code}` : '');
 
+  // Drop the pick-up when that seat was vacated meanwhile.
+  $effect(() => {
+    if (selected !== null && !$room?.players[selected]) selected = null;
+  });
+
   function moveHere(to: SeatId) {
     if (selected === null) return;
     moveSeat(selected, to);
@@ -32,7 +37,7 @@
       player={view.players[seat]}
       isYou={view.you === seat}
       isHostSeat={view.hostSeat === seat}
-      canMove={host && teamMode}
+      canMove={teamMode && (host || seat === view.you || !view.players[seat])}
       {selected}
       onselect={(s) => (selected = selected === s ? null : s)}
       onmoveHere={moveHere}

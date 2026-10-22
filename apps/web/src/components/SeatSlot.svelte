@@ -8,7 +8,7 @@
     player: PublicPlayer | undefined;
     isYou: boolean;
     isHostSeat: boolean;
-    /** The host may rearrange players (team mode). */
+    /** Team mode: the host moves anyone, a guest only themselves; free seats are drop targets. */
     canMove: boolean;
     /** The seat of the player currently picked up for moving. */
     selected: SeatId | null;

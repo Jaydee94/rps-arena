@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { flushSync } from 'svelte';
+import { flushSync, tick } from 'svelte';
 import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { BLUFF_EMOTES, getGestureSet, type RoomView } from '@rps/shared';
@@ -45,6 +45,30 @@ describe('Board', () => {
 
       await user.click(screen.getByRole('radio', { name: 'Papier' }));
       expect(actions.pick).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the optimistic pick when an unrelated room update arrives before the ack', async () => {
+      feed(makeRoom());
+      render(Board);
+      await userEvent.setup().click(screen.getByRole('radio', { name: 'Stein' }));
+
+      // same round and phase, new room object (e.g. the opponent locked in)
+      feed(makeRoom({ match: { lockedSeats: ['b0'] } }));
+      await tick();
+
+      for (const button of screen.getAllByRole('radio')) expect(button).toBeDisabled();
+      expect(screen.getByRole('radio', { name: 'Stein' })).toHaveAttribute('aria-checked', 'true');
+    });
+
+    it('keeps the optimistic announcement across equal-phase room updates', async () => {
+      const bluff = (announces = {}) =>
+        makeRoom({ config: { mode: 'bluff', bestOf: 3 }, match: { phase: 'announce', announces } });
+      feed(bluff());
+      render(Board);
+      await userEvent.setup().click(screen.getByRole('button', { name: 'Echse' }));
+      feed(bluff({ b0: 'spock' }));
+      await tick();
+      expect(screen.getByRole('button', { name: 'Überspringen' })).toBeDisabled();
     });
 
     it('disables the buttons and highlights the server-confirmed pick (e.g. after a reload)', () => {

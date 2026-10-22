@@ -77,10 +77,31 @@ describe('Lobby', () => {
     expect(actions.moveSeat).toHaveBeenCalledWith('a1', 'b1');
   });
 
-  it('does not offer moving to guests', () => {
-    roomStore.set(lobby(['a0', 'a1', 'b0'], { config: { mode: 'team2v2', bestOf: 3 }, you: 'b0' }));
+  it('lets a guest move only themselves, and only to a free seat', async () => {
+    roomStore.set(lobby(['a0', 'a1', 'b0'], { config: { mode: 'team2v2', bestOf: 3 }, you: 'a1' }));
     render(Lobby);
-    expect(screen.queryByRole('button', { name: 'Umsetzen' })).not.toBeInTheDocument();
+    const user = userEvent.setup();
+    expect(screen.getAllByRole('button', { name: 'Umsetzen' })).toHaveLength(1);
+    expect(within(screen.getByTestId('seat-a1')).getByRole('button', { name: 'Umsetzen' })).toBeInTheDocument();
+    await user.click(within(screen.getByTestId('seat-a1')).getByRole('button', { name: 'Umsetzen' }));
+    await user.click(within(screen.getByTestId('seat-b1')).getByRole('button', { name: 'Hierher setzen' }));
+    expect(actions.moveSeat).toHaveBeenCalledWith('a1', 'b1');
+  });
+
+  it('lets the host move anyone', () => {
+    roomStore.set(lobby(['a0', 'a1', 'b0'], { config: { mode: 'team2v2', bestOf: 3 } }));
+    render(Lobby);
+    expect(screen.getAllByRole('button', { name: 'Umsetzen' })).toHaveLength(3);
+  });
+
+  it('drops the pick-up when the selected seat is no longer occupied', async () => {
+    roomStore.set(lobby(['a0', 'a1', 'b0'], { config: { mode: 'team2v2', bestOf: 3 } }));
+    render(Lobby);
+    await userEvent.setup().click(within(screen.getByTestId('seat-a1')).getByRole('button', { name: 'Umsetzen' }));
+    expect(screen.getAllByRole('button', { name: 'Hierher setzen' })).toHaveLength(1);
+
+    roomStore.set(lobby(['a0', 'b0'], { config: { mode: 'team2v2', bestOf: 3 } }));
+    await vi.waitFor(() => expect(screen.queryByRole('button', { name: 'Hierher setzen' })).not.toBeInTheDocument());
   });
 
   it('copies the link and confirms', async () => {
