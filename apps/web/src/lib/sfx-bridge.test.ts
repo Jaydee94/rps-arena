@@ -13,7 +13,8 @@ vi.mock('./audio', () => ({
 }));
 vi.mock('./connection', () => ({ room: roomStore }));
 
-const { diffRoomSounds, startSfxBridge } = await import('./sfx-bridge');
+const { diffRoomSounds, scheduleRoomSounds, startSfxBridge } = await import('./sfx-bridge');
+const { motion } = await import('./motion');
 
 const revealRoom = (you: SeatId, winner: 'a' | 'b' | 'draw', yourPick: string | null = 'rock') =>
   makeRoom({
@@ -195,5 +196,80 @@ describe('startSfxBridge', () => {
     expect(play).not.toHaveBeenCalled();
     expect(get(roomStore)).not.toBeNull();
     stop = startSfxBridge();
+  });
+});
+
+describe('scheduleRoomSounds', () => {
+  afterEach(() => {
+    motion.countdownBeatMs = 0;
+  });
+
+  const plan = (prev: RoomView | null, next: RoomView | null) =>
+    scheduleRoomSounds(prev, next).map(({ name, delay }) => ({ name, delay: Number(delay.toFixed(3)) }));
+
+  it('holds the reveal sound back until the countdown ends', () => {
+    motion.countdownBeatMs = 420;
+    const prev = makeRoom({ match: { yourPick: 'rock' } });
+    expect(plan(prev, revealRoom('a0', 'a'))).toEqual([
+      { name: 'reveal', delay: 1.26 },
+      { name: 'win', delay: 1.96 },
+    ]);
+  });
+
+  it('keeps the lock sound at 0 and delays the reveal chain behind it', () => {
+    motion.countdownBeatMs = 420;
+    const prev = makeRoom({ match: { yourPick: null } });
+    expect(plan(prev, revealRoom('a0', 'a'))).toEqual([
+      { name: 'lock', delay: 0 },
+      { name: 'reveal', delay: 1.26 },
+      { name: 'win', delay: 1.96 },
+    ]);
+  });
+
+  it('matches the old chain without a countdown', () => {
+    motion.countdownBeatMs = 0;
+    const prev = makeRoom({ match: { yourPick: null } });
+    expect(plan(prev, revealRoom('a0', 'a'))).toEqual([
+      { name: 'lock', delay: 0 },
+      { name: 'reveal', delay: 0.2 },
+      { name: 'win', delay: 0.9 },
+    ]);
+  });
+
+  it('is empty without a previous state', () => {
+    motion.countdownBeatMs = 420;
+    expect(scheduleRoomSounds(null, revealRoom('a0', 'a'))).toEqual([]);
+  });
+
+  it('does not delay the transition to finished', () => {
+    motion.countdownBeatMs = 420;
+    const finished = makeRoom({ you: 'a0', match: { phase: 'finished', winner: 'a', yourPick: 'rock' } });
+    expect(plan(revealRoom('a0', 'a'), finished)).toEqual([{ name: 'win', delay: 0 }]);
+  });
+});
+
+describe('startSfxBridge with a countdown', () => {
+  let stop: () => void;
+
+  beforeEach(() => {
+    play.mockClear();
+    roomStore.set(null);
+    motion.countdownBeatMs = 420;
+    stop = startSfxBridge();
+  });
+
+  afterEach(() => {
+    stop();
+    motion.countdownBeatMs = 0;
+  });
+
+  it('plays the reveal chain with the countdown delays', () => {
+    roomStore.set(makeRoom({ match: { yourPick: null } }));
+    roomStore.set(revealRoom('a0', 'a'));
+    expect(play.mock.calls.map(([name]) => name)).toEqual(['lock', 'reveal', 'win']);
+    const delays = play.mock.calls.map(([, delay]) => delay as number);
+    expect(delays[0]).toBe(0);
+    expect(delays[1]).toBeCloseTo(1.26);
+    expect(delays[2]).toBeCloseTo(1.96);
   });
 });
