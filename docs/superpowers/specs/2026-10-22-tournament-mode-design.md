@@ -1,79 +1,79 @@
-# Turniermodus – Design
+# Tournament Mode – Design
 
-Stand: 2026-10-22. Entstanden im Gespräch mit Jan. Noch nichts gebaut.
+As of 2026-10-22. Developed in conversation with Jan. Nothing built yet.
 
-## Worum es geht und warum
+## What this is about and why
 
-RPS Arena kennt heute nur Duelle (1 gegen 1, 2 gegen 2). Jan möchte, dass eine Runde Freunde (oder ein Team) mit **allen Leuten im Raum** ein Turnier spielen kann: zufällig ausgelost, mit Baum oder Tabelle, mit Siegerehrung. Der Reiz ist das gemeinsame Event: Alle sind im selben Raum, schauen die Matches der anderen live und fiebern mit.
+Today RPS Arena only knows duels (1 vs 1, 2 vs 2). Jan wants a group of friends (or a team) to be able to play a tournament with **everyone in the room**: randomly drawn, with a bracket or a table, with an award ceremony. The appeal is the shared event: everyone is in the same room, watches the others' matches live and roots for them.
 
-## Ziele
+## Goals
 
-- 4 bis 8 Spieler in **einem** Raum spielen ein Turnier.
-- Der Host wählt in der Lobby das **Format**: K.o.-Baum oder Alle gegen alle.
-- Der Host wählt **einen Gesten-Modus** für das ganze Turnier (Klassisch, Echse-Spock, Rad der 7/9/15; nicht Bluff, nicht 2 gegen 2). Jedes Match ist **Best of 3**.
-- Die Auslosung ist zufällig. Sie wird als kleine Comic-Animation gezeigt (entfällt bei reduzierter Bewegung).
-- Die Matches laufen **nacheinander**. Alle anderen im Raum, auch ausgeschiedene Spieler und Zuschauer, **sehen das laufende Match live** (die gewählten Gesten bleiben wie immer bis zum Aufdecken geheim).
-- Zwischen zwei Matches zeigt der Raum rund 6 Sekunden den Baum bzw. die Tabelle mit dem Ergebnis, dann startet das nächste Match **automatisch**. Der Host kann die Pause überspringen.
-- Der Host spielt als normaler Teilnehmer mit und hat zusätzlich die Start- und Einstellungsrechte.
-- Wer **nach dem Start** beitritt, kommt als **Zuschauer** in den Raum (sieht Baum/Tabelle und Matches, spielt nicht mit).
-- Die **Zuschauerrolle gilt für alle Räume**, nicht nur für Turniere: Auch wer einem laufenden normalen Duell (1v1, 2v2, Bot) per Einladungslink beitritt, kommt als Zuschauer hinein, statt „Raum voll“ zu bekommen (Jans Entscheidung).
-- Siegerehrung am Ende; danach „Nochmal“ (gleiche Teilnehmer, neue Auslosung) und „Zurück“.
+- 4 to 8 players in **one** room play a tournament.
+- In the lobby the host picks the **format**: knockout bracket or round-robin.
+- The host picks **one gesture mode** for the whole tournament (Classic, Lizard-Spock, Wheel of 7/9/15; not Bluff, not 2 vs 2). Every match is **best of 3**.
+- The draw is random. It is shown as a small comic animation (omitted under reduced motion).
+- Matches run **one after another**. Everyone else in the room, including eliminated players and spectators, **watches the running match live** (the chosen gestures stay secret until the reveal, as always).
+- Between two matches the room shows the bracket or table with the result for about 6 seconds, then the next match starts **automatically**. The host can skip the intermission.
+- The host plays as a normal participant and additionally has the start and settings rights.
+- Anyone who joins **after the start** enters the room as a **spectator** (sees the bracket/table and the matches, does not play).
+- The **spectator role applies to all rooms**, not only tournaments: anyone who joins a running normal duel (1v1, 2v2, bot) via an invite link also enters as a spectator instead of getting “room full” (Jan's decision).
+- Award ceremony at the end; afterwards “Nochmal” (Rematch: same participants, new draw) and “Zurück” (Back).
 
-## Spielregeln des Turniers
+## Tournament rules
 
-- **K.o.-Baum:** zufällige Setzung. Bei ungerader Zahl gibt es **Freilose** (wer eins hat, kommt ohne Match weiter). Wer verliert, scheidet aus und wird Zuschauer.
-- **Alle gegen alle:** jeder gegen jeden, Tabelle nach gewonnenen Matches. Bei Gleichstand zählt zuerst der **direkte Vergleich**. Bei Gleichstand von drei oder mehr Spielern, den der direkte Vergleich nicht auflöst, spielen die Beteiligten ein **Stichmatch** (Best of 1, bei mehr als zwei Beteiligten wiederum nach den gleichen Regeln).
-- **Verbindungsabbruch:** Es gilt die vorhandene Wiederverbinden-Frist von 30 s. Danach hat die Person per **Forfait** verloren. Im K.o.-Baum kommt der Gegner weiter; bei Alle gegen alle zählen die ausstehenden Matches der Person als verloren. Das Turnier läuft weiter.
-- Ausgeschiedene und zuschauende Personen dürfen sich trennen und wieder verbinden, ohne dass das Turnier oder der Raum davon berührt wird.
+- **Knockout bracket:** random seeding. With an odd number of players there are **byes** (whoever has one advances without a match). Whoever loses is eliminated and becomes a spectator.
+- **Round-robin:** everyone plays everyone, table ranked by matches won. On a tie the **head-to-head record** counts first. If three or more players are tied and the head-to-head record does not resolve it, those involved play a **tie-break match** (best of 1; with more than two involved, again under the same rules).
+- **Disconnect:** the existing reconnect grace period of 30 s applies. After that the person has lost by **forfeit**. In the knockout bracket the opponent advances; in round-robin the person's remaining matches count as lost. The tournament continues.
+- Eliminated players and spectators may disconnect and reconnect without affecting the tournament or the room.
 
-## Nicht-Ziele
+## Non-goals
 
-- Keine Bots im Turnier (kein Auffüllen auf 4/8 Spieler).
-- Kein 2-gegen-2-Turnier, kein Bluff-Modus im Turnier.
-- Kein paralleles Spielen mehrerer Matches, keine Doppel-K.o.-Bäume, kein Schweizer System.
-- Keine Accounts, keine Rangliste über mehrere Turniere hinweg, keine Archivierung.
-- Kein Chat.
+- No bots in the tournament (no filling up to 4/8 players).
+- No 2-vs-2 tournament, no Bluff mode in the tournament.
+- No parallel play of several matches, no double-elimination brackets, no Swiss system.
+- No accounts, no ranking across several tournaments, no archiving.
+- No chat.
 
-## Anti-Ziele (daran würde es scheitern, auch wenn es technisch läuft)
+## Anti-goals (what it would fail on, even if it works technically)
 
-- Ein einzelner Verbindungsabbruch, ein gelangweilter Zuschauer oder die Entscheidung des Hosts darf das Turnier **nicht** einfrieren.
-- Zuschauer dürfen **niemals** eine Geste vor dem Aufdecken sehen (weder in der Ansicht noch im Datenverkehr).
-- Die bestehenden Duelle (1v1, 2v2, Bot) dürfen sich **für die Spielenden** nicht verändern oder langsamer werden. Die einzige gewollte Verhaltensänderung: Späte Beitritte werden Zuschauer statt „Raum voll“ (die bisherigen Tests dazu werden bewusst angepasst). Vor dem Start einer Partie bleibt ein volles Duell-Raum-Lobby weiterhin voll (Zuschauer gibt es erst, wenn die Partie läuft).
+- A single disconnect, a bored spectator or the host's decision must **not** freeze the tournament.
+- Spectators must **never** see a gesture before the reveal (neither in the view nor in the network traffic).
+- The existing duels (1v1, 2v2, bot) must not change or get slower **for the players**. The only intended behavior change: late joiners become spectators instead of getting “room full” (the existing tests for this are deliberately adjusted). Before a game starts, a full duel room lobby stays full (spectators only exist once the game is running).
 
-## Rahmenbedingungen aus dem Bestand (Recherche)
+## Constraints from the existing code (research)
 
-Das Paket `packages/shared` und der Server sind auf **ein** Match mit **festen vier Plätzen** (`a0`, `a1`, `b0`, `b1`) gebaut:
+The `packages/shared` package and the server are built around **one** match with **four fixed seats** (`a0`, `a1`, `b0`, `b1`):
 
-- `SeatId` ist eine Vereinigung aus vier Werten und steckt in Protokoll (zod), Raummodell, Ansichten, Kanälen, Gateway, Web (`teamOf`, `Lobby`, `Result`, `sfx-bridge`) und vielen Tests (z. B. `view.test.ts`, `protocol.test.ts`, `store.contract.ts`).
-- Ein Raum hat genau **ein** `match`, einen Zeitgeber (`deadline`/`phaseDeadline`), eine Bot-Stufe und eine begrenzte `history` (max. 50). Der Ticker (`ticker.ts`) und `settle`/`tick` hängen daran.
-- Es gibt **keine Zuschauer**: Ansichten gehen über Kanäle pro Platz; `RoomView.you` ist Pflicht; `joinRoom` lehnt nach Matchbeginn mit `room_full` ab; `seatOfSocket` wirft für nicht sitzende Sockets.
-- Der Raum liegt als **ein JSON-Dokument** im Speicher bzw. in Redis (optimistische Sperre, TTL 1800 s, Retry bis 20). Baum/Tabelle und Teilnehmerzahl vergrößern es; die View-Verteilung (`broadcast`, eine Ansicht pro Teilnehmer) wächst mit.
-- Die Match-Logik (`match.ts`: `createMatch`, `pick`, `advance`, `timeoutPhase`, `forfeitSeat`) ist rein und arbeitet auf zwei Plätzen (`a0` gegen `b0`). Eine Paarung lässt sich als `a0 = Spieler X`, `b0 = Spieler Y` abbilden und damit **unverändert wiederverwenden**.
-- Der Leerlauf-Abbruch (`IDLE_ROUNDS_LIMIT = 3`) und die Aufgeben-Logik (`isAbandoned`, `graceEnd`) gehen vom Raum als „sitzende Menschen“ aus. Zuschauer und Ausgeschiedene dürfen dort nicht als Spieler zählen.
-- Tests, die Formen festschreiben und deshalb angepasst oder gezielt erweitert werden müssen: `view.test.ts` (ganzer View per `toEqual`, Geheimhaltungsprüfungen), `protocol.test.ts` (`RoomJoined` ist genau `{code, seat, token}`), Gateway-Tests zu `room_full` nach Start, `store.contract.ts`.
+- `SeatId` is a union of four values and runs through the protocol (zod), room model, views, channels, gateway, web (`teamOf`, `Lobby`, `Result`, `sfx-bridge`) and many tests (e.g. `view.test.ts`, `protocol.test.ts`, `store.contract.ts`).
+- A room has exactly **one** `match`, one timer (`deadline`/`phaseDeadline`), one bot level and a bounded `history` (max. 50). The ticker (`ticker.ts`) and `settle`/`tick` hang off these.
+- There are **no spectators**: views go through per-seat channels; `RoomView.you` is mandatory; `joinRoom` rejects with `room_full` once the match has begun; `seatOfSocket` throws for sockets that are not seated.
+- The room is stored as **one JSON document** in memory or in Redis (optimistic locking, TTL 1800 s, retry up to 20). The bracket/table and the participant count make it bigger; the view distribution (`broadcast`, one view per participant) grows with it.
+- The match logic (`match.ts`: `createMatch`, `pick`, `advance`, `timeoutPhase`, `forfeitSeat`) is pure and works on two seats (`a0` against `b0`). A pairing can be mapped as `a0 = player X`, `b0 = player Y` and thus **reused unchanged**.
+- The idle abort (`IDLE_ROUNDS_LIMIT = 3`) and the abandon logic (`isAbandoned`, `graceEnd`) treat the room as “seated humans”. Spectators and eliminated players must not count as players there.
+- Tests that pin down shapes and therefore must be adjusted or deliberately extended: `view.test.ts` (whole view via `toEqual`, secrecy checks), `protocol.test.ts` (`RoomJoined` is exactly `{code, seat, token}`), gateway tests for `room_full` after start, `store.contract.ts`.
 
-## Vorgehen (Jan hat zugestimmt, in zwei Stufen zu bauen)
+## Approach (Jan agreed to build in two stages)
 
-**Stufe 1 – Fundament: Teilnehmer und Zuschauer im Raum.** Ohne Turnierlogik. Ergebnis: ein Raum kann mehr als zwei/vier Personen halten, jede Person hat eine eigene Kennung (Teilnehmer-ID statt festem Platz), es gibt eine Zuschauerrolle mit eigener, geheimhaltungssicherer Ansicht, und späte Beitritte während eines laufenden Matches sind **in allen Raumarten** als Zuschauer möglich. Das Spielverhalten der bestehenden Modi bleibt für die Spielenden unverändert (Rückwärtskompatibilität des Verhaltens, nicht unbedingt der Datenform). Zuschauer zählen nie als Spieler: nicht für Leerlauf-Abbruch, Raum-Verlassen, Wiederverbinden-Frist oder „Alle haben ‚Weiter‘ gedrückt“. Das ist der größte Eingriff und sollte für sich getestet und reviewt werden, bevor Stufe 2 darauf aufbaut.
+**Stage 1 – Foundation: participants and spectators in the room.** No tournament logic. Result: a room can hold more than two/four people, each person has their own identifier (participant ID instead of a fixed seat), there is a spectator role with its own secrecy-safe view, and late joins during a running match are possible as spectators **in all room types**. The gameplay of the existing modes stays unchanged for the players (backward compatibility of behavior, not necessarily of the data shape). Spectators never count as players: not for the idle abort, leaving the room, the reconnect grace period or “everyone pressed ‘Weiter’ (Next)”. This is the biggest intervention and should be tested and reviewed on its own before stage 2 builds on it.
 
-**Stufe 2 – Turnier.** Eine Turnier-Schicht im Server, die Format, Setzung, Freilose, Tabelle, Stichmatch-Regeln und den Ablauf „Paarung → Match → Ergebnis → Pause → nächste Paarung“ besitzt und je Paarung die vorhandene Match-Logik laufen lässt. Dazu die Oberflächen: Turnier-Einstellungen in der Lobby, Auslosungsanimation, Baum- und Tabellenansicht, Zuschauer-Brett mit dem laufenden Match, Siegerehrung. Texte in DE und EN, Comic-Panel-Look, Bewegung nur in `animations.css` (siehe `2026-10-22-comic-panel-design-handoff.md`).
+**Stage 2 – Tournament.** A tournament layer on the server that owns the format, seeding, byes, table, tie-break match rules and the flow “pairing → match → result → intermission → next pairing”, and runs the existing match logic for each pairing. Plus the user interfaces: tournament settings in the lobby, draw animation, bracket and table views, spectator board with the running match, award ceremony. Copy in DE and EN, comic-panel look, motion only in `animations.css` (see `2026-10-22-comic-panel-design-handoff.md`).
 
-## Entscheidungen des Autors (Jan hat sie nicht ausdrücklich getroffen, bitte prüfen)
+## Decisions of the author (Jan did not explicitly make these, please review)
 
-- **Match ohne Sieger** (beide untätig, Leerlauf-Abbruch, beide gleichzeitig getrennt): Im K.o.-Baum kommt weiter, wer mehr Runden gewonnen hat; bei Gleichstand entscheidet ein sichtbarer **Münzwurf** (zufällig, mit festem Zufall testbar). Bei Alle gegen alle gilt das Match als **für beide verloren** (kein Punkt).
-- **Wiederverbinden-Frist im Turnier:** Sie läuft pro Person ab dem Moment, in dem deren Match aufgerufen wird bzw. sie in einem laufenden Match wegbricht, nicht schon zwischen den Matches. Die Pause und das nächste Match warten nie auf eine abwesende Person: Ist sie beim Aufruf nicht verbunden, läuft die 30-Sekunden-Frist, danach Forfait. Ausgeschiedene und Zuschauer haben keine Frist.
-- **Host-Wechsel:** Verlässt der Host den Raum oder verliert per Forfait/Frist, geht die Host-Rolle an den nächsten verbundenen **Turnierteilnehmer** in der Reihenfolge des Beitritts. Zuschauer werden nie Host (ihre Ansicht ist für alle identisch und enthält keine Personenrolle). Sind keine verbundenen Teilnehmer mehr da, ist das Turnier zu Ende und der Raum räumt sich über den bestehenden Abbruch-Mechanismus ab. Damit hängen „Weiter“, „Nochmal“ und „Zurück“ nie an einer abwesenden Person. (Planungsentscheidung beim Schreiben des Stufe-2-Plans; ersetzt „dann Zuschauer“.)
-- **Alle gegen alle, Gleichstand:** Der direkte Vergleich wird nur unter den gleichstehenden Spielern als Mini-Tabelle gerechnet; teilweise aufgelöste Gruppen werden aufgeteilt, bevor ein Stichmatch greift. Ein **Stichmatch gibt es nur um Platz 1**; Gleichstände auf den Plätzen dahinter bleiben als geteilter Platz stehen. Die Siegerehrung zeigt das Treppchen bis Platz 3 (bei geteilten Plätzen entsprechend).
-- **„Nochmal“:** Der Raum geht zurück in die Lobby. Alle aktuell verbundenen Personen (frühere Zuschauer eingeschlossen) können mitspielen, die ersten 8 nach Beitrittsreihenfolge werden Spielende, weitere bleiben Zuschauer. Die Spielerzahl ist erst mit dem Start des neuen Turniers festgelegt, nicht mehr davor.
+- **Match without a winner** (both idle, idle abort, both disconnected at the same time): in the knockout bracket, whoever won more rounds advances; on a tie a visible **coin flip** decides (random, testable with a fixed random source). In round-robin the match counts as **lost for both** (no point).
+- **Reconnect grace period in the tournament:** it runs per person from the moment their match is called up or they drop out during a running match, not already between matches. The intermission and the next match never wait for an absent person: if they are not connected when called up, the 30-second grace period runs, then forfeit. Eliminated players and spectators have no grace period.
+- **Host change:** if the host leaves the room or loses by forfeit/grace period, the host role goes to the next connected **tournament participant** in join order. Spectators never become host (their view is identical for everyone and contains no personal role). If no connected participants are left, the tournament is over and the room cleans itself up via the existing abort mechanism. This way “Weiter” (Next), “Nochmal” (Rematch) and “Zurück” (Back) never depend on an absent person. (Planning decision taken while writing the stage 2 plan; replaces the earlier rule “then spectator”.)
+- **Round-robin, tie:** the head-to-head record is computed only among the tied players as a mini-table; partially resolved groups are split before a tie-break match applies. A **tie-break match exists only for 1st place**; ties at the places behind it remain as a shared place. The award ceremony shows the podium up to 3rd place (with shared places accordingly).
+- **“Nochmal” (Rematch):** the room goes back to the lobby. All currently connected people (former spectators included) can take part; the first 8 by join order become players, the others stay spectators. The number of players is only fixed when the new tournament starts, not before.
 
-## Was der Baumeister entscheiden darf
+## What the builder may decide
 
-- Aufbau der Teilnehmerkennung und ihrer Kanäle, Form der Zuschauer-Ansicht, Migration der Typen (z. B. `SeatId` ablösen oder erweitern) und wie die Tests angepasst werden.
-- Konkrete Darstellung von Baum und Tabelle, Länge der Auslosungsanimation, genaue Pausenlänge (Richtwert 6 s), Texte.
-- Wie die Setzung zufällig erzeugt wird (muss in Tests mit festem Zufall reproduzierbar sein).
-- Ob Stufe 1 hinter einem festen Obergrenzen-Wert (Spieler plus Zuschauer pro Raum) abgesichert wird. Richtwert: 8 Spieler, Zuschauer zusätzlich bis zu einer sinnvollen Obergrenze.
+- Structure of the participant identifier and its channels, shape of the spectator view, migration of the types (e.g. replace or extend `SeatId`) and how the tests are adjusted.
+- Concrete presentation of bracket and table, length of the draw animation, exact intermission length (guideline 6 s), copy.
+- How the seeding is generated randomly (must be reproducible in tests with a fixed random source).
+- Whether stage 1 is protected by a fixed upper-limit value (players plus spectators per room). Guideline: 8 players, spectators additionally up to a sensible upper limit.
 
-## Offen / nicht entschieden
+## Open / undecided
 
-- Obergrenze für Zuschauer pro Raum (Richtwert siehe oben).
-- Ob die Turnier-Einstellung „Best of“ später für das Finale getrennt einstellbar sein soll (jetzt: Best of 3 für alle Matches).
+- Upper limit for spectators per room (guideline see above).
+- Whether the tournament setting “best of” should later be adjustable separately for the final (now: best of 3 for all matches).

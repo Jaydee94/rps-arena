@@ -1,39 +1,39 @@
-# Turnier Stufe 1: Zuschauer und Personen im Raum – Implementation Plan
+# Tournament Stage 1: Spectators and People in the Room – Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ein Raum kann zusätzlich zu den Spielenden beliebig viele (bis `MAX_SPECTATORS`) **Zuschauer** halten. Wer einer bereits gestarteten Partie beitritt, schaut zu, statt „Raum voll“ zu bekommen. Zuschauer sehen alles, was der Gegner auch sieht, aber nie eine ungewählte Geste.
+**Goal:** In addition to the players, a room can hold any number of **spectators** (up to `MAX_SPECTATORS`). Anyone who joins a game that has already started watches instead of getting “room full”. Spectators see everything the opponent sees, but never an unchosen gesture.
 
-**Architecture:** Die Match-Logik und die vier festen Plätze (`a0`, `a1`, `b0`, `b1`) bleiben unverändert. Neu ist ein zweiter Personentyp `Spectator` im Raum, eine zweite View-Form (`SpectatorView`, für alle Zuschauer identisch, daher ein gemeinsamer Socket-Kanal) und ein `role`-Feld in `RoomView`. Stufe 2 (Turnier, siehe `2026-10-22-tournament-stage2-tournament.md`) baut darauf auf.
+**Architecture:** The match logic and the four fixed seats (`a0`, `a1`, `b0`, `b1`) stay unchanged. New are a second person type `Spectator` in the room, a second view shape (`SpectatorView`, identical for all spectators, hence one shared socket channel) and a `role` field in `RoomView`. Stage 2 (tournament, see `2026-10-22-tournament-stage2-tournament.md`) builds on it.
 
-**Tech Stack:** TypeScript, Zod, Socket.IO, Redis (Raum als ein JSON-Dokument), Svelte 5, Vitest, Playwright.
+**Tech Stack:** TypeScript, Zod, Socket.IO, Redis (room as one JSON document), Svelte 5, Vitest, Playwright.
 
-**Spec:** `docs/superpowers/specs/2026-10-22-tournament-mode-design.md` (Abschnitte „Ziele“, „Anti-Ziele“, „Rahmenbedingungen aus dem Bestand“, „Stufe 1“, „Entscheidungen des Autors“). Dieser Plan setzt nur Stufe 1 um. Er startet auf dem Stand von `feat/comic-panel` (oder `main`, sobald der Comic-Panel-PR gemergt ist), nicht davor.
+**Spec:** `docs/superpowers/specs/2026-10-22-tournament-mode-design.md` (sections “Goals”, “Anti-goals”, “Constraints from the existing code”, “Stage 1”, “Decisions of the author”). This plan implements stage 1 only. It starts from the state of `feat/comic-panel` (or `main`, once the comic-panel PR is merged), not before.
 
 ## Global Constraints
 
-- Das Spielverhalten für Spielende bleibt unverändert (1v1, 2v2, Bot, Bluff). Einzige gewollte Verhaltensänderung: ein Beitritt **nach dem Start der Partie** wird Zuschauer statt `room_full`. Vor dem Start bleibt ein volles Duell-Lobby voll (`room_full`).
-- Zuschauer zählen **nie** als Spieler: nicht für `isAbandoned`, Leerlauf-Abbruch (`IDLE_ROUNDS_LIMIT`), „Weiter“-Abstimmung (`applyNext`), Forfait, Verlassen, Wiederverbinden-Frist der Spielenden.
-- Geheimhaltung: `PublicMatch` für Zuschauer hat `yourPick: null`; kein `picks`, kein `token` irgendeiner Person im Datenverkehr (auch nicht im Rohframe). Views bleiben explizite Erlaubnislisten ohne Spread.
-- Die Zuschauer-View ist für alle Zuschauer identisch (sie enthält keine eigene ID). Ein gemeinsamer Kanal `${code}:spec`.
-- `MAX_SPECTATORS = 16` (neu in `packages/shared/src/constants.ts`). Darüber: `room_full`.
-- Räume, die vor dieser Änderung gespeichert wurden, müssen weiter laden: neue Raumfelder sind **optional** (fehlend = leer).
-- Neue Fehlercode `not_player` (Zuschauer sendet Spiel- oder Host-Ereignis); DE/EN-Text; `i18n.test.ts` prüft alle `ERROR_CODES`.
-- Alle neuen Texte in `de.json` **und** `en.json`. Keine Hex-Werte in Komponenten; Bewegung nur in `styles/animations.css` (Block `prefers-reduced-motion: no-preference`); keine Inline-Styles außer `style:--x`; Comic-Panel-Look (`.panel`, Tokens).
-- Bestehende Tests nur ändern, wo dieser Plan es ausdrücklich nennt.
-- Commits Conventional Commits, Trailer `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
+- Gameplay for players stays unchanged (1v1, 2v2, bot, Bluff). The only intended behavior change: a join **after the game has started** becomes a spectator instead of `room_full`. Before the start, a full duel lobby stays full (`room_full`).
+- Spectators **never** count as players: not for `isAbandoned`, idle abort (`IDLE_ROUNDS_LIMIT`), the “Weiter” (Next) vote (`applyNext`), forfeit, leaving, or the players' reconnect grace period.
+- Secrecy: `PublicMatch` for spectators has `yourPick: null`; no `picks`, no `token` of any person in the network traffic (not even in the raw frame). Views remain explicit allowlists without spread.
+- The spectator view is identical for all spectators (it contains no own ID). One shared channel `${code}:spec`.
+- `MAX_SPECTATORS = 16` (new in `packages/shared/src/constants.ts`). Beyond that: `room_full`.
+- Rooms stored before this change must keep loading: new room fields are **optional** (missing = empty).
+- New error code `not_player` (spectator sends a game or host event); DE/EN text; `i18n.test.ts` checks all `ERROR_CODES`.
+- All new copy in `de.json` **and** `en.json`. No hex values in components; motion only in `styles/animations.css` (block `prefers-reduced-motion: no-preference`); no inline styles except `style:--x`; comic-panel look (`.panel`, tokens).
+- Change existing tests only where this plan explicitly says so.
+- Commits are Conventional Commits, trailer `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
 
 ## Review Focus
 
-1. Zuschauer-JSON (Zustand und Rohframes) enthält nie eine ungewählte Geste, Token oder `picks` (Task 3, 4, 7).
-2. Ein Zuschauer, der sich trennt oder dessen Frist abläuft, ändert weder Phasenzeiten noch `deadline` der Spielenden noch den Leerlauf-Abbruch; sein Platz wird freigegeben (Task 2).
-3. Zuschauer rejoint per Token nach Reload und bekommt wieder die Zuschauer-View, nicht „bad_token“ (Task 2, 5).
-4. Ein Zuschauer sendet `game:pick`, `room:start`, `seat:move`, `game:next`, `room:rematch`: Fehler `not_player`, kein Zustand ändert sich (Task 4).
-5. Raum mit abgelaufenen Spielenden wird abgeräumt (`isAbandoned`) auch wenn Zuschauer verbunden sind; deren Sockets verlassen den Raum (`dropRoom`) (Task 2, 4).
+1. Spectator JSON (state and raw frames) never contains an unchosen gesture, token or `picks` (Task 3, 4, 7).
+2. A spectator who disconnects or whose grace period expires changes neither the phase times nor the `deadline` of the players nor the idle abort; their slot is released (Task 2).
+3. A spectator rejoins by token after a reload and gets the spectator view again, not “bad_token” (Task 2, 5).
+4. A spectator sends `game:pick`, `room:start`, `seat:move`, `game:next`, `room:rematch`: error `not_player`, no state changes (Task 4).
+5. A room with expired players is cleaned up (`isAbandoned`) even when spectators are connected; their sockets leave the room (`dropRoom`) (Task 2, 4).
 
 ---
 
-### Task 1: Gemeinsame Typen, Konstante, Fehlercode
+### Task 1: Shared types, constant, error code
 
 **Files:**
 - Modify: `packages/shared/src/protocol.ts`, `packages/shared/src/constants.ts`, `packages/shared/src/protocol.test.ts`
@@ -41,120 +41,120 @@
 **Interfaces:**
 - Produces in `constants.ts`: `export const MAX_SPECTATORS = 16;`
 - Produces in `protocol.ts`:
-  - `ERROR_CODES` bekommt `'not_player'` (Zuschauer darf das nicht).
+  - `ERROR_CODES` gets `'not_player'` (a spectator may not do that).
   - `export interface PublicSpectator { id: string; nickname: string; avatar: string; connected: boolean }`
-  - `export interface PlayerView { role: 'player'; code: string; config: RoomConfig; you: SeatId; hostSeat: SeatId; isHost: boolean; players: Partial<Record<SeatId, PublicPlayer>>; spectators: PublicSpectator[]; match: PublicMatch | null; deadline: number | null }` (das bisherige `RoomView` plus `role`, `isHost`, `spectators`).
-  - `export interface SpectatorView { role: 'spectator'; code: string; config: RoomConfig; hostSeat: SeatId; isHost: boolean; me: { id: string } | null; players: Partial<Record<SeatId, PublicPlayer>>; spectators: PublicSpectator[]; match: PublicMatch | null; deadline: number | null }` (ohne `you`; `match.yourPick` ist immer `null`). In Stufe 1 ist `isHost` immer `false` und `me` immer `null`; Stufe 2 füllt beides für Turnierteilnehmer, die gerade nicht spielen.
+  - `export interface PlayerView { role: 'player'; code: string; config: RoomConfig; you: SeatId; hostSeat: SeatId; isHost: boolean; players: Partial<Record<SeatId, PublicPlayer>>; spectators: PublicSpectator[]; match: PublicMatch | null; deadline: number | null }` (the previous `RoomView` plus `role`, `isHost`, `spectators`).
+  - `export interface SpectatorView { role: 'spectator'; code: string; config: RoomConfig; hostSeat: SeatId; isHost: boolean; me: { id: string } | null; players: Partial<Record<SeatId, PublicPlayer>>; spectators: PublicSpectator[]; match: PublicMatch | null; deadline: number | null }` (without `you`; `match.yourPick` is always `null`). In stage 1 `isHost` is always `false` and `me` always `null`; stage 2 fills both for tournament participants who are not currently playing.
   - `export type RoomView = PlayerView | SpectatorView;`
-  - `RoomJoined` wird `{ code: string; token: string; role: 'player' | 'spectator'; seat: SeatId | null }` (`seat` ist für Zuschauer `null`).
+  - `RoomJoined` becomes `{ code: string; token: string; role: 'player' | 'spectator'; seat: SeatId | null }` (`seat` is `null` for spectators).
 
-- [ ] **Step 1: Failing tests** in `protocol.test.ts`: `ERROR_CODES` enthält `not_player`; `MAX_SPECTATORS` ist `16`; Typtest per `satisfies`-Zuweisung, dass ein `PlayerView`-Literal `role: 'player'` verlangt und ein `SpectatorView`-Literal kein `you` hat (compile-time, per `// @ts-expect-error`). Der bestehende Test, der `RoomJoined` auf genau `{code, seat, token}` festschreibt (`protocol.test.ts:134-137`), wird auf `{code, token, role, seat}` angepasst (die einzige erlaubte Änderung eines bestehenden Tests hier).
+- [ ] **Step 1: Failing tests** in `protocol.test.ts`: `ERROR_CODES` contains `not_player`; `MAX_SPECTATORS` is `16`; type test via `satisfies` assignment that a `PlayerView` literal requires `role: 'player'` and a `SpectatorView` literal has no `you` (compile-time, via `// @ts-expect-error`). The existing test that pins `RoomJoined` to exactly `{code, seat, token}` (`protocol.test.ts:134-137`) is adjusted to `{code, token, role, seat}` (the only permitted change to an existing test here).
 - [ ] **Step 2:** `npx vitest run packages/shared` → FAIL.
-- [ ] **Step 3:** Typen und Konstante wie oben anlegen; `RoomView` und `RoomJoined` ersetzen. Folgefehler in `apps/server` und `apps/web` (Typecheck) bewusst ignorieren, sie werden in den Tasks 2–5 behoben; Task 1 committet nur `packages/shared`, `npx vitest run packages/shared` und `npm run typecheck -w @rps/shared` sind grün.
+- [ ] **Step 3:** Create the types and constant as above; replace `RoomView` and `RoomJoined`. Deliberately ignore follow-up errors in `apps/server` and `apps/web` (typecheck), they are fixed in Tasks 2–5; Task 1 commits only `packages/shared`, and `npx vitest run packages/shared` and `npm run typecheck -w @rps/shared` are green.
 - [ ] **Step 4: Commit** `feat(shared): add spectator role, views and error code`.
 
-### Task 2: Server-Raummodell und Engine
+### Task 2: Server room model and engine
 
 **Files:**
 - Modify: `apps/server/src/room.ts`, `engine.ts`, `settle.ts`
-- Test: `apps/server/src/engine.test.ts` (nur ergänzen; zwei bestehende Fälle werden angepasst, siehe Step 1), `settle`-Tests falls vorhanden
+- Test: `apps/server/src/engine.test.ts` (additions only; two existing cases are adjusted, see Step 1), `settle` tests if present
 
 **Interfaces:**
 - Consumes: `MAX_SPECTATORS`, `PublicSpectator` (Task 1).
 - Produces in `room.ts`:
   - `export type Spectator = PublicSpectator & { token: string; socketId: string | null; disconnectedAt: number | null };`
-  - `Room.spectators?: Spectator[]` (optional; fehlend = `[]`). Hilfsfunktion `spectatorsOf(room: Room): Spectator[]`.
+  - `Room.spectators?: Spectator[]` (optional; missing = `[]`). Helper function `spectatorsOf(room: Room): Spectator[]`.
 - Produces in `engine.ts`:
   - `export type Who = { role: 'player'; seat: SeatId } | { role: 'spectator'; id: string };`
-  - `joinRoom(room, nickname, avatar, now, socketId?)` liefert jetzt `{ room: Room; who: Who }`. Regel: `room.match === null` → wie bisher Platz oder `room_full`; `room.match !== null` (läuft oder beendet) → Zuschauer, `room_full` ab `MAX_SPECTATORS`. Die Zuschauer-ID ist 8 Zeichen Hex (`randomBytes(4)`), Token 128 Bit wie bei Spielenden.
-  - `whoOfSocket(room: Room, socketId: string): Who | null` (ergänzt `seatOfSocket`, das unverändert bleibt).
+  - `joinRoom(room, nickname, avatar, now, socketId?)` now returns `{ room: Room; who: Who }`. Rule: `room.match === null` → as before seat or `room_full`; `room.match !== null` (running or finished) → spectator, `room_full` from `MAX_SPECTATORS` on. The spectator ID is 8 hex characters (`randomBytes(4)`), token 128 bit as for players.
+  - `whoOfSocket(room: Room, socketId: string): Who | null` (complements `seatOfSocket`, which stays unchanged).
   - `markSpectatorDisconnected(room, id, now): Room`, `markSpectatorConnected(room, id, now, socketId): Room`, `leaveSpectator(room, id): Room`.
-  - `rejoinRoom(room, token, now, socketId)` liefert `{ room; who: Who; previousSocketId: string | null }`; ein Zuschauer-Token wird gefunden wie ein Spieler-Token (zeitkonstant verglichen); abgelaufene Frist → `bad_token`.
-  - `tick`: entfernt Zuschauer, deren Wiederverbinden-Frist (`RECONNECT_GRACE_MS`) abgelaufen ist; dies ist die **einzige** Wirkung von Zuschauern auf den Ticker.
-- Produces in `settle.ts`: `schedule` nimmt die Frist-Enden der Zuschauer in `deadline` auf (nur zum Aufwecken), nie in `phaseDeadline`. `humans`, `isAbandoned`, `graceEnd` bleiben **nur** Spielende.
+  - `rejoinRoom(room, token, now, socketId)` returns `{ room; who: Who; previousSocketId: string | null }`; a spectator token is found like a player token (compared in constant time); expired grace period → `bad_token`.
+  - `tick`: removes spectators whose reconnect grace period (`RECONNECT_GRACE_MS`) has expired; this is the **only** effect spectators have on the ticker.
+- Produces in `settle.ts`: `schedule` includes the spectators' grace period ends in `deadline` (only for waking up), never in `phaseDeadline`. `humans`, `isAbandoned`, `graceEnd` remain **players only**.
 
-- [ ] **Step 1: Failing tests** (`engine.test.ts`, feste Zeiten/`rng`): (a) Beitritt in ein Duell **vor** Start mit besetzten Plätzen → `room_full` (unverändert); (b) Beitritt **nach** `startMatch` → `who.role === 'spectator'`, Raum hat einen Zuschauer, `room.match` unverändert (`toBe`); (c) auch nach beendetem Match → Zuschauer; (d) 17. Zuschauer → `room_full`; (e) Zuschauer verbunden, alle Spielenden weg und Frist abgelaufen → `isAbandoned` ist `true`; (f) ein Zuschauer, der sich trennt/zurückkommt/Frist überschreitet, ändert `phaseDeadline`, `idleRounds`, `nextReady`, `match` nicht (`toEqual` auf diese Felder) und wird beim Frist-Ablauf aus `spectators` entfernt; (g) `applyNext` zählt Zuschauer nicht als Abstimmende; (h) `rejoinRoom` mit Zuschauer-Token → `who.role === 'spectator'`, mit abgelaufener Frist → `bad_token`; (i) `rematch` lässt Zuschauer unverändert; (j) ältere gespeicherte Räume ohne `spectators`-Feld funktionieren (`joinRoom`, `tick`). **Bestehende Fälle**, die `room_full` für einen Beitritt nach Start oder die alte Rückgabeform von `joinRoom` (`{room, seat}`) erwarten, werden auf die neue Form/Regel angepasst und im Bericht aufgelistet.
+- [ ] **Step 1: Failing tests** (`engine.test.ts`, fixed times/`rng`): (a) join into a duel **before** the start with occupied seats → `room_full` (unchanged); (b) join **after** `startMatch` → `who.role === 'spectator'`, the room has one spectator, `room.match` unchanged (`toBe`); (c) also after a finished match → spectator; (d) 17th spectator → `room_full`; (e) spectator connected, all players gone and grace period expired → `isAbandoned` is `true`; (f) a spectator who disconnects/comes back/exceeds the grace period does not change `phaseDeadline`, `idleRounds`, `nextReady`, `match` (`toEqual` on these fields) and is removed from `spectators` when the grace period expires; (g) `applyNext` does not count spectators as voters; (h) `rejoinRoom` with a spectator token → `who.role === 'spectator'`, with an expired grace period → `bad_token`; (i) `rematch` leaves spectators unchanged; (j) older stored rooms without a `spectators` field work (`joinRoom`, `tick`). **Existing cases** that expect `room_full` for a join after the start or the old return shape of `joinRoom` (`{room, seat}`) are adjusted to the new shape/rule and listed in the report.
 - [ ] **Step 2:** `npx vitest run apps/server/src/engine.test.ts` → FAIL.
-- [ ] **Step 3:** Implementieren nach den Interfaces. Hinweis: `joinRoom` bleibt rein (nimmt `now`, `socketId`).
-- [ ] **Step 4:** `npx vitest run apps/server` grün (Gateway-Tests, die noch die alte Form nutzen, sind Task 4; bis dahin dürfen **nur** diese rot sein und müssen im Bericht benannt werden).
+- [ ] **Step 3:** Implement according to the interfaces. Note: `joinRoom` stays pure (takes `now`, `socketId`).
+- [ ] **Step 4:** `npx vitest run apps/server` green (gateway tests that still use the old shape are Task 4; until then **only** those may be red and must be named in the report).
 - [ ] **Step 5: Commit** `feat(server): add spectators to the room model and engine`.
 
 ### Task 3: Views
 
 **Files:**
-- Modify: `apps/server/src/view.ts`, `apps/server/src/store.contract.ts` (Fixture `makeRoom`)
+- Modify: `apps/server/src/view.ts`, `apps/server/src/store.contract.ts` (fixture `makeRoom`)
 - Test: `apps/server/src/view.test.ts`
 
 **Interfaces:**
 - Consumes: `Spectator`, `spectatorsOf` (Task 2), `PlayerView`, `SpectatorView` (Task 1).
-- Produces: `viewFor(room: Room, seat: SeatId): PlayerView` (jetzt mit `role: 'player'`, `isHost: seat === room.hostSeat`, `spectators: PublicSpectator[]`) und `spectatorViewFor(room: Room): SpectatorView` (explizite Erlaubnisliste; `match.yourPick` ist `null`; `isHost: false`, `me: null`; keine Tokens).
+- Produces: `viewFor(room: Room, seat: SeatId): PlayerView` (now with `role: 'player'`, `isHost: seat === room.hostSeat`, `spectators: PublicSpectator[]`) and `spectatorViewFor(room: Room): SpectatorView` (explicit allowlist; `match.yourPick` is `null`; `isHost: false`, `me: null`; no tokens).
 
-- [ ] **Step 1: Failing tests:** `spectatorViewFor` auf einem Raum mit laufender Pick-Phase und gesetzten Picks beider Seiten: `JSON.stringify(view)` enthält weder die Gesten-Namen der Picks noch irgendeinen Token (Spielende und Zuschauer), `Object.keys(view.match)` enthält kein `picks`; `lockedSeats` ist vorhanden; nach dem Aufdecken enthält `lastRound` die Gesten; `yourPick` ist `null`. `viewFor` enthält `role: 'player'`, `isHost` und die Zuschauerliste (nur `id`, `nickname`, `avatar`, `connected`). Der bestehende `toEqual` auf die ganze Spieler-View (`view.test.ts:124`) wird um die drei neuen Felder ergänzt (einzige erlaubte Änderung).
-- [ ] **Step 2:** Tests → FAIL. **Step 3:** Implementieren. **Step 4:** `npx vitest run apps/server/src/view.test.ts` grün.
+- [ ] **Step 1: Failing tests:** `spectatorViewFor` on a room in a running pick phase with picks set on both sides: `JSON.stringify(view)` contains neither the gesture names of the picks nor any token (players and spectators), `Object.keys(view.match)` contains no `picks`; `lockedSeats` is present; after the reveal `lastRound` contains the gestures; `yourPick` is `null`. `viewFor` contains `role: 'player'`, `isHost` and the spectator list (only `id`, `nickname`, `avatar`, `connected`). The existing `toEqual` on the whole player view (`view.test.ts:124`) is extended by the three new fields (the only permitted change).
+- [ ] **Step 2:** Tests → FAIL. **Step 3:** Implement. **Step 4:** `npx vitest run apps/server/src/view.test.ts` green.
 - [ ] **Step 5: Commit** `feat(server): add the spectator view and role fields`.
 
 ### Task 4: Gateway
 
 **Files:**
 - Modify: `apps/server/src/gateway.ts`
-- Test: `apps/server/src/gateway.test.ts` (bestehende `room_full`-Fälle nach Start siehe Step 1), ggf. `http.test.ts` unberührt
+- Test: `apps/server/src/gateway.test.ts` (existing `room_full` cases after the start, see Step 1), `http.test.ts` untouched if possible
 
 **Interfaces:**
 - Consumes: `joinRoom`/`rejoinRoom` → `Who`, `whoOfSocket`, `markSpectatorDisconnected` (Task 2), `viewFor`, `spectatorViewFor` (Task 3).
-- Produces: `export const spectatorChannel = (code: string) => `${code}:spec``. `bind` tritt für Zuschauer dem Raumkanal `code` und `spectatorChannel(code)` bei und sendet `room:joined { code, token, role: 'spectator', seat: null }`. `broadcast` sendet jeder Spielenden-Seat seine `viewFor` und **einmal** `spectatorViewFor` auf `spectatorChannel`. `dropRoom` lässt auch `spectatorChannel` los. `release()` unterscheidet über `whoOfSocket` Spielende (wie bisher `markDisconnected`) und Zuschauer (`markSpectatorDisconnected`). Spiel- und Host-Ereignisse (`room:start`, `seat:move`, `game:announce`, `game:pick`, `game:next`, `room:rematch`) von einem Zuschauer-Socket → `room:error { code: 'not_player' }`, der Zustand ändert sich nicht (`asSeat` prüft `whoOfSocket`).
+- Produces: `export const spectatorChannel = (code: string) => `${code}:spec``. For spectators, `bind` joins the room channel `code` and `spectatorChannel(code)` and sends `room:joined { code, token, role: 'spectator', seat: null }`. `broadcast` sends each player seat its `viewFor` and **once** `spectatorViewFor` on `spectatorChannel`. `dropRoom` also releases `spectatorChannel`. `release()` distinguishes via `whoOfSocket` between players (as before `markDisconnected`) and spectators (`markSpectatorDisconnected`). Game and host events (`room:start`, `seat:move`, `game:announce`, `game:pick`, `game:next`, `room:rematch`) from a spectator socket → `room:error { code: 'not_player' }`, the state does not change (`asSeat` checks `whoOfSocket`).
 
-- [ ] **Step 1: Failing tests:** (a) Spiel läuft, dritter Client tritt per `room:join` bei → bekommt `room:joined` mit `role: 'spectator'`, `seat: null`, und danach `room:state` mit `role: 'spectator'`; (b) Spieler-Views bleiben unverändert (nur zusätzliche Felder); (c) Zuschauer sendet `game:pick`/`room:start`/`seat:move`/`game:next`/`room:rematch` → jeweils `not_player`, kein `room:state`-Broadcast mit geändertem Inhalt; (d) **Geheimhaltung im Rohdatenverkehr:** Spieler A wählt `rock`; alle Frames, die der Zuschauer-Socket bis zum Aufdecken empfängt, enthalten weder `rock` noch den Token von A oder B (Muster des bestehenden E2E-Tests „secrecy“); nach dem Aufdecken enthält `lastRound` beide Gesten; (e) Zuschauer trennt sich → Spielende bekommen keinen Zustand mit geänderter Phase; `room:rejoin` mit Zuschauer-Token → wieder `role: 'spectator'`; (f) Raum wird abgeräumt (Ticker/`dropRoom`): Zuschauer-Socket verlässt `spectatorChannel`. **Bestehende** `gateway.test.ts`-Fälle (`:167-199`) „room_full nach Start“ werden angepasst (neuer Beitritt = Zuschauer; `room_full` erst bei 17 Zuschauern) und im Bericht aufgelistet.
-- [ ] **Step 2:** → FAIL. **Step 3:** Implementieren. **Step 4:** `npx vitest run apps/server` komplett grün, `npm run typecheck -w @rps/server` grün.
+- [ ] **Step 1: Failing tests:** (a) game running, a third client joins via `room:join` → gets `room:joined` with `role: 'spectator'`, `seat: null`, and afterwards `room:state` with `role: 'spectator'`; (b) player views stay unchanged (only additional fields); (c) spectator sends `game:pick`/`room:start`/`seat:move`/`game:next`/`room:rematch` → `not_player` each time, no `room:state` broadcast with changed content; (d) **secrecy in the raw traffic:** player A picks `rock`; all frames the spectator socket receives until the reveal contain neither `rock` nor the token of A or B (pattern of the existing E2E test “secrecy”); after the reveal `lastRound` contains both gestures; (e) spectator disconnects → players receive no state with a changed phase; `room:rejoin` with the spectator token → `role: 'spectator'` again; (f) room is cleaned up (ticker/`dropRoom`): the spectator socket leaves `spectatorChannel`. **Existing** `gateway.test.ts` cases (`:167-199`) “room_full after start” are adjusted (a new join = spectator; `room_full` only at 17 spectators) and listed in the report.
+- [ ] **Step 2:** → FAIL. **Step 3:** Implement. **Step 4:** `npx vitest run apps/server` fully green, `npm run typecheck -w @rps/server` green.
 - [ ] **Step 5: Commit** `feat(server): let late joiners watch as spectators`.
 
-### Task 5: Web-Datenschicht
+### Task 5: Web data layer
 
 **Files:**
-- Modify: `apps/web/src/lib/connection.ts`, `lib/seats.ts`, `lib/sfx-bridge.ts`, `lib/demo.ts`, `App.svelte`, `test/fixtures.ts`, `test/connection-mock.ts`, alle Komponenten, die den Typ `RoomView` als Spieler-View benutzen (`BoardView`, `Board`, `Lobby`, `Result`, `Scoreboard`-Aufrufer usw.)
-- Test: `lib/seats.test.ts`, `lib/sfx-bridge.test.ts`, `App.routing.test.ts` (nur ergänzen), `lib/connection.test.ts`
+- Modify: `apps/web/src/lib/connection.ts`, `lib/seats.ts`, `lib/sfx-bridge.ts`, `lib/demo.ts`, `App.svelte`, `test/fixtures.ts`, `test/connection-mock.ts`, all components that use the `RoomView` type as a player view (`BoardView`, `Board`, `Lobby`, `Result`, `Scoreboard` callers, etc.)
+- Test: `lib/seats.test.ts`, `lib/sfx-bridge.test.ts`, `App.routing.test.ts` (additions only), `lib/connection.test.ts`
 
 **Interfaces:**
 - Consumes: `PlayerView`, `SpectatorView`, `RoomView`, `RoomJoined` (Task 1).
-- Produces in `connection.ts`: der Store `room: Readable<RoomView | null>` bleibt; neu `playerRoom: Readable<PlayerView | null>` und `spectatorRoom: Readable<SpectatorView | null>` (abgeleitet über `role`). Die Sitzung (`rps.session`) bleibt `{code, token}`; `room:joined` für Zuschauer speichert sie genauso.
-- `seats.ts`: `isHost(room: PlayerView | SpectatorView): boolean` liest `room.isHost` (statt `you === hostSeat`); `canStart` bleibt für `PlayerView`.
-- `sfx-bridge.ts`: `diffRoomSounds(prev, next)` verwendet `next.you` nur für `role === 'player'`; für Zuschauer liefert es höchstens `reveal` (Phasenwechsel auf `reveal`) und nie `lock`/`win`/`lose`/`draw`.
-- `App.svelte`: neuer Screen `'spectate'` für `role === 'spectator'` (Komponente folgt in Task 6; bis dahin Platzhalter `<Spectate />`-Import, der in Task 6 entsteht, bitte in Task 6 anlegen und hier nur den Zweig vorbereiten).
-- `test/fixtures.ts`: `makeRoom` erzeugt `PlayerView` mit `role: 'player'`, `isHost`, `spectators: []`; neu `makeSpectatorRoom(overrides)`.
+- Produces in `connection.ts`: the store `room: Readable<RoomView | null>` stays; new are `playerRoom: Readable<PlayerView | null>` and `spectatorRoom: Readable<SpectatorView | null>` (derived via `role`). The session (`rps.session`) stays `{code, token}`; `room:joined` for spectators stores it the same way.
+- `seats.ts`: `isHost(room: PlayerView | SpectatorView): boolean` reads `room.isHost` (instead of `you === hostSeat`); `canStart` stays for `PlayerView`.
+- `sfx-bridge.ts`: `diffRoomSounds(prev, next)` uses `next.you` only for `role === 'player'`; for spectators it yields at most `reveal` (phase change to `reveal`) and never `lock`/`win`/`lose`/`draw`.
+- `App.svelte`: new screen `'spectate'` for `role === 'spectator'` (component follows in Task 6; until then a placeholder `<Spectate />` import that is created in Task 6, please create it in Task 6 and only prepare the branch here).
+- `test/fixtures.ts`: `makeRoom` produces `PlayerView` with `role: 'player'`, `isHost`, `spectators: []`; new `makeSpectatorRoom(overrides)`.
 
-- [ ] **Step 1: Failing tests:** `seats.test.ts`: `isHost` folgt `room.isHost`; `sfx-bridge.test.ts`: Zuschauer-Übergang `pick → reveal` liefert nur `['reveal']` (und mit `prev === null` `[]`); `connection.test.ts`: Zustand mit `role: 'spectator'` füllt `spectatorRoom` und leert `playerRoom`; `App.routing.test.ts`: Zustand `spectator` wählt den Screen `spectate`, Spielende wie bisher. **Alle bestehenden Web-Tests bleiben unverändert und grün** (die Fixture liefert die neuen Felder).
-- [ ] **Step 2:** → FAIL. **Step 3:** implementieren; `npm run typecheck -w @rps/web` ist erst nach Task 6 vollständig grün (`Spectate` fehlt), bis dahin nur `npx vitest run apps/web`.
-- [ ] **Step 4:** `npx vitest run apps/web` grün. **Step 5: Commit** `feat(web): route and type the spectator role`.
+- [ ] **Step 1: Failing tests:** `seats.test.ts`: `isHost` follows `room.isHost`; `sfx-bridge.test.ts`: spectator transition `pick → reveal` yields only `['reveal']` (and with `prev === null` `[]`); `connection.test.ts`: state with `role: 'spectator'` fills `spectatorRoom` and empties `playerRoom`; `App.routing.test.ts`: state `spectator` selects the screen `spectate`, players as before. **All existing web tests stay unchanged and green** (the fixture supplies the new fields).
+- [ ] **Step 2:** → FAIL. **Step 3:** implement; `npm run typecheck -w @rps/web` is only fully green after Task 6 (`Spectate` is missing), until then only `npx vitest run apps/web`.
+- [ ] **Step 4:** `npx vitest run apps/web` green. **Step 5: Commit** `feat(web): route and type the spectator role`.
 
-### Task 6: Zuschauer-Screen, Hinweise, Texte
+### Task 6: Spectator screen, hints, copy
 
 **Files:**
-- Create: `apps/web/src/components/Spectate.svelte`, `Spectate.test.ts`, `RevealPanel.svelte` (aus `BoardView` herausgelöst), `SpectatorBadge.svelte`
-- Modify: `components/BoardView.svelte` (Reveal-Zweig nutzt `RevealPanel`, Verhalten unverändert), `Lobby.svelte` und `BoardView.svelte` (Badge „n Zuschauer“), `lib/locales/de.json`, `en.json`, `components/ErrorBanner.svelte` falls Fehlertexte dort abgebildet werden, `styles/animations.css` nur falls nötig
-- Test: `Board.test.ts` bleibt unverändert grün
+- Create: `apps/web/src/components/Spectate.svelte`, `Spectate.test.ts`, `RevealPanel.svelte` (extracted from `BoardView`), `SpectatorBadge.svelte`
+- Modify: `components/BoardView.svelte` (reveal branch uses `RevealPanel`, behavior unchanged), `Lobby.svelte` and `BoardView.svelte` (badge “n spectators”), `lib/locales/de.json`, `en.json`, `components/ErrorBanner.svelte` if error texts are mapped there, `styles/animations.css` only if necessary
+- Test: `Board.test.ts` stays unchanged and green
 
 **Interfaces:**
-- `RevealPanel.svelte`: Props `{ duels: DuelView[]; labels…; burst… }` – die Darstellung der Aufdeck-Ansicht aus `BoardView` (Panel, Sticker, Burst, Speed-Lines), ohne Statussatz, Weiter-Button und Countdown. `Spectate` und `BoardView` benutzen sie. `[data-testid="duel"]` und die Regionen `aria-label` bleiben erhalten.
-- `Spectate.svelte`: liest `spectatorRoom`; zeigt Kopfband „Du schaust zu“ (`spectate.banner`), `Scoreboard` (beide Spielende, ohne „Du“), `TimerBar`, Statussatz als `role="status"` (z. B. „A überlegt …“, „B hat gewählt“, danach Ergebnis), die zwei Spielenden als Namensschilder, im Reveal das `RevealPanel`, bei `phase === 'finished'` einen Abschluss-Kasten („Match beendet“, Sieger) und „Zurück zum Start“ (`forgetSession()` + Reload wie `Result`). Kein Gesten-Pad, keine Kamera, kein „Weiter“.
-- Neue Keys DE/EN: `spectate.banner`, `spectate.waiting_pick` (`{name}`), `spectate.locked` (`{name}`), `spectate.finished` (`{name}`), `spectate.count` (`{n}`; Plural „1 Zuschauer“/„n Zuschauer“), `error.not_player`.
-- `SpectatorBadge.svelte`: Props `{ spectators: PublicSpectator[] }`, zeigt Anzahl und Namen als Tooltip-Text (`title` + sichtbarer Zähler), nichts bei 0.
+- `RevealPanel.svelte`: props `{ duels: DuelView[]; labels…; burst… }` – the presentation of the reveal view from `BoardView` (panel, sticker, burst, speed lines), without status sentence, “Weiter” (Next) button and countdown. `Spectate` and `BoardView` use it. `[data-testid="duel"]` and the `aria-label` regions are preserved.
+- `Spectate.svelte`: reads `spectatorRoom`; shows header band “Du schaust zu” (“You are watching”, `spectate.banner`), `Scoreboard` (both players, without “Du” (You)), `TimerBar`, status sentence as `role="status"` (e.g. “A is thinking …”, “B has locked in”, then the result), the two players as name tags, in the reveal the `RevealPanel`, at `phase === 'finished'` a closing box (“Match beendet” (Match finished), winner) and “Zurück zum Start” (Back to start) (`forgetSession()` + reload like `Result`). No gesture pad, no camera, no “Weiter” (Next).
+- New keys DE/EN: `spectate.banner`, `spectate.waiting_pick` (`{name}`), `spectate.locked` (`{name}`), `spectate.finished` (`{name}`), `spectate.count` (`{n}`; plural “1 Zuschauer”/“n Zuschauer”, i.e. “1 spectator”/“n spectators”), `error.not_player`.
+- `SpectatorBadge.svelte`: props `{ spectators: PublicSpectator[] }`, shows count and names as tooltip text (`title` + visible counter), nothing at 0.
 
-- [ ] **Step 1: Failing tests** (`Spectate.test.ts`, `makeSpectatorRoom`): Pick-Phase mit `lockedSeats: ['b0']` zeigt „… hat gewählt“ für den Gegner und „… überlegt …“ für den anderen, **keine** Geste; Reveal zeigt beide Gesten, `[data-testid="duel"]` und das Ergebnis; kein Button „Weiter“, keine `radio`-Rolle; `finished` zeigt Sieger und „Zurück zum Start“; `SpectatorBadge` zeigt „2 Zuschauer“ bei zwei. `Board.test.ts`/Lobby-Tests unverändert grün (Regression für den Ausschnitt in `RevealPanel`).
-- [ ] **Step 2:** → FAIL. **Step 3:** implementieren; Svelte-Meldungen zu fehlenden Texten per `npm run typecheck -w @rps/web` und `i18n.test.ts` (Parität, `ERROR_CODES`) prüfen.
-- [ ] **Step 4:** `npx vitest run apps/web`, `npm run lint`, `npm run typecheck` grün. Echte Layoutprüfung (jsdom sieht kein Layout): Vite-Dev-Server von `apps/web` auf einem freien Port starten (`cd apps/web && npx vite --port <p>`), mit Headless-Chromium via Playwright (kein geteiltes Browser-Tool) `?demo=spectate` (neuer Demo-Zustand in `lib/demo.ts`) bei 360/1280 px, hell/dunkel, ohne horizontalen Überlauf, Screenshots ansehen.
+- [ ] **Step 1: Failing tests** (`Spectate.test.ts`, `makeSpectatorRoom`): pick phase with `lockedSeats: ['b0']` shows “… hat gewählt” (“… has locked in”) for the opponent and “… überlegt …” (“… is thinking …”) for the other, **no** gesture; reveal shows both gestures, `[data-testid="duel"]` and the result; no “Weiter” (Next) button, no `radio` role; `finished` shows the winner and “Zurück zum Start” (Back to start); `SpectatorBadge` shows “2 Zuschauer” (“2 spectators”) with two. `Board.test.ts`/lobby tests stay green unchanged (regression for the extraction into `RevealPanel`).
+- [ ] **Step 2:** → FAIL. **Step 3:** implement; check Svelte messages about missing texts via `npm run typecheck -w @rps/web` and `i18n.test.ts` (parity, `ERROR_CODES`).
+- [ ] **Step 4:** `npx vitest run apps/web`, `npm run lint`, `npm run typecheck` green. Real layout check (jsdom sees no layout): start the Vite dev server of `apps/web` on a free port (`cd apps/web && npx vite --port <p>`), with headless Chromium via Playwright (no shared browser tool) open `?demo=spectate` (new demo state in `lib/demo.ts`) at 360/1280 px, light/dark, without horizontal overflow, look at the screenshots.
 - [ ] **Step 5: Commit** `feat(web): add the spectator screen and spectator badge`.
 
-### Task 7: End-to-End und Doku
+### Task 7: End-to-end and docs
 
 **Files:**
-- Modify: `e2e/game.spec.ts`, `e2e/helpers/app.ts`, `README.md` (Abschnitt Protokoll/Räume)
+- Modify: `e2e/game.spec.ts`, `e2e/helpers/app.ts`, `README.md` (section protocol/rooms)
 
-- [ ] **Step 1:** Neuer Test in `game.spec.ts`: A und B spielen ein Duell, C öffnet `?room=<code>` und tritt bei → C sieht den Zuschauer-Screen (Banner „You are watching“), die Namen von A und B, aber **keine** Geste; nach dem Aufdecken sieht C beide Gesten; C wird in der Spieleransicht als „1 spectator“ angezeigt; die Rohframes von C enthalten vor dem Aufdecken weder die gewählte Geste noch einen Token (Muster des bestehenden Geheimhaltungstests); C lädt neu und bleibt Zuschauer. Zweiter Test: Beitritt in ein volles Duell **vor** dem Start liefert weiter `room_full`.
-- [ ] **Step 2:** README: Zuschauerrolle, `MAX_SPECTATORS`, Kanalmodell in einem kurzen Absatz.
-- [ ] **Step 3:** Gesamtlauf `npm run lint`, `npm run typecheck`, `npx vitest run`, `npm run e2e`: alle grün.
+- [ ] **Step 1:** New test in `game.spec.ts`: A and B play a duel, C opens `?room=<code>` and joins → C sees the spectator screen (banner “You are watching”), the names of A and B, but **no** gesture; after the reveal C sees both gestures; C is shown in the player view as “1 spectator”; C's raw frames contain neither the chosen gesture nor a token before the reveal (pattern of the existing secrecy test); C reloads and stays a spectator. Second test: joining a full duel **before** the start still yields `room_full`.
+- [ ] **Step 2:** README: spectator role, `MAX_SPECTATORS`, channel model in one short paragraph.
+- [ ] **Step 3:** Full run `npm run lint`, `npm run typecheck`, `npx vitest run`, `npm run e2e`: all green.
 - [ ] **Step 4: Commit** `test(e2e): cover spectators joining a running duel`.
 
 ## Self-Review
 
-- **Spec-Abdeckung:** Zuschauerrolle in allen Räumen (T2/T4/T6), Beitritt nach Start (T2), identische geheimhaltungssichere Zuschauer-View (T3), Nicht-Zählen als Spieler (T2), Rejoin per Token (T2/T4/T5), „Raum voll“ vor dem Start (T2/T7), Texte DE/EN (T6), Teilnehmer-Identität für Stufe 2 wird über `Who` und `isHost` vorbereitet. **Nicht** in Stufe 1: Host-Wechsel zu Zuschauern, Platz einnehmen aus der Zuschauerrolle, Turnier.
-- **Typkonsistenz:** `Who`, `Spectator`, `spectatorsOf`, `whoOfSocket`, `spectatorChannel`, `spectatorViewFor`, `PlayerView`, `SpectatorView`, `PublicSpectator`, `RoomJoined { role, seat: SeatId | null }`, `MAX_SPECTATORS` sind in den Tasks 1–6 gleich benannt.
-- **Proportion:** Der Plan enthält Signaturen und Testfälle, keine Funktionskörper.
+- **Spec coverage:** spectator role in all rooms (T2/T4/T6), join after start (T2), identical secrecy-safe spectator view (T3), not counting as players (T2), rejoin by token (T2/T4/T5), “room full” before the start (T2/T7), copy DE/EN (T6), participant identity for stage 2 is prepared via `Who` and `isHost`. **Not** in stage 1: host change to spectators, taking a seat from the spectator role, tournament.
+- **Type consistency:** `Who`, `Spectator`, `spectatorsOf`, `whoOfSocket`, `spectatorChannel`, `spectatorViewFor`, `PlayerView`, `SpectatorView`, `PublicSpectator`, `RoomJoined { role, seat: SeatId | null }`, `MAX_SPECTATORS` are named identically in Tasks 1–6.
+- **Proportion:** the plan contains signatures and test cases, no function bodies.
