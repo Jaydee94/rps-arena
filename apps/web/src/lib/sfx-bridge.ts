@@ -16,17 +16,20 @@ export function diffRoomSounds(prev: RoomView | null, next: RoomView | null): So
   const after = next?.match;
   if (!prev || !next || !before || !after) return [];
 
+  // A spectator takes no side: only the reveal sound, never lock/win/lose/draw.
+  const you = next.role === 'player' ? next.you : null;
+
   const sounds: SoundName[] = [];
-  if (before.yourPick === null && after.yourPick !== null) sounds.push('lock');
+  if (you && before.yourPick === null && after.yourPick !== null) sounds.push('lock');
 
   if (before.phase !== 'reveal' && after.phase === 'reveal') {
     sounds.push('reveal');
     const winner = after.lastRound?.winner;
-    if (winner) sounds.push(winner === 'draw' ? 'draw' : winner === teamOf(next.you) ? 'win' : 'lose');
+    if (you && winner) sounds.push(winner === 'draw' ? 'draw' : winner === teamOf(you) ? 'win' : 'lose');
   }
 
-  if (before.phase !== 'finished' && after.phase === 'finished' && after.winner) {
-    sounds.push(after.winner === teamOf(next.you) ? 'win' : 'lose');
+  if (you && before.phase !== 'finished' && after.phase === 'finished' && after.winner) {
+    sounds.push(after.winner === teamOf(you) ? 'win' : 'lose');
   }
   return sounds;
 }

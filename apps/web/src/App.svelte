@@ -6,6 +6,7 @@
   import Home from './components/Home.svelte';
   import Lobby from './components/Lobby.svelte';
   import Result from './components/Result.svelte';
+  import Spectate from './components/Spectate.svelte';
   import Wordmark from './components/Wordmark.svelte';
   import { room, status } from './lib/connection';
   import { locale, setLocale, t, type Locale } from './lib/i18n';
@@ -15,6 +16,7 @@
 
   const screen = $derived.by(() => {
     if (!$room) return 'home';
+    if ($room.role === 'spectator') return 'spectate';
     if (!$room.match) return 'lobby';
     return $room.match.phase === 'finished' ? 'result' : 'board';
   });
@@ -52,6 +54,8 @@
         <Lobby />
       {:else if screen === 'board'}
         <Board />
+      {:else if screen === 'spectate'}
+        <Spectate />
       {:else}
         <Result />
       {/if}

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import App from './App.svelte';
 import { setLocale } from './lib/i18n';
 import { actions, lastErrorStore, resetConnectionMock, roomStore } from './test/connection-mock';
-import { makeRoom } from './test/fixtures';
+import { makeRoom, makeSpectatorRoom } from './test/fixtures';
 
 vi.mock('./lib/connection', async () => (await import('./test/connection-mock')).connectionMock);
 
@@ -36,6 +36,29 @@ describe('App screen routing', () => {
     roomStore.set(makeRoom({ match: { phase: 'finished', winner: 'a' } }));
     render(App);
     expect(screen.getByRole('button', { name: 'Nochmal spielen' })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['no match', null],
+    ['pick', { phase: 'pick' as const }],
+    ['reveal', { phase: 'reveal' as const }],
+    ['finished', { phase: 'finished' as const, winner: 'a' as const }],
+  ])('shows the spectate screen for a spectator (%s)', (_name, match) => {
+    roomStore.set(makeSpectatorRoom({ match }));
+    const { container } = render(App);
+    expect(screen.getByTestId('spectate')).toBeInTheDocument();
+    expect(container.querySelector('.app')).toHaveAttribute('data-screen', 'spectate');
+    expect(screen.queryByRole('heading', { name: 'Warteraum' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nochmal spielen' })).not.toBeInTheDocument();
+  });
+
+  it('leaves the spectate screen when the user turns into a player', async () => {
+    roomStore.set(makeSpectatorRoom({ match: { phase: 'pick' } }));
+    render(App);
+    expect(screen.getByTestId('spectate')).toBeInTheDocument();
+    roomStore.set(makeRoom({ match: { phase: 'pick' } }));
+    expect(await screen.findByRole('region', { name: 'Gegner' })).toBeInTheDocument();
+    expect(screen.queryByTestId('spectate')).not.toBeInTheDocument();
   });
 
   it('switches screens when the room state changes', async () => {

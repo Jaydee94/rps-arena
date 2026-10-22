@@ -1,13 +1,15 @@
 import { io, type Socket } from 'socket.io-client';
-import { writable, type Readable } from 'svelte/store';
+import { derived, writable, type Readable } from 'svelte/store';
 import type {
   ClientEventName,
   ClientEventPayloads,
   ErrorCode,
+  PlayerView,
   RoomJoined,
   RoomView,
   SeatId,
   ServerEvents,
+  SpectatorView,
 } from '@rps/shared';
 
 /** The shared event payload maps as socket.io listener maps. */
@@ -70,6 +72,14 @@ const lastErrorStore = writable<LastError | null>(null);
 const statusStore = writable<ConnectionStatus>('connecting');
 
 export const room: Readable<RoomView | null> = { subscribe: roomStore.subscribe };
+/** The room as a seated player sees it; null for spectators and outside a room. */
+export const playerRoom: Readable<PlayerView | null> = derived(roomStore, ($room) =>
+  $room?.role === 'player' ? $room : null,
+);
+/** The room as a spectator sees it; null for players and outside a room. */
+export const spectatorRoom: Readable<SpectatorView | null> = derived(roomStore, ($room) =>
+  $room?.role === 'spectator' ? $room : null,
+);
 export const lastError: Readable<LastError | null> = { subscribe: lastErrorStore.subscribe };
 export const status: Readable<ConnectionStatus> = { subscribe: statusStore.subscribe };
 

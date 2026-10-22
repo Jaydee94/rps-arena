@@ -1,11 +1,11 @@
 /**
- * DEV-ONLY: `?demo=home|lobby|board|reveal|result|gallery` renders a screen from mock data, so the look
+ * DEV-ONLY: `?demo=home|lobby|board|reveal|result|spectate|gallery` renders a screen from mock data, so the look
  * can be checked without a server. main.ts imports this module only behind `import.meta.env.DEV`,
  * so it never reaches a production build.
  *
  * Extra query params: mode=<mode id>, outcome=win|lose|draw, picked=1, phase=announce, left=<seconds>, bot=1.
  */
-import { REVEAL_MS, type PublicMatch, type PublicPlayer, type RoomConfig, type RoomView, type SeatId } from '@rps/shared';
+import { REVEAL_MS, type PlayerView, type PublicMatch, type PublicPlayer, type RoomConfig, type RoomView, type SeatId } from '@rps/shared';
 import { setDemoState } from './connection';
 
 type Params = URLSearchParams;
@@ -48,12 +48,15 @@ function build(name: string, params: Params): RoomView | null {
   const seats: SeatId[] = team ? ['a0', 'a1', 'b0', 'b1'] : ['a0', 'b0'];
   const players = Object.fromEntries(seats.map((s) => [s, player(s)]));
   const left = Number(params.get('left') ?? 14);
-  const view: RoomView = {
+  const view: PlayerView = {
+    role: 'player',
     code: 'KX7QZ',
     config,
     you: 'a0',
     hostSeat: 'a0',
+    isHost: true,
     players,
+    spectators: [],
     match: null,
     deadline: null,
   };
@@ -61,6 +64,23 @@ function build(name: string, params: Params): RoomView | null {
   switch (name) {
     case 'home':
       return null;
+    case 'spectate':
+      // A running pick phase seen from the stands: b0 has locked in, nobody's own pick is visible.
+      return {
+        role: 'spectator',
+        code: view.code,
+        config,
+        hostSeat: 'a0',
+        isHost: false,
+        me: null,
+        players,
+        spectators: [
+          { id: 'spec-1', nickname: 'Zuschauer Zoe', avatar: 'cat', connected: true },
+          { id: 'spec-2', nickname: 'Watcher Wim', avatar: 'frog', connected: true },
+        ],
+        match: baseMatch(config, { lockedSeats: ['b0'] }),
+        deadline: Date.now() + left * 1000,
+      };
     case 'lobby':
       if (team) delete view.players.b1;
       if (params.get('bot')) view.players.b0 = player('b0', { isBot: true, nickname: 'Botty', avatar: 'robot' });

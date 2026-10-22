@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { forgetSession, rematch, room } from '../lib/connection';
+  import { forgetSession, playerRoom, rematch } from '../lib/connection';
   import { t } from '../lib/i18n';
   import { teamOf } from '../lib/seats';
   import Avatar from './Avatar.svelte';
@@ -13,9 +13,9 @@
   }
 </script>
 
-{#if $room?.match}
-  {@const view = $room}
-  {@const match = $room.match}
+{#if $playerRoom?.match}
+  {@const view = $playerRoom}
+  {@const match = $playerRoom.match}
   {@const myTeam = teamOf(view.you)}
   {@const theirTeam = myTeam === 'a' ? 'b' : 'a'}
   {@const abandoned = match.winner === null}

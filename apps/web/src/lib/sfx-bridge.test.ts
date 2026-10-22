@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get, writable } from 'svelte/store';
 import type { RoomView, SeatId } from '@rps/shared';
-import { makeMatch, makeRoom } from '../test/fixtures';
+import { makeMatch, makeRoom, makeSpectatorRoom } from '../test/fixtures';
 
 const play = vi.fn();
 const unlock = vi.fn();
@@ -271,5 +271,34 @@ describe('startSfxBridge with a countdown', () => {
     expect(delays[0]).toBe(0);
     expect(delays[1]).toBeCloseTo(1.26);
     expect(delays[2]).toBeCloseTo(1.96);
+  });
+});
+
+describe('diffRoomSounds for spectators', () => {
+  const lastRound = { picks: {}, duels: [], winner: 'a' as const };
+
+  it('plays only reveal on the transition pick -> reveal', () => {
+    const prev = makeSpectatorRoom({ match: { phase: 'pick', lockedSeats: ['a0', 'b0'] } });
+    const next = makeSpectatorRoom({ match: { phase: 'reveal', lastRound } });
+    expect(diffRoomSounds(prev, next)).toEqual(['reveal']);
+  });
+
+  it('plays nothing on the first state (prev === null)', () => {
+    const reveal = makeSpectatorRoom({ match: { phase: 'reveal', lastRound } });
+    expect(diffRoomSounds(null, reveal)).toEqual([]);
+    expect(diffRoomSounds(null, makeSpectatorRoom({ match: { phase: 'pick' } }))).toEqual([]);
+  });
+
+  it('never plays lock, win, lose or draw', () => {
+    const pick = makeSpectatorRoom({ match: { phase: 'pick' } });
+    const locked = makeSpectatorRoom({ match: { phase: 'pick', lockedSeats: ['a0'] } });
+    expect(diffRoomSounds(pick, locked)).toEqual([]);
+    for (const winner of ['a', 'b', 'draw'] as const) {
+      const reveal = makeSpectatorRoom({ match: { phase: 'reveal', lastRound: { picks: {}, duels: [], winner } } });
+      expect(diffRoomSounds(pick, reveal)).toEqual(['reveal']);
+    }
+    const reveal = makeSpectatorRoom({ match: { phase: 'reveal', lastRound } });
+    const finished = makeSpectatorRoom({ match: { phase: 'finished', winner: 'a' } });
+    expect(diffRoomSounds(reveal, finished)).toEqual([]);
   });
 });
