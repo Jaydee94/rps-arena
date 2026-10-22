@@ -47,7 +47,7 @@
     <h2>{t('lobby.title')}</h2>
     <p>{t('lobby.mode', { mode: t(`mode.${view.config.mode}.name`), n: view.config.bestOf })}</p>
 
-    <section class="card share">
+    <section class="panel share">
       <p>{t('lobby.share')}</p>
       <CopyRow id="room-code" label={t('home.code')} value={view.code} buttonLabel={t('lobby.copy_code')} large />
       <CopyRow id="room-link" label={t('lobby.link')} value={inviteLink} buttonLabel={t('lobby.copy')} />
