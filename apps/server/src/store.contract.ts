@@ -11,7 +11,10 @@ export const makeRoom = (code: string, deadline: number | null = null): Room => 
   players: {},
   match: null,
   deadline,
+  phaseDeadline: null,
   botLevel: null,
+  history: [],
+  nextReady: [],
 });
 
 export const makePlayer = (seat: 'a0' | 'b0') => ({
@@ -19,6 +22,7 @@ export const makePlayer = (seat: 'a0' | 'b0') => ({
   nickname: seat,
   avatar: 'fox',
   token: `t-${seat}`,
+  socketId: null,
   connected: true,
   disconnectedAt: null,
   isBot: false,

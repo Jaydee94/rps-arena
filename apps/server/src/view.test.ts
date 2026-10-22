@@ -9,6 +9,7 @@ const player = (seat: Player['seat'], nickname: string, avatar: string): Player 
   nickname,
   avatar,
   token: `secret-token-${seat}`,
+  socketId: `socket-${seat}`,
   connected: true,
   disconnectedAt: null,
   isBot: false,
@@ -25,7 +26,10 @@ const roomWith = (match: MatchState | null): Room => ({
   },
   match,
   deadline: null,
+  phaseDeadline: null,
   botLevel: null,
+  history: [],
+  nextReady: [],
 });
 
 const pickPhaseRoom = (): Room => {
@@ -100,8 +104,22 @@ describe('viewFor', () => {
     expect(view.match?.announces).toEqual({ a0: 'spock' });
   });
 
-  it('maps room fields and public players', () => {
-    const room = { ...roomWith(null), deadline: 1234 };
+  it('never exposes socket ids, bot history or skip votes', () => {
+    const room: Room = {
+      ...pickPhaseRoom(),
+      history: [{ human: 'paper', bot: 'paper' }],
+      nextReady: ['a0'],
+    };
+    for (const seat of ['a0', 'b0'] as const) {
+      const json = JSON.stringify(viewFor(room, seat));
+      expect(json).not.toContain('socket-');
+      expect(json).not.toContain('history');
+      expect(json).not.toContain('nextReady');
+    }
+  });
+
+  it('maps room fields and public players; deadline is the phase timer, not the wake-up time', () => {
+    const room = { ...roomWith(null), deadline: 999, phaseDeadline: 1234 };
     const view = viewFor(room, 'b0');
     expect(view).toEqual({
       code: 'ABCD',

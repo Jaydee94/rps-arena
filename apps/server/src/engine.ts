@@ -1,0 +1,296 @@
+import { randomBytes, timingSafeEqual } from 'node:crypto';
+import {
+  AVATARS,
+  ProtocolError,
+  activeSeats,
+  advance,
+  announce,
+  createMatch,
+  forfeitSeat,
+  generateCode,
+  parseNickname,
+  pick,
+  timeoutPhase,
+} from '@rps/shared';
+import type { BotLevel, ErrorCode, MatchState, RoomConfig, SeatId } from '@rps/shared';
+import type { Player, Room } from './room';
+import { BOT_SEAT, HUMAN_SEAT, botStep, graceEnd, humans, isAbandoned, isForfeited, settle } from './settle';
+import type { Rng } from './settle';
+
+/**
+ * Pure room operations. Every function takes a room and returns a new one (never mutating its
+ * input) or throws a `ProtocolError` / `RuleError`. Time comes in as `now`; randomness only via
+ * `rng` (room code, bot) and `randomBytes` (tokens).
+ */
+
+export { isAbandoned } from './settle';
+
+/** Seat fill order: the two duel seats first, then the 2v2 partners. */
+const SEAT_ORDER: SeatId[] = ['a0', 'b0', 'a1', 'b1'];
+const BOT_NAMES: Record<BotLevel, string> = { easy: 'Rocky', medium: 'Sneaky', hard: 'Mastermind' };
+const BOT_AVATAR = 'robot';
+
+function fail(code: ErrorCode): never {
+  throw new ProtocolError(code);
+}
+
+/** 128-bit random session token. Never logged, never part of a view. */
+function newToken(): string {
+  return randomBytes(16).toString('hex');
+}
+
+function seatsOf(config: RoomConfig): SeatId[] {
+  const active = activeSeats(config.mode);
+  return SEAT_ORDER.filter((s) => active.includes(s));
+}
+
+function newPlayer(seat: SeatId, nickname: string, avatar: string, socketId: string | null): Player {
+  if (!AVATARS.includes(avatar)) fail('invalid_input');
+  return {
+    seat,
+    nickname: parseNickname(nickname),
+    avatar,
+    token: newToken(),
+    socketId,
+    connected: true,
+    disconnectedAt: null,
+    isBot: false,
+  };
+}
+
+function requireMatch(room: Room): MatchState {
+  if (!room.match) fail('wrong_phase');
+  return room.match;
+}
+
+export interface CreateRoomInput {
+  config: RoomConfig;
+  nickname: string;
+  avatar: string;
+  vsBot?: BotLevel;
+  socketId?: string | null;
+  /** Fixed code (tests); otherwise drawn with `rng`. */
+  code?: string;
+}
+
+/** New room with the host in a0. With `vsBot` the bot takes b0 and the match starts at once. */
+export function createRoom(input: CreateRoomInput, now: number, rng: Rng = Math.random): Room {
+  if (input.vsBot && input.config.mode === 'team2v2') fail('invalid_input');
+  const host = newPlayer('a0', input.nickname, input.avatar, input.socketId ?? null);
+  const room: Room = {
+    code: input.code ?? generateCode(rng),
+    version: 0,
+    config: input.config,
+    hostSeat: 'a0',
+    players: { a0: host },
+    match: null,
+    deadline: null,
+    phaseDeadline: null,
+    botLevel: input.vsBot ?? null,
+    history: [],
+    nextReady: [],
+  };
+  if (!input.vsBot) return room;
+  room.players[BOT_SEAT] = {
+    seat: BOT_SEAT,
+    nickname: BOT_NAMES[input.vsBot],
+    avatar: BOT_AVATAR,
+    token: '',
+    socketId: null,
+    connected: true,
+    disconnectedAt: null,
+    isBot: true,
+  };
+  return settle(null, { ...room, match: createMatch(input.config) }, now, rng);
+}
+
+/** Takes the first free seat. Only in the lobby: once a match exists the room counts as full. */
+export function joinRoom(
+  room: Room,
+  nickname: string,
+  avatar: string,
+  now: number,
+  socketId: string | null = null,
+): { room: Room; seat: SeatId } {
+  if (isAbandoned(room, now)) fail('room_not_found');
+  if (room.match) fail('room_full');
+  const seat = seatsOf(room.config).find((s) => !room.players[s]);
+  if (!seat) fail('room_full');
+  const players = { ...room.players, [seat]: newPlayer(seat, nickname, avatar, socketId) };
+  return { room: { ...room, players }, seat };
+}
+
+/**
+ * Lobby seat change to a free seat. The host may move anyone; everyone else only themselves.
+ * The host seat follows the host. Tokens belong to the player and stay valid.
+ */
+export function moveSeat(room: Room, by: SeatId, from: SeatId, to: SeatId): Room {
+  if (by !== room.hostSeat && from !== by) fail('not_host');
+  if (room.match) fail('invalid_input');
+  const seats = seatsOf(room.config);
+  if (!seats.includes(from) || !seats.includes(to) || from === to) fail('invalid_input');
+  const player = room.players[from];
+  if (!player || room.players[to]) fail('invalid_input');
+  const players = { ...room.players, [to]: { ...player, seat: to } };
+  delete players[from];
+  return { ...room, players, hostSeat: room.hostSeat === from ? to : room.hostSeat };
+}
+
+/** Host starts the match once every seat of the mode is taken. */
+export function startMatch(room: Room, by: SeatId, now: number): Room {
+  if (by !== room.hostSeat) fail('not_host');
+  if (room.match) fail('wrong_phase');
+  if (seatsOf(room.config).some((s) => !room.players[s])) fail('wrong_phase');
+  return settle(null, { ...room, match: createMatch(room.config) }, now, Math.random);
+}
+
+export function applyPick(
+  room: Room,
+  seat: SeatId,
+  payload: { gesture: string },
+  now: number,
+  rng: Rng = Math.random,
+): Room {
+  const match = requireMatch(room);
+  return settle(match, { ...room, match: pick(match, seat, payload.gesture) }, now, rng);
+}
+
+export function applyAnnounce(
+  room: Room,
+  seat: SeatId,
+  payload: { emote: string | null },
+  now: number,
+  rng: Rng = Math.random,
+): Room {
+  const match = requireMatch(room);
+  return settle(match, { ...room, match: announce(match, seat, payload.emote) }, now, rng);
+}
+
+/** Skip vote during the reveal; advances once every connected, active human voted. */
+export function applyNext(room: Room, seat: SeatId, now: number, rng: Rng = Math.random): Room {
+  const match = requireMatch(room);
+  if (match.phase !== 'reveal') fail('wrong_phase');
+  const nextReady = room.nextReady.includes(seat) ? room.nextReady : [...room.nextReady, seat];
+  const voters = humans(room).filter((p) => p.connected && !isForfeited(room, p.seat));
+  if (!voters.every((p) => nextReady.includes(p.seat))) return { ...room, nextReady };
+  return settle(match, { ...room, nextReady, match: advance(match) }, now, rng);
+}
+
+/** New match for the same players (bots included), from any seat once finished. */
+export function rematch(room: Room, by: SeatId, now: number, rng: Rng = Math.random): Room {
+  const match = requireMatch(room);
+  if (match.phase !== 'finished' || !room.players[by]) fail('wrong_phase');
+  // Players who left the old match for good give up their seat.
+  const players: Room['players'] = {};
+  for (const [seat, player] of Object.entries(room.players) as [SeatId, Player][]) {
+    if (!match.forfeited.includes(seat)) players[seat] = player;
+  }
+  const full = seatsOf(room.config).every((s) => players[s]);
+  const next = { ...room, players, match: full ? createMatch(room.config) : null };
+  return settle(match, withHost(next), now, rng);
+}
+
+/** Keeps `hostSeat` on a seated human; moves it to the first remaining human otherwise. */
+function withHost(room: Room): Room {
+  if (room.players[room.hostSeat]) return room;
+  const heir = SEAT_ORDER.find((s) => room.players[s] && !room.players[s].isBot);
+  return heir ? { ...room, hostSeat: heir } : room;
+}
+
+/**
+ * A seat leaves for good: in a running match it forfeits (and keeps its place on the board),
+ * in the lobby or after the match it frees the seat.
+ */
+export function leave(room: Room, seat: SeatId): Room {
+  const match = room.match;
+  if (match && match.phase !== 'finished') return { ...room, match: forfeitSeat(match, seat) };
+  const players = { ...room.players };
+  delete players[seat];
+  return withHost({ ...room, players });
+}
+
+export function seatOfSocket(room: Room, socketId: string): SeatId | null {
+  const player = Object.values(room.players).find((p) => p && !p.isBot && p.socketId === socketId);
+  return player?.seat ?? null;
+}
+
+export function markDisconnected(room: Room, seat: SeatId, now: number): Room {
+  const player = room.players[seat];
+  if (!player || player.isBot) return room;
+  const players = {
+    ...room.players,
+    [seat]: { ...player, connected: false, disconnectedAt: now, socketId: null },
+  };
+  return settle(room.match, { ...room, players }, now, Math.random);
+}
+
+export function markConnected(
+  room: Room,
+  seat: SeatId,
+  now: number,
+  socketId: string | null = null,
+): Room {
+  const player = room.players[seat];
+  if (!player || player.isBot) return room;
+  const players = {
+    ...room.players,
+    [seat]: { ...player, connected: true, disconnectedAt: null, socketId },
+  };
+  return settle(room.match, { ...room, players }, now, Math.random);
+}
+
+function sameToken(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
+/**
+ * Restores the seat that owns `token` and binds it to `socketId`. `previousSocketId` is the
+ * connection that held the seat until now (to be dropped from the room), if any.
+ */
+export function rejoinRoom(
+  room: Room,
+  token: string,
+  now: number,
+  socketId: string,
+): { room: Room; seat: SeatId; previousSocketId: string | null } {
+  const player = humans(room).find((p) => p.token !== '' && sameToken(p.token, token));
+  if (!player || isForfeited(room, player.seat)) fail('bad_token');
+  const end = graceEnd(room, player);
+  if (end !== null && now >= end) fail('bad_token');
+  const previous = player.connected && player.socketId !== socketId ? player.socketId : null;
+  return {
+    room: markConnected(room, player.seat, now, socketId),
+    seat: player.seat,
+    previousSocketId: previous,
+  };
+}
+
+/**
+ * Runs whatever is due: grace expiries (forfeit / free the seat), the phase timeout, bot catch-up.
+ * Returns the identical room when `deadline` is null or in the future, so a replica that lost
+ * the race to another one's tick changes nothing.
+ */
+export function tick(room: Room, now: number, rng: Rng = Math.random): Room {
+  if (room.deadline === null || room.deadline > now) return room;
+  const prev = room.match;
+  let next = room;
+  for (const player of humans(room)) {
+    const end = graceEnd(room, player);
+    if (end !== null && end <= now) next = leave(next, player.seat);
+  }
+  const match = next.match;
+  const phaseDue = next.phaseDeadline !== null && next.phaseDeadline <= now;
+  if (match && match.phase !== 'finished' && phaseDue) {
+    if (match.phase === 'reveal') {
+      next = { ...next, match: advance(match) };
+    } else {
+      next = botStep(next, rng, match.phase);
+      next = { ...next, match: timeoutPhase(next.match!) };
+    }
+  }
+  return settle(prev, next, now, rng);
+}
+
+export { HUMAN_SEAT, BOT_SEAT };

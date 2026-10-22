@@ -46,6 +46,7 @@ export function viewFor(room: Room, seat: SeatId): RoomView {
     hostSeat: room.hostSeat,
     players,
     match: room.match ? publicMatch(room.match, seat) : null,
-    deadline: room.deadline,
+    // The phase timer, not the internal wake-up time (which may be a reconnect-grace expiry).
+    deadline: room.phaseDeadline,
   };
 }
