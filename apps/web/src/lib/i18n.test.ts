@@ -240,29 +240,65 @@ describe('i18n', () => {
       }
     });
 
-    it('keeps the order of the rule.* keys the same in both locales', () => {
-      const ruleKeys = (dict: Record<string, string>) =>
-        Object.keys(dict).filter((key) => key.startsWith('rule.'));
-      expect(ruleKeys(de)).toEqual(ruleKeys(en));
+    it('keeps the rule.* keys in the order of allRelations() in both locales', () => {
+      const expected = [
+        'rule.generic',
+        ...relations.map(({ winner, loser }) => `rule.${winner}.${loser}`),
+      ];
+      for (const dict of [de, en]) {
+        expect(Object.keys(dict).filter((key) => key.startsWith('rule.'))).toEqual(expected);
+      }
     });
 
-    it('does not repeat a verb more than twice among the sentences of one winner', () => {
-      const verbOf = (text: string) => {
-        const between = text.slice(text.indexOf('{winner}') + 8, text.indexOf('{loser}')).trim();
-        return (between.split(/\s+/)[0] ?? '').toLowerCase();
+    it('pins the ten classic and Lizard & Spock sentences', () => {
+      const pinned: Record<string, [string, string]> = {
+        'rock.scissors': ['{winner} zerquetscht {loser}', '{winner} crushes {loser}'],
+        'scissors.paper': ['{winner} zerschneidet {loser}', '{winner} cut {loser}'],
+        'paper.rock': ['{winner} bedeckt {loser}', '{winner} covers {loser}'],
+        'rock.lizard': ['{winner} zerquetscht {loser}', '{winner} crushes {loser}'],
+        'lizard.spock': ['{winner} vergiftet {loser}', '{winner} poisons {loser}'],
+        'spock.scissors': ['{winner} zertrümmert {loser}', '{winner} smashes {loser}'],
+        'scissors.lizard': ['{winner} köpft {loser}', '{winner} decapitate {loser}'],
+        'lizard.paper': ['{winner} frisst {loser}', '{winner} eats {loser}'],
+        'paper.spock': ['{winner} widerlegt {loser}', '{winner} disproves {loser}'],
+        'spock.rock': ['{winner} verdampft {loser}', '{winner} vaporizes {loser}'],
       };
+      for (const [pair, [deText, enText]] of Object.entries(pinned)) {
+        expect(de, pair).toHaveProperty([`rule.${pair}`], deText);
+        expect(en, pair).toHaveProperty([`rule.${pair}`], enText);
+      }
+    });
+
+    it('does not repeat a verb or verb phrase more than twice among the sentences of one winner', () => {
+      // The words between the placeholders, without a leading reflexive/particle word.
+      const phraseOf = (text: string) =>
+        text
+          .slice(text.indexOf('{winner}') + '{winner}'.length, text.indexOf('{loser}'))
+          .trim()
+          .toLowerCase()
+          .replace(/^sich\s+/, '');
       for (const [locale, dict] of Object.entries(dicts)) {
+        const phrases = new Map<string, Map<string, number>>();
         const verbs = new Map<string, Map<string, number>>();
+        const bump = (map: Map<string, Map<string, number>>, winner: string, word: string) => {
+          const counts = map.get(winner) ?? new Map<string, number>();
+          counts.set(word, (counts.get(word) ?? 0) + 1);
+          map.set(winner, counts);
+        };
         for (const { winner, loser } of relations) {
-          const verb = verbOf(dict[`rule.${winner}.${loser}`] ?? '');
-          expect(verb, `${locale} ${winner}>${loser}`).not.toBe('');
-          const counts = verbs.get(winner) ?? new Map<string, number>();
-          counts.set(verb, (counts.get(verb) ?? 0) + 1);
-          verbs.set(winner, counts);
+          const phrase = phraseOf(dict[`rule.${winner}.${loser}`] ?? '');
+          expect(phrase, `${locale} ${winner}>${loser}`).not.toBe('');
+          bump(phrases, winner, phrase);
+          bump(verbs, winner, phrase.split(/\s+/)[0] ?? '');
         }
-        for (const [winner, counts] of verbs) {
-          for (const [verb, count] of counts) {
-            expect(count, `${locale} ${winner} reuses "${verb}"`).toBeLessThanOrEqual(2);
+        for (const [kind, map] of [
+          ['phrase', phrases],
+          ['verb', verbs],
+        ] as const) {
+          for (const [winner, counts] of map) {
+            for (const [word, count] of counts) {
+              expect(count, `${locale} ${winner} reuses ${kind} "${word}"`).toBeLessThanOrEqual(2);
+            }
           }
         }
       }
