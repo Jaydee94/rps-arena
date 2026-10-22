@@ -6,6 +6,7 @@ import type { ServerConfig } from './config';
 import { createGateway } from './gateway';
 import { createHttpHandler } from './http';
 import { createIoServer } from './io';
+import { installUnhandledRejectionGuard } from './process-guards';
 import { RedisRoomStore } from './redis-store';
 import type { RoomStore } from './store';
 import { MemoryRoomStore } from './store';
@@ -50,7 +51,7 @@ function backend(config: ServerConfig): Backend {
   }
 
   /*
-   * Required client options:
+   * The store client needs bounded commands:
    * - commandTimeout: a stalled Redis call must reject instead of blocking. RedisRoomStore runs
    *   all updates of one connection through a queue, so one hanging command would otherwise
    *   freeze every room on this replica.
@@ -63,9 +64,16 @@ function backend(config: ServerConfig): Backend {
     maxRetriesPerRequest: 2,
     lazyConnect: true,
   });
-  // Pub/sub needs dedicated connections (a subscribed connection cannot run other commands).
-  const pub = redis.duplicate();
-  const sub = redis.duplicate();
+  /*
+   * Pub/sub needs dedicated connections (a subscribed connection cannot run other commands), and
+   * they get their OWN options instead of `redis.duplicate()`, which would copy the bounded ones
+   * above. @socket.io/redis-adapter fires publish()/psubscribe() without catching the returned
+   * promise, so a command that times out or runs out of retries during a Redis outage becomes an
+   * unhandled rejection. Here commands wait for the reconnect (default backoff) instead of failing.
+   */
+  const pubSubOptions = { maxRetriesPerRequest: null, lazyConnect: true };
+  const pub = new Redis(config.redisUrl, pubSubOptions);
+  const sub = new Redis(config.redisUrl, pubSubOptions);
   for (const [name, client] of [
     ['store', redis],
     ['pub', pub],
@@ -89,6 +97,7 @@ function backend(config: ServerConfig): Backend {
 }
 
 function main(): void {
+  installUnhandledRejectionGuard(process, log);
   let config: ServerConfig;
   try {
     config = loadConfig();

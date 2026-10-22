@@ -157,7 +157,10 @@ Wichtige Eigenschaften:
 - **Fristen im Raum:** Jeder Raum trägt seine nächste Frist (`deadline`). Jeder Pod prüft alle 500 ms, welche
   Räume fällig sind, und führt die Frist atomar aus. Der Pod, der das Rennen verliert, ändert nichts. Bei einem
   Pod-Neustart verbinden die Clients automatisch neu und setzen aus dem Redis-Zustand fort. Ohne Redis
-  (oder bei Redis-Ausfall) antwortet `/readyz` mit 503.
+  (beim Start noch nicht erreichbar oder später ausgefallen) bleibt der Prozess am Leben: `/healthz` antwortet
+  weiter mit 200, `/readyz` mit 503, und sobald Redis wieder antwortet, verbinden sich alle Verbindungen
+  selbstständig neu und `/readyz` wird wieder 200. Ein Helm-Install, bei dem die App vor Redis startet, braucht
+  deshalb keinen Neustart.
 - **Zustand kurzlebig:** Redis-Schlüssel laufen nach 30 Minuten Inaktivität ab. Der mitgelieferte Redis hat
   standardmäßig keine Persistenz (siehe [Deployment mit Helm](#deployment-mit-helm)).
 
