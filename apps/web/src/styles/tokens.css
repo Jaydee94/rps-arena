@@ -1,0 +1,84 @@
+/*
+ * Design tokens: the single source of the comic look.
+ * Later restyling only touches this file and src/components.
+ */
+:root {
+  color-scheme: light dark;
+
+  /* Colors: paper, ink and hot comic primaries */
+  --paper: #fff6e0;
+  --paper-2: #ffe9b8;
+  --ink: #111111;
+  --ink-soft: #3a3a3a;
+  --text: var(--ink);
+  --surface: #ffffff;
+  --dot: rgb(17 17 17 / 12%);
+
+  --red: #ff3b30;
+  --yellow: #ffd60a;
+  --blue: #1e6cff;
+  --pink: #ff4fa3;
+  --teal: #00c2b8;
+
+  --success: var(--teal);
+  --danger: var(--red);
+  --focus: var(--blue);
+
+  /* Outline, radii and hard offset shadows */
+  --outline: 4px;
+  --border: var(--outline) solid var(--ink);
+  --radius-sm: 8px;
+  --radius: 16px;
+  --radius-lg: 28px;
+  --radius-pill: 999px;
+  --shadow: 6px 6px 0 var(--ink);
+  --shadow-sm: 3px 3px 0 var(--ink);
+  --shadow-lg: 10px 10px 0 var(--ink);
+
+  /* Fonts: system fallbacks only, no external download */
+  --font-display: 'Bangers', 'Comic Sans MS', 'Marker Felt', 'Chalkboard SE', cursive;
+  --font-body: 'Comic Neue', 'Trebuchet MS', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.5rem;
+  --text-hero: clamp(2.5rem, 8vw, 4.5rem);
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* Layers */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-overlay: 100;
+  --z-modal: 200;
+  --z-toast: 300;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1b1a2e;
+    --paper-2: #26243f;
+    --ink: #f4efe2;
+    --ink-soft: #cfc9b8;
+    --text: #f4efe2;
+    --surface: #2c2a4a;
+    --dot: rgb(244 239 226 / 10%);
+
+    --red: #ff5a4f;
+    --yellow: #ffd60a;
+    --blue: #4d8dff;
+    --pink: #ff6fb5;
+    --teal: #22d3c8;
+  }
+}
