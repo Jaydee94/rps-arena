@@ -109,6 +109,10 @@
   "board.duel_draw": "Duel drawn",
   "board.rule": "{winner} beats {loser}",
 
+  "rules.title": "Rules",
+  "rules.beats": "{gesture} beats {list}",
+  "rules.hint": "beats: {list}",
+
   "countdown.1": "ROCK!",
   "countdown.2": "PAPER!",
   "countdown.3": "SCISSORS!",

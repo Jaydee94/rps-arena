@@ -111,6 +111,47 @@ describe('Board', () => {
     });
   });
 
+  describe('rule hints and rules panel', () => {
+    const described = (radio: HTMLElement) =>
+      document.getElementById(radio.getAttribute('aria-describedby') ?? '')?.textContent?.trim();
+
+    it('gives every tile a description "schlägt: …" and Rock names Schere', () => {
+      feed(makeRoom());
+      render(Board);
+      for (const radio of screen.getAllByRole('radio')) expect(described(radio)).toMatch(/^schlägt: .+/);
+      expect(described(screen.getByRole('radio', { name: 'Stein' }))).toBe('schlägt: Schere');
+    });
+
+    it('gives each wheel15 tile a description with 7 names', () => {
+      feed(makeRoom({ config: { mode: 'wheel15', bestOf: 3 } }));
+      render(Board);
+      for (const radio of screen.getAllByRole('radio')) expect(described(radio)?.split(', ')).toHaveLength(7);
+    });
+
+    it('shows the rules panel of the mode under the pad', () => {
+      feed(makeRoom({ config: { mode: 'lizard-spock', bestOf: 3 } }));
+      const { container } = render(Board);
+      const details = container.querySelector('details.rules');
+      expect(details).toBeInTheDocument();
+      expect(within(details as HTMLElement).getAllByRole('listitem')).toHaveLength(5);
+      expect(screen.getByRole('radiogroup').compareDocumentPosition(details as Node)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    });
+
+    it('uses the lizard-spock rules for bluff, including the announce phase', () => {
+      feed(makeRoom({ config: { mode: 'bluff', bestOf: 3 }, match: { phase: 'announce' } }));
+      const { container } = render(Board);
+      expect(within(container.querySelector('details.rules') as HTMLElement).getAllByRole('listitem')).toHaveLength(5);
+    });
+
+    it('does not show the rules panel in the reveal', () => {
+      feed(makeRoom({ match: { phase: 'reveal', lastRound: { picks: { a0: 'rock', b0: 'scissors' }, duels: [{ seats: ['a0', 'b0'], result: 'a' }], winner: 'a' } } }));
+      const { container } = render(Board);
+      expect(container.querySelector('details.rules')).not.toBeInTheDocument();
+    });
+  });
+
   describe('bluff announce phase', () => {
     const bluff = () => makeRoom({ config: { mode: 'bluff', bestOf: 3 }, match: { phase: 'announce' } });
 

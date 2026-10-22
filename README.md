@@ -36,6 +36,8 @@ Kubernetes (Helm, Redis) and is released automatically on every release-worthy m
   beats, about 1.26 s; in German "Schnick, Schnack, Schnuck"). It is skipped entirely for users with
   `prefers-reduced-motion: reduce`, who get the static result straight away.
 - **Modes:** Classic, Lizard-Spock, Wheel 7 / 9 / 15, Bluff and 2v2 Team.
+- **Rule hints:** Hovering or focusing a gesture tile shows what it beats. A collapsible "Rules" panel in the lobby
+  and on the pick screen lists the same for the whole mode (the way to see it on touch screens).
 - **Rooms:** Whoever creates a room gets a 5-character code and a shareable link. The others join with the code
   or the link. Nickname and comic avatar (32 to choose from) are picked when joining; nothing is stored
   permanently.

@@ -10,6 +10,7 @@
   import ComicBurst from './ComicBurst.svelte';
   import GesturePad from './GesturePad.svelte';
   import PlayerCard from './PlayerCard.svelte';
+  import RulesPanel from './RulesPanel.svelte';
   import Scoreboard from './Scoreboard.svelte';
   import ThinkBubble from './ThinkBubble.svelte';
   import TimerBar from './TimerBar.svelte';
@@ -133,6 +134,7 @@
     {:else}
       <GesturePad gestures={gestureSetFor(room.config.mode).gestures} {picked} {onpick} />
     {/if}
+    <RulesPanel mode={room.config.mode} />
   {/if}
   {#if ['classic', 'team2v2'].includes(room.config.mode) && gestureSetFor(room.config.mode).id === 'classic'}<CameraToggle gestures={gestureSetFor(room.config.mode).gestures} {onpick} disabled={picked !== null || match.phase !== 'pick'} />{/if}
 </main>
