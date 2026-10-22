@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { tick } from 'svelte';
 import { render, screen, waitFor } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import CameraToggle from './CameraToggle.svelte';
@@ -207,6 +208,30 @@ describe('CameraToggle', () => {
 
     await waitFor(() => expect(stop).toHaveBeenCalledTimes(1));
     expect(toggle()).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('aborts a start that is still loading when toggled off or destroyed, without showing an error', async () => {
+    const signals: AbortSignal[] = [];
+    start.mockImplementation((_video, _callback, signal) => {
+      signals.push(signal!);
+      return new Promise((_resolve, reject) =>
+        signal!.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))),
+      );
+    });
+    const { unmount } = await enable();
+    expect(signals[0]!.aborted).toBe(false);
+
+    await userEvent.setup().click(toggle());
+
+    expect(signals[0]!.aborted).toBe(true);
+    await tick();
+    expect(screen.getByRole('alert')).toBeEmptyDOMElement();
+    expect(toggle()).toHaveAttribute('aria-pressed', 'false');
+
+    await userEvent.setup().click(toggle());
+    await waitFor(() => expect(signals).toHaveLength(2));
+    unmount();
+    expect(signals[1]!.aborted).toBe(true);
   });
 
   it('switches off and stops when the page becomes hidden', async () => {

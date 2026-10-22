@@ -54,23 +54,49 @@ async function createRecognizer(): Promise<GestureRecognizer> {
   }
 }
 
+function abortError(): DOMException {
+  return new DOMException('The camera start was cancelled.', 'AbortError');
+}
+
 /**
- * Opens the webcam, shows it in `video` and reports the top gesture of ~15 frames per second
- * (`''` / 0 when no hand is visible). The image never leaves the browser.
+ * Loads the recognizer, then opens the webcam, shows it in `video` and reports the top gesture of
+ * ~15 frames per second (`''` / 0 when no hand is visible). The image never leaves the browser.
+ *
+ * The camera is opened LAST so that nothing holds the webcam while the (slow) model loads. If `signal`
+ * is aborted at any point, everything acquired so far is released and the promise rejects with an
+ * `AbortError` (a cancel, not a failure).
  */
 export async function startRecognizer(
   video: HTMLVideoElement,
   onFrame: (name: string, score: number) => void,
+  signal?: AbortSignal,
 ): Promise<RecognizerHandle> {
-  const stream = await openCamera();
-  const releaseCamera = () => stream.getTracks().forEach((track) => track.stop());
+  if (signal?.aborted) throw abortError();
 
   let recognizer: GestureRecognizer;
   try {
     recognizer = await createRecognizer();
   } catch (error) {
-    releaseCamera();
+    if (signal?.aborted) throw abortError();
     throw new CameraError('load_failed', { cause: error });
+  }
+  if (signal?.aborted) {
+    recognizer.close();
+    throw abortError();
+  }
+
+  let stream: MediaStream;
+  try {
+    stream = await openCamera();
+  } catch (error) {
+    recognizer.close();
+    throw signal?.aborted ? abortError() : error;
+  }
+  const releaseCamera = () => stream.getTracks().forEach((track) => track.stop());
+  if (signal?.aborted) {
+    releaseCamera();
+    recognizer.close();
+    throw abortError();
   }
 
   let stopped = false;

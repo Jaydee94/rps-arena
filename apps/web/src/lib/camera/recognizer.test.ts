@@ -91,11 +91,91 @@ describe('startRecognizer', () => {
     expect(createFromOptions.mock.calls[1]![1].baseOptions.delegate).toBe('CPU');
   });
 
-  it('throws load_failed and releases the camera when the model cannot be loaded', async () => {
+  it('throws load_failed without ever touching the camera when the model cannot be loaded', async () => {
     createFromOptions.mockRejectedValue(new Error('404'));
 
     await expect(startRecognizer(video, vi.fn())).rejects.toMatchObject({ code: 'load_failed' });
-    expect(track.stop).toHaveBeenCalled();
+    expect(getUserMedia).not.toHaveBeenCalled();
+  });
+
+  it('throws load_failed without ever touching the camera when the wasm loader fails', async () => {
+    forVisionTasks.mockRejectedValue(new Error('404'));
+
+    await expect(startRecognizer(video, vi.fn())).rejects.toMatchObject({ code: 'load_failed' });
+    expect(getUserMedia).not.toHaveBeenCalled();
+  });
+
+  it('does not open the camera while the recognizer is still loading', async () => {
+    let finishLoading!: (recognizer: unknown) => void;
+    createFromOptions.mockReturnValue(new Promise((resolve) => (finishLoading = resolve)));
+
+    const started = startRecognizer(video, vi.fn());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(getUserMedia).not.toHaveBeenCalled();
+
+    finishLoading({ recognizeForVideo, close });
+    handles.push(await started);
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes the recognizer when the camera is denied', async () => {
+    getUserMedia.mockRejectedValue(domError('NotAllowedError'));
+
+    await expect(startRecognizer(video, vi.fn())).rejects.toMatchObject({ code: 'denied' });
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  describe('with an AbortSignal', () => {
+    const isAbort = { name: 'AbortError' };
+
+    it('rejects right away when already aborted and acquires nothing', async () => {
+      const controller = new AbortController();
+      controller.abort();
+
+      await expect(startRecognizer(video, vi.fn(), controller.signal)).rejects.toMatchObject(isAbort);
+      expect(createFromOptions).not.toHaveBeenCalled();
+      expect(getUserMedia).not.toHaveBeenCalled();
+    });
+
+    it('closes the recognizer and never opens the camera when aborted while loading', async () => {
+      const controller = new AbortController();
+      let finishLoading!: (recognizer: unknown) => void;
+      createFromOptions.mockReturnValue(new Promise((resolve) => (finishLoading = resolve)));
+
+      const started = startRecognizer(video, vi.fn(), controller.signal);
+      controller.abort();
+      finishLoading({ recognizeForVideo, close });
+
+      await expect(started).rejects.toMatchObject(isAbort);
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(getUserMedia).not.toHaveBeenCalled();
+    });
+
+    it('stops the stream and closes the recognizer when aborted while the camera is opening', async () => {
+      const controller = new AbortController();
+      let grant!: (value: MediaStream) => void;
+      getUserMedia.mockReturnValue(new Promise((resolve) => (grant = resolve)));
+
+      const started = startRecognizer(video, vi.fn(), controller.signal);
+      await vi.waitFor(() => expect(getUserMedia).toHaveBeenCalled());
+      controller.abort();
+      grant(stream);
+
+      await expect(started).rejects.toMatchObject(isAbort);
+      expect(track.stop).toHaveBeenCalledTimes(1);
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(video.srcObject ?? null).toBeNull(); // the stream was never attached
+    });
+
+    it('keeps running when the signal is never aborted', async () => {
+      const controller = new AbortController();
+
+      const handle = await startRecognizer(video, vi.fn(), controller.signal);
+      handles.push(handle);
+
+      expect(track.stop).not.toHaveBeenCalled();
+      expect(close).not.toHaveBeenCalled();
+    });
   });
 
   it('reports the top gesture of each processed frame and "" when no hand is visible', async () => {

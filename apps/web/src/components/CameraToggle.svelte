@@ -33,7 +33,8 @@
   let video = $state<HTMLVideoElement>();
 
   let handle: RecognizerHandle | null = null;
-  let session = 0; // invalidates a start that finishes after the toggle was switched off
+  let session = 0; // second line of defence: invalidates a start that finishes after the toggle was switched off
+  let abort: AbortController | null = null; // cancels a start that is still loading or opening the camera
 
   // A new round (or any return to "can pick") starts with a clean hold.
   $effect(() => {
@@ -50,8 +51,14 @@
     if (confirmed && !disabled && gestures.includes(confirmed)) onpick(confirmed);
   }
 
-  function shutDown() {
+  function cancelStart() {
     session++;
+    abort?.abort();
+    abort = null;
+  }
+
+  function shutDown() {
+    cancelStart();
     handle?.stop();
     handle = null;
     enabled = false;
@@ -65,10 +72,12 @@
     error = null;
     enabled = true;
     loading = true;
-    const mine = ++session;
+    cancelStart();
+    const mine = session;
+    const controller = (abort = new AbortController());
     await tick(); // the <video> has to exist before the stream is attached
     try {
-      const started = await startRecognizer(video as HTMLVideoElement, onFrame);
+      const started = await startRecognizer(video as HTMLVideoElement, onFrame, controller.signal);
       if (mine !== session) {
         started.stop();
         return;
@@ -76,7 +85,7 @@
       handle = started;
       loading = false;
     } catch (caught) {
-      if (mine !== session) return;
+      if (mine !== session || (caught as { name?: string } | null)?.name === 'AbortError') return; // a cancel is silent
       shutDown();
       error = caught instanceof CameraError ? caught.code : 'load_failed';
     }
@@ -92,7 +101,7 @@
   }
 
   onDestroy(() => {
-    session++;
+    cancelStart();
     handle?.stop();
     handle = null;
   });
