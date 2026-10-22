@@ -1,7 +1,14 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { BLUFF_EMOTES } from './constants';
+import { BLUFF_EMOTES, MAX_SPECTATORS } from './constants';
 import { AVATARS, ClientEvents, ERROR_CODES, ProtocolError, parseNickname } from './protocol';
-import type { RoomJoined, ServerEvents } from './protocol';
+import type {
+  PlayerView,
+  PublicSpectator,
+  RoomJoined,
+  RoomView,
+  ServerEvents,
+  SpectatorView,
+} from './protocol';
 import type { SeatId } from './match';
 
 function errorCode(fn: () => unknown): string | undefined {
@@ -141,11 +148,21 @@ describe('ClientEvents', () => {
 });
 
 describe('ServerEvents', () => {
-  it('room:joined carries code, token and seat', () => {
+  it('room:joined carries code, token, role and seat', () => {
     expectTypeOf<ServerEvents['room:joined']>().toEqualTypeOf<RoomJoined>();
-    expectTypeOf<RoomJoined>().toEqualTypeOf<{ code: string; token: string; seat: SeatId }>();
-    const joined: RoomJoined = { code: 'ABCDE', token: 'f'.repeat(32), seat: 'a0' };
-    expect(Object.keys(joined).sort()).toEqual(['code', 'seat', 'token']);
+    expectTypeOf<RoomJoined>().toEqualTypeOf<{
+      code: string;
+      token: string;
+      role: 'player' | 'spectator';
+      seat: SeatId | null;
+    }>();
+    const joined: RoomJoined = { code: 'ABCDE', token: 'f'.repeat(32), role: 'player', seat: 'a0' };
+    expect(Object.keys(joined).sort()).toEqual(['code', 'role', 'seat', 'token']);
+  });
+
+  it('room:state carries the union of player and spectator views', () => {
+    expectTypeOf<ServerEvents['room:state']>().toEqualTypeOf<RoomView>();
+    expectTypeOf<RoomView>().toEqualTypeOf<PlayerView | SpectatorView>();
   });
 });
 
@@ -154,5 +171,40 @@ describe('ERROR_CODES', () => {
     expect(ERROR_CODES).toContain('rate_limited');
     expect(ERROR_CODES).toContain('internal');
     expect(new Set(ERROR_CODES).size).toBe(ERROR_CODES.length);
+  });
+});
+
+describe('spectator protocol additions', () => {
+  it('has the not_player error code', () => {
+    expect(ERROR_CODES).toContain('not_player');
+  });
+
+  it('caps spectators at 16', () => {
+    expect(MAX_SPECTATORS).toBe(16);
+  });
+
+  it('discriminates views by role and gives spectators no seat of their own', () => {
+    const config = { mode: 'classic', bestOf: 3 } as const;
+    const spectators: PublicSpectator[] = [{ id: 's1', nickname: 'Zed', avatar: 'fox', connected: true }];
+    const base = {
+      code: 'ABCDE',
+      config,
+      hostSeat: 'a0' as SeatId,
+      isHost: false,
+      players: {},
+      spectators,
+      match: null,
+      deadline: null,
+    };
+    const spectator = { role: 'spectator', me: null, ...base } satisfies SpectatorView;
+    const player = { role: 'player', you: 'a0', ...base } satisfies PlayerView;
+    // @ts-expect-error a player view requires role: 'player'
+    const noRole: PlayerView = { you: 'a0', ...base };
+    // @ts-expect-error a spectator view has no `you`
+    const withYou: SpectatorView = { role: 'spectator', me: null, you: 'a0', ...base };
+    const views: RoomView[] = [spectator, player];
+    expect(views.map((view) => view.role)).toEqual(['spectator', 'player']);
+    expect('you' in spectator).toBe(false);
+    expect([noRole, withYou]).toHaveLength(2);
   });
 });
