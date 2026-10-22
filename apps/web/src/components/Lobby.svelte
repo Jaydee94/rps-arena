@@ -5,6 +5,7 @@
   import { canStart, isHost } from '../lib/seats';
   import CopyRow from './CopyRow.svelte';
   import SeatSlot from './SeatSlot.svelte';
+  import SpectatorBadge from './SpectatorBadge.svelte';
 
   const TEAM_SEATS: { team: 'a' | 'b'; seats: SeatId[] }[] = [
     { team: 'a', seats: ['a0', 'a1'] },
@@ -46,6 +47,7 @@
   <main class="lobby">
     <h2>{t('lobby.title')}</h2>
     <p>{t('lobby.mode', { mode: t(`mode.${view.config.mode}.name`), n: view.config.bestOf })}</p>
+    <SpectatorBadge spectators={view.spectators} />
 
     <section class="panel share">
       <p>{t('lobby.share')}</p>

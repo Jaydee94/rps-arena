@@ -12,6 +12,7 @@
   import GesturePad from './GesturePad.svelte';
   import RevealPanel from './RevealPanel.svelte';
   import Scoreboard from './Scoreboard.svelte';
+  import SpectatorBadge from './SpectatorBadge.svelte';
   import ThinkBubble from './ThinkBubble.svelte';
   import TimerBar from './TimerBar.svelte';
 
@@ -167,6 +168,7 @@
     {/if}
   {/if}
   {#if ['classic', 'team2v2'].includes(room.config.mode) && gestureSetFor(room.config.mode).id === 'classic'}<CameraToggle gestures={gestureSetFor(room.config.mode).gestures} {onpick} disabled={picked !== null || match.phase !== 'pick'} />{/if}
+  <SpectatorBadge spectators={room.spectators} />
 </main>
 
 <style>
@@ -257,6 +259,12 @@
 
   .board > .btn {
     justify-self: center;
+  }
+
+  /* Last in every phase: the pick-phase rows and the reveal order above stay as they are. */
+  .board > :global(.spectator-badge) {
+    order: 9;
+    justify-self: end;
   }
 
   /*
