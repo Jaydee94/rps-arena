@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  allRelations,
   CODE_ALPHABET,
   CODE_LENGTH,
   ERROR_CODES,
@@ -191,5 +192,90 @@ describe('i18n', () => {
     expect(t('board.rule', { winner: 'Stein', loser: 'Schere' })).toBe('Stein schlägt Schere');
     setLocale('en');
     expect(t('board.rule', { winner: 'Rock', loser: 'Scissors' })).toBe('Rock beats Scissors');
+  });
+
+  describe('matchup verb sentences', () => {
+    const dicts = { de, en } as Record<string, Record<string, string>>;
+    const relations = allRelations();
+
+    it('has rule.<winner>.<loser> for every relation in both locales', () => {
+      expect(relations).toHaveLength(112);
+      for (const [locale, dict] of Object.entries(dicts)) {
+        for (const { winner, loser } of relations) {
+          const key = `rule.${winner}.${loser}`;
+          const text = dict[key];
+          expect(typeof text, `${locale} ${key}`).toBe('string');
+          expect((text ?? '').trim(), `${locale} ${key}`).not.toBe('');
+        }
+      }
+    });
+
+    it('uses exactly the placeholders {winner} and {loser} once each and no other braces', () => {
+      for (const [locale, dict] of Object.entries(dicts)) {
+        for (const [key, text] of Object.entries(dict)) {
+          if (!key.startsWith('rule.')) continue;
+          const label = `${locale} ${key}`;
+          expect(text.split('{winner}').length - 1, label).toBe(1);
+          expect(text.split('{loser}').length - 1, label).toBe(1);
+          expect(text.replace('{winner}', '').replace('{loser}', ''), label).not.toMatch(/[{}]/);
+        }
+      }
+    });
+
+    it('has rule.generic in both locales', () => {
+      expect(de['rule.generic']).toBe('{winner} schlägt {loser}');
+      expect(en['rule.generic']).toBe('{winner} beats {loser}');
+    });
+
+    it('has no rule.* key beyond allRelations() and rule.generic', () => {
+      const expected = [
+        'rule.generic',
+        ...relations.map(({ winner, loser }) => `rule.${winner}.${loser}`),
+      ].sort();
+      for (const dict of [de, en]) {
+        const actual = Object.keys(dict)
+          .filter((key) => key.startsWith('rule.'))
+          .sort();
+        expect(actual).toEqual(expected);
+      }
+    });
+
+    it('keeps the order of the rule.* keys the same in both locales', () => {
+      const ruleKeys = (dict: Record<string, string>) =>
+        Object.keys(dict).filter((key) => key.startsWith('rule.'));
+      expect(ruleKeys(de)).toEqual(ruleKeys(en));
+    });
+
+    it('does not repeat a verb more than twice among the sentences of one winner', () => {
+      const verbOf = (text: string) => {
+        const between = text.slice(text.indexOf('{winner}') + 8, text.indexOf('{loser}')).trim();
+        return (between.split(/\s+/)[0] ?? '').toLowerCase();
+      };
+      for (const [locale, dict] of Object.entries(dicts)) {
+        const verbs = new Map<string, Map<string, number>>();
+        for (const { winner, loser } of relations) {
+          const verb = verbOf(dict[`rule.${winner}.${loser}`] ?? '');
+          expect(verb, `${locale} ${winner}>${loser}`).not.toBe('');
+          const counts = verbs.get(winner) ?? new Map<string, number>();
+          counts.set(verb, (counts.get(verb) ?? 0) + 1);
+          verbs.set(winner, counts);
+        }
+        for (const [winner, counts] of verbs) {
+          for (const [verb, count] of counts) {
+            expect(count, `${locale} ${winner} reuses "${verb}"`).toBeLessThanOrEqual(2);
+          }
+        }
+      }
+    });
+
+    it('keeps each sentence short (at most 38 characters without the placeholders)', () => {
+      for (const [locale, dict] of Object.entries(dicts)) {
+        for (const [key, text] of Object.entries(dict)) {
+          if (!key.startsWith('rule.')) continue;
+          const bare = text.replace('{winner}', '').replace('{loser}', '');
+          expect(bare.length, `${locale} ${key}`).toBeLessThanOrEqual(38);
+        }
+      }
+    });
   });
 });
