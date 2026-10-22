@@ -299,6 +299,8 @@ function withHost(room: Room): Room {
 export function leave(room: Room, seat: SeatId): Room {
   const match = room.match;
   if (match && match.phase !== 'finished') return { ...room, match: forfeitSeat(match, seat) };
+  // Tournament seats are derived from the running pairing: nothing to free outside a running match.
+  if (room.tournament) return room;
   const players = { ...room.players };
   delete players[seat];
   return withHost({ ...room, players });
@@ -386,7 +388,8 @@ export function markConnected(
   return changeConnection(room, seat, now, { connected: true, disconnectedAt: null, socketId });
 }
 
-function sameToken(a: string, b: string): boolean {
+/** Constant-time token comparison. */
+export function sameToken(a: string, b: string): boolean {
   const x = Buffer.from(a);
   const y = Buffer.from(b);
   return x.length === y.length && timingSafeEqual(x, y);
@@ -403,6 +406,9 @@ export function rejoinRoom(
   now: number,
   socketId: string,
 ): { room: Room; who: Who; previousSocketId: string | null } {
+  // Tournament rooms take rejoins through `rejoinTournament` (tournament.ts): a waiting
+  // participant has no seat and no `Who`.
+  if (room.tournament) fail('invalid_input');
   const player = humans(room).find((p) => p.token !== '' && sameToken(p.token, token));
   if (player) {
     if (isForfeited(room, player.seat)) fail('bad_token');
@@ -415,6 +421,19 @@ export function rejoinRoom(
       previousSocketId: previous,
     };
   }
+  return rejoinSpectator(room, token, now, socketId);
+}
+
+/**
+ * The spectator half of `rejoinRoom` (also used for tournament rooms): restores the spectator that
+ * owns `token`, else `bad_token`.
+ */
+export function rejoinSpectator(
+  room: Room,
+  token: string,
+  now: number,
+  socketId: string,
+): { room: Room; who: Who; previousSocketId: string | null } {
   const spectator = spectatorsOf(room).find((s) => s.token !== '' && sameToken(s.token, token));
   if (!spectator) fail('bad_token');
   const end = spectatorGraceEnd(spectator);
