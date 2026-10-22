@@ -182,8 +182,12 @@ fieldset.group > legend {
 }
 
 /* Pill-shaped radio group: label.segment > input[type=radio] + text. */
+/* As a grid item it would stretch across the row; the group is only as wide as its segments. */
 .segmented {
   display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  justify-self: start;
   overflow: hidden;
   border: var(--border);
   border-radius: var(--radius-pill);

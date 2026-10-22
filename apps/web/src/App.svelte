@@ -62,10 +62,18 @@
 <style>
   .app {
     display: grid;
+    /* A fixed single track that may shrink: nothing inside (an input's intrinsic width, a long name) can widen it. */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
     max-width: 48rem;
     margin: 0 auto;
     padding: var(--space-5) var(--space-4) var(--space-7);
+    /*
+     * Last line of defence: a pop-in that overshoots (the ZAP star, a stamped tile) is cut at the page
+     * gutter instead of widening the page for a few frames. The padding keeps shadows and focus rings
+     * inside the clip. overflow-x: clip makes no scroll container and leaves the vertical axis alone.
+     */
+    overflow-x: clip;
   }
 
   /*
@@ -81,6 +89,10 @@
     margin-inline: calc(-1 * var(--space-4));
     padding: 0 var(--space-4) var(--space-3);
     overflow-x: clip;
+  }
+
+  .app > :global(*) {
+    min-width: 0;
   }
 
   .badge {

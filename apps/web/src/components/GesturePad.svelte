@@ -59,6 +59,14 @@
     justify-content: center;
     gap: var(--space-3);
     padding-top: 8px; /* room for the raised middle tile */
+    /*
+     * The chosen tile stamps in from a larger scale and must never widen the page. Clipping sideways
+     * only (the rule hints rise above the pad): 8px of room each side, taken out of the margin again,
+     * keep the tile shadows and the hint bubbles intact.
+     */
+    margin-inline: calc(-1 * var(--space-2));
+    padding-inline: var(--space-2);
+    overflow-x: clip;
     container: pad / inline-size; /* the rule hints pick their side by the number of columns */
   }
 </style>
