@@ -247,6 +247,23 @@ Alle Pfade relativ zu `apps/web/src`, falls nicht anders angegeben. Branch: `fea
 - [ ] **Step 2:** Abnahme-Checkliste Spec §9 abarbeiten: 360/390/1280 px, Light/Dark, Tastatur (Tab Start → Wahl → Weiter, Pfeiltasten im Pad), Kontrast ≥ 4,5:1 für Text auf allen Panel-Farben (insb. weiße Schrift auf `--red` im Best-of-Schalter und im Countdown-Wort 3, Hell-/Dunkelmodus; bei Unterschreitung `--on-bright` auf `--yellow`), Reduced Motion, Wiederverbinden mitten im Reveal (Seite neu laden: kein Countdown, kein doppelter Ton), 2v2 und Rad der 15 einmal gegen die laufende App, Ton: Reveal-Sound setzt mit dem Ende des Countdowns ein.
 - [ ] **Step 3:** `git status` sauber, Branch pushen und PR nur auf Anweisung; PR-Titel `feat(web): comic panel look and reveal countdown`.
 
+### Task 14: Regel-Hinweise und Regelansicht (Nachtrag von Jan)
+
+Zusatzwunsch während der Umsetzung, nicht Teil des Handoffs: Der Spieler soll **vor** der Wahl sehen, gegen welche Gesten eine Geste gewinnt, und die Regeln des aktuellen Modus im Spiel nachlesen können. Läuft nach Task 9 (BoardView) und Task 7 (GestureButton).
+
+**Files:**
+- Modify: `packages/shared/src/gestures.ts` (+ `gestures.test.ts`), `apps/web/src/components/GestureButton.svelte`, `GesturePad.svelte`, `BoardView.svelte`, `Lobby.svelte`, `lib/locales/de.json`, `en.json`, `styles/animations.css` (nur falls das Einblenden animiert wird, sonst nichts)
+- Create: `apps/web/src/components/RulesPanel.svelte` (+ `RulesPanel.test.ts`)
+
+**Interfaces:**
+- Produces in `@rps/shared`: `export function gestureBeats(set: GestureSet, gesture: string): string[]` – die Gesten, die `gesture` schlägt, in Kreisreihenfolge. Quelle ist dieselbe Kreisregel wie `duel` (jede Geste schlägt die nächsten `(n-1)/2`). Wirft wie `duel` bei unbekannter Geste.
+- `RulesPanel.svelte`: Props `{ mode: ModeId }`. Ein natives `<details class="rules">` mit `<summary>` `rules.title`, darin `mode.<id>.desc` und pro Geste eine Zeile `rules.beats` (`{gesture}` schlägt `{list}`) mit kleinen `GestureIcon`s; Bluff nutzt Lizard-Spock, 2v2 Classic (`gestureSetFor`). Kein JS-Zustand nötig, keine Bewegung.
+- Hinweis an der Kachel: `GestureButton` bekommt Prop `beats: string[]`; ein visuell eingeblendeter Hinweis „schlägt: …“ bei `:hover` und `:focus-visible` (CSS, keine Bewegung) und derselbe Text per `aria-describedby` für Screenreader. Bei Berührung gibt es kein Hover: dafür dient die Regelansicht (`RulesPanel`) in Wahl-Screen und Lobby.
+- Neue Keys DE/EN: `rules.title`, `rules.beats` (`{gesture}`, `{list}`), `rules.hint` (Kurzform „schlägt: {list}“).
+
+- [ ] **Step 1: Failing tests:** `gestures.test.ts`: `gestureBeats(classic,'rock')` = `['scissors']`, `paper` = `['rock']`, `scissors` = `['paper']`; Lizard-Spock: jede Geste schlägt genau 2; wheel15: genau 7; für alle Sets und alle Paare gilt `duel(set,a,b)==='a'` ⇔ `b ∈ gestureBeats(set,a)`; unbekannte Geste wirft. `RulesPanel.test.ts`: `<details>` mit Titel „Regeln“, eine Zeile pro Geste, Texte aus `rules.beats`, Classic zeigt 3 Zeilen, wheel15 15 Zeilen mit je 7 Namen. `Board.test.ts` (nur ergänzen): jede Kachel hat einen `aria-describedby`, der auf einen Text „schlägt: …“ zeigt; Stein zeigt „Schere“; die Regelansicht ist im Wahl-Screen und in der Lobby vorhanden.
+- [ ] **Step 2:** Tests → FAIL. **Step 3:** `gestureBeats` aus der Kreisregel ableiten (nicht doppelt hinterlegen); Komponenten und Texte bauen; Hinweis sichtbar machen ohne Layout-Sprung und ohne Bewegung (nur `opacity`/`visibility` per `:hover`/`:focus-visible` ist Zustand, keine `transition`). **Step 4:** `npx vitest run`, Lint, Typecheck grün. **Step 5: Commit** `feat(web): show what each gesture beats and a rules panel`.
+
 ## Self-Review
 
 - **Spec-Abdeckung:** §2 → T1; §6 → T2; §5.2/5.3/5.5 → T3, T4, T8, T9, T11; §3.1 → T5; §3.2 → T6; §3.3 → T7; §3.4 + §4.2 → T9; §3.5 → T10; §4 komplett → in T6–T10 verteilt (Zuordnung je Task in den Interfaces); §5.4 → T12; §9 → T13. Lücke aus dem Handoff selbst: Mockups fehlen, Lobby ist nicht spezifiziert (siehe „Entscheidungen“).
