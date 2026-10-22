@@ -78,10 +78,10 @@ Runden gar nichts) und wertet die Ansage des Menschen nicht aus.
 ### 2v2 Team
 
 Vier Plätze: `a0`, `a1` (Team A) und `b0`, `b1` (Team B). Man wählt in der Lobby selbst einen freien Platz, der
-Raum-Ersteller kann Spielende umsetzen. Das Match startet, sobald alle vier Plätze besetzt sind. Jede Person
-wählt pro Runde geheim eine Geste aus dem Klassik-Set. Es gibt zwei Duelle, `a0` gegen `b0` und `a1` gegen `b1`.
-Das Team mit mehr gewonnenen Duellen gewinnt die Runde, bei 1:1 ist die Runde unentschieden. Einen Bot gibt es
-in diesem Modus nicht.
+Raum-Ersteller kann Spielende umsetzen. Der Raum-Ersteller startet das Match, sobald alle vier Plätze besetzt
+sind. Jede Person wählt pro Runde geheim eine Geste aus dem Klassik-Set. Es gibt zwei Duelle, `a0` gegen `b0`
+und `a1` gegen `b1`. Das Team mit mehr gewonnenen Duellen gewinnt die Runde, bei 1:1 ist die Runde
+unentschieden. Einen Bot gibt es in diesem Modus nicht.
 
 ### Unentschieden, Sudden Death und Zeiten
 
@@ -105,9 +105,18 @@ Eine Runde, die ohne jede menschliche Wahl oder Ansage abläuft, zählt als "lee
 Folge (`IDLE_ROUNDS_LIMIT`) endet das Match ohne Gewinner, damit verlassene Räume nicht endlos weiterlaufen. Die
 Ergebnisansicht zeigt dann statt Sieg oder Niederlage "Spiel vorzeitig beendet" ("Match ended early") mit dem
 Hinweis, dass das Spiel nicht weitergeführt werden konnte. Sind alle Menschen nach Ablauf der Karenzzeit
-weg, löscht der Server den Raum. Verlassen im 2v2 so viele Personen das Match, dass kein Duell mehr zwei aktive
-Teilnehmende hat, endet es ebenfalls: Es gewinnt das Team mit mehr aktiven Plätzen, bei Gleichstand das mit
-mehr Punkten, sonst gibt es keinen Gewinner.
+weg, löscht der Server den Raum.
+
+**Vorzeitiges Ende durch Aufgabe:** Wer das Match endgültig verlässt (oder nach der Karenzzeit nicht
+zurückkehrt), gibt auf und verliert ab dann jedes seiner Duelle. Das Match endet sofort, sobald kein Duell mehr
+zwei aktive Teilnehmende hat (Regel `drawGuard` in `apps/server/src/settle.ts`):
+
+- **1v1 (auch gegen den Bot):** Gibt eine Seite auf, gewinnt die andere. Geben beide auf, gibt es keinen Gewinner
+  (bzw. gewinnt bei Punktunterschied die führende Seite).
+- **2v2:** Solange noch ein Duell mit zwei aktiven Personen übrig ist (z. B. `a1` gegen `b1`, wenn `a0` geht),
+  läuft das Match weiter, das verlassene Duell geht jede Runde an die Gegenseite. Sonst (beide Plätze eines Teams
+  weg, oder `a0` und `b1` bzw. `a1` und `b0` weg) gewinnt das Team mit mehr aktiven Plätzen, bei Gleichstand das
+  mit mehr Punkten, sonst gibt es keinen Gewinner.
 
 Nach dem Ende eines Matches kann jede Person im Raum eine Revanche starten. Wer das Match aufgegeben hat, gibt
 dabei seinen Platz frei.
@@ -157,8 +166,8 @@ Das ausführliche Design steht in
 
 ## Lokal entwickeln
 
-Voraussetzungen: Node 24 (siehe [`.nvmrc`](.nvmrc), z. B. `nvm use`) und Docker (nur für Compose, die Image-
-Builds und optional einen lokalen Redis).
+Voraussetzungen: Node 24 (siehe [`.nvmrc`](.nvmrc), z. B. `nvm use`) und Docker (nur für Compose, für
+Image-Builds und optional für einen lokalen Redis).
 
 ```bash
 npm install
@@ -250,17 +259,30 @@ Die Services in [`compose.yaml`](compose.yaml):
 - **Ports und Namen:** Belegte Ports lassen sich mit `APP_PORT`, `APP2_PORT` und `REDIS_PORT` ändern, z. B.
   `APP_PORT=18080 npm run compose:up`. Kein Service hat einen festen Containernamen, mehrere Checkouts laufen
   mit unterschiedlichem `COMPOSE_PROJECT_NAME` und eigenen Ports nebeneinander.
+- **Eigene Ports bei `compose:smoke`:** Das Smoke-Skript läuft auf dem Host und spricht standardmäßig
+  `127.0.0.1:8080` und `127.0.0.1:8081` an. Mit geänderten Ports müssen deshalb zusätzlich `APP_URL` und
+  `APP2_URL` gesetzt werden. Nur `compose:check` reicht `APP_PORT`, `APP2_PORT` und `REDIS_PORT` selbst an das
+  Skript weiter.
+
+  ```bash
+  export APP_PORT=18080 APP2_PORT=18081
+  APP_URL=http://127.0.0.1:18080 APP2_URL=http://127.0.0.1:18081 npm run compose:smoke
+  ```
+
 - **`tests`-Service:** Wird aus der `test`-Stage des [`Dockerfile`](Dockerfile) gebaut. Quellcode und
   Abhängigkeiten stecken im Image, es gibt **keinen Bind-Mount**, und nichts wird in den Arbeitsordner
   geschrieben. `compose:test` baut mit `--build` bei jedem Aufruf neu (Docker-Cache greift). Mit
   `COMPOSE_TEST_CMD` lässt sich ein anderer Befehl setzen:
   `COMPOSE_TEST_CMD="npm test -w @rps/server" npm run compose:test`.
 - **`compose:smoke`** startet `redis`, `app` und `app2` und führt
-  [`scripts/compose-smoke.mjs`](scripts/compose-smoke.mjs) aus. Es lässt den Stack laufen, aufräumen mit `npm run compose:down`.
+  [`scripts/compose-smoke.mjs`](scripts/compose-smoke.mjs) aus. Der Stack läuft danach weiter, aufräumen mit
+  `npm run compose:down`.
 - **`compose:check`** ([`scripts/compose-check.sh`](scripts/compose-check.sh)) prüft die Compose-Konfiguration
   (alle Profile), baut und startet die App, prüft `/healthz` und `/readyz`, führt die Tests gegen Redis aus
   (und stellt sicher, dass die Redis-Tests wirklich laufen, nicht übersprungen werden), startet die zweite
-  Instanz und führt den Smoke-Test aus. Danach räumt es immer auf. Es nutzt standardmäßig das Projekt
+  Instanz und führt den Smoke-Test aus. Danach räumt es immer auf. Es hängt an `COMPOSE_TEST_CMD` automatisch
+  `-- --reporter=verbose` an. Wird der Befehl überschrieben, müssen darin die `@rps/server`-Tests enthalten sein,
+  weil die Prüfung "Redis-Tests liefen" sie im Log sucht. Es nutzt standardmäßig das Projekt
   `rps-arena-check`, damit ein laufender Dev-Stack nicht abgebaut wird (`COMPOSE_PROJECT_NAME` überschreibt das).
   Es braucht auf dem Host `docker`, `curl`, `node` und die per `npm ci` installierten Abhängigkeiten.
 
@@ -394,10 +416,11 @@ auf 10 kB begrenzt, pro Verbindung gibt es ein Ratenlimit.
   `Closed_Fist` (Stein), `Open_Palm` (Papier) und `Victory` (Schere). Eine Geste zählt erst, wenn sie
   900 ms ununterbrochen gehalten wird.
 - **Pinned auf 0.10.x:** `@mediapipe/tasks-vision` steht in `apps/web/package.json` exakt auf `0.10.35`.
-  Ab Version 1.x enthält die Library eine eingebaute Telemetrie, die regelmäßig Daten an einen Google-Endpunkt
-  sendet. Das widerspricht der Zusage "keine Anfragen an Dritte". Die Version darf deshalb nicht auf 1.x
-  angehoben werden, ohne das zu prüfen. Renovate ist per Regel in `renovate.json` darauf eingestellt, die
-  Version nicht auf 1.x zu heben (`allowedVersions: "<1"`).
+  Versionen ab 1.0 liefern eine eingebaute Telemetrie mit (ein POST an einen Google-Logging-Endpunkt, so
+  beschreibt es auch die Renovate-Regel). Bei der Analyse von 1.1.1 fand sich dieser Logger im Bundle, in 0.10.x
+  sind keine externen URLs enthalten. Das widerspräche der Zusage "keine Anfragen an Dritte". Die Version darf
+  deshalb nicht auf 1.x angehoben werden, ohne das zu prüfen. Renovate ist per Regel in `renovate.json` darauf
+  eingestellt, die Version nicht auf 1.x zu heben (`allowedVersions: "<1"`).
 - **Modell-Download beim Build:** `scripts/fetch-model.mjs` (läuft als `predev`/`prebuild` der Web-App und damit
   auch im Docker-Build) lädt `gesture_recognizer.task` von `storage.googleapis.com`, prüft die SHA-256-Summe und
   bricht bei Abweichung ab. Der Build braucht deshalb **Netzwerk**. Ein vorhandenes, geprüftes Modell wird nicht
@@ -442,9 +465,8 @@ Image oder Chart und bricht ab, wenn die Registry nicht eindeutig antwortet.
 
 Gemergt wird per **Squash-Merge** mit einem Conventional-Commit-Titel. Der Workflow
 [`pr-title.yml`](.github/workflows/pr-title.yml) prüft den PR-Titel (erlaubte Typen: `feat`, `fix`, `perf`,
-`docs`, `ci`, `chore`, `test`, `refactor`, `build`; `style` ist im Releaseplan zwar ohne Release
-aufgeführt, im Titel-Check aber nicht erlaubt). Die PR-CI [`ci.yml`](.github/workflows/ci.yml) läuft bei Pull
-Requests gegen `main` (und manuell) mit diesen Jobs:
+`docs`, `ci`, `chore`, `test`, `refactor`, `build`, `style`). Die PR-CI [`ci.yml`](.github/workflows/ci.yml)
+läuft bei Pull Requests gegen `main` (und manuell) mit diesen Jobs:
 
 | Job | Inhalt |
 | --- | --- |
@@ -460,22 +482,26 @@ semantic-release legt Tag und GitHub Release an, *bevor* es `scripts/publish.sh`
 Veröffentlichen von Image oder Chart fehl, findet ein erneuter Lauf nichts Neues und tut nichts. Stattdessen:
 **Actions → release → Run workflow** und die vorhandene Version ohne `v` eintragen, z. B. `1.2.3`. Der Job
 `republish` checkt den Tag aus, baut Image und Chart neu und veröffentlicht beides. Vorhandene Artefakte werden
-nicht überschrieben, ein halb fertiger Release lässt sich so vervollständigen. Alternativ von Hand:
+nicht überschrieben, ein halb fertiger Release lässt sich so vervollständigen. Alternativ von Hand (braucht
+`docker`, `helm` und `git` sowie einen buildx-Builder, der Multi-Plattform-Images bauen kann, z. B. mit QEMU):
 
 ```bash
 git checkout v1.2.3
 docker login ghcr.io
-bash scripts/publish.sh 1.2.3             # --dry-run baut lokal nur für die eigene Plattform und pusht nichts
+bash scripts/publish.sh 1.2.3
+# Trockenlauf: baut lokal nur für die eigene Plattform, pusht nichts, kontaktiert die Registry nicht
+bash scripts/publish.sh 1.2.3 --dry-run
 ```
 
 **Erstes Veröffentlichen:** GHCR antwortet für Pakete, die es noch nicht gibt, mit `403 denied`. Das lässt sich
 nicht von einem echten Rechteproblem unterscheiden, deshalb bricht `publish.sh` bei so einer Antwort ab und
 pusht nichts. Scheitert der allererste Release-Lauf im Veröffentlichen (Tag und GitHub Release existieren dann
 schon), startet man den manuellen Lauf mit der erzeugten Version (z. B. `1.0.0`) und setzt zusätzlich
-**`first_publish = true`**. Dann gilt eine Autorisierungsantwort als "Paket existiert noch nicht"
-(Warnzeile im Log) und Image sowie Chart werden gepusht. Netzwerkfehler, Timeouts und Serverfehler brechen weiter
-ab. `first_publish` nie für spätere Releases setzen. Nur der manuelle Job kann das Flag setzen, der Lauf bei
-einem Push nie.
+**`first_publish = true`**. Dann gilt eine Autorisierungsantwort als "Paket existiert noch nicht" (Warnzeile im
+Log) und Image sowie Chart werden gepusht. Netzwerkfehler, Timeouts und Serverfehler brechen weiter ab. Von Hand
+geht dasselbe mit `bash scripts/publish.sh 1.0.0 --assume-missing` (oder der Umgebungsvariable
+`PUBLISH_ASSUME_MISSING=1`). `first_publish` nie für spätere Releases setzen. Nur der manuelle Job kann das Flag
+setzen, der Lauf bei einem Push nie.
 
 ### Renovate
 
@@ -483,12 +509,14 @@ einem Push nie.
 Helm sowie für zwei Custom Manager (Node-Image im Dockerfile und die angepinnte Renovate-Version im Job
 `renovate-config`). Die Regeln im Überblick, Details und Begründungen stehen als `description` in der Datei:
 
-- Renovate-Commits haben das Präfix `fix(deps)`, jedes Update erzeugt also einen Patch-Release.
+- Renovate-Commits haben das Präfix `fix(deps)`, ein Update erzeugt also einen Patch-Release. Ausnahmen mit
+  `build(deps)` (kein Release): das Release-Tooling (siehe unten) und die in `ci.yml` angepinnte Renovate-Version,
+  die nur die CI-Validierung betrifft und kein Spielupdate ist. Automerge gilt dafür wie sonst (Minor und Patch).
 - Minor- und Patch-Updates der npm-Abhängigkeiten werden in einem PR gruppiert. Minor- und Patch-Updates werden
   automatisch gemergt (Platform-Automerge), sobald die Required Checks grün sind. **Major-Updates bleiben
   manuell.**
 - Das Release-Tooling (`semantic-release` und seine Plugins) bekommt eine eigene Gruppe, keinen Automerge und
-  das Präfix `build(deps)`, löst also kein Release aus.
+  das Präfix `build(deps)`, löst also kein Release aus und wird von Hand geprüft.
 - Versionsgrenzen: `@mediapipe/tasks-vision` bleibt unter 1.0 (Telemetrie, siehe oben) und
   `conventional-changelog-conventionalcommits` unter 10 (inkompatibel mit dem Release-Notes-Generator).
 - Der Node-Major des Dockerfile-Images folgt `.nvmrc` und wird von Hand angehoben.
@@ -497,17 +525,18 @@ Die Konfiguration wird in der CI validiert (Job `renovate-config`).
 
 ## Einmalige manuelle Schritte nach dem ersten Push
 
-- [ ] **Repository** `Jaydee94/rps-arena` auf GitHub anlegen bzw. verbinden (`origin` ist im Arbeitsverzeichnis
-  schon konfiguriert) und `main` pushen.
+- [ ] **Repository** `Jaydee94/rps-arena` auf GitHub anlegen bzw. verbinden und `main` pushen.
 - [ ] **Renovate** installieren: die Renovate GitHub App für das Repository freigeben. Sie liest die vorhandene
   `renovate.json` und öffnet danach die Update-PRs.
 - [ ] **Merge-Einstellungen** (Settings → General → Pull Requests): nur *Squash merging* erlauben, als
   Commit-Nachricht "Pull request title" wählen. Merge-Commits und Rebase-Merge deaktivieren.
 - [ ] **Auto-Merge** erlauben (Settings → General → Pull Requests → *Allow auto-merge*). Renovate nutzt
   `platformAutomerge` und braucht diese Einstellung.
-- [ ] **Branch-Protection** für `main` (Settings → Branches oder Rulesets): Pull Request vorschreiben und diese
-  Status-Checks verlangen (die Namen der Jobs, sie erscheinen in der Auswahl erst nach dem ersten Lauf):
-  `test`, `e2e`, `image`, `chart`, `renovate-config` (aus `ci.yml`) und `pr-title` (aus `pr-title.yml`).
+- [ ] **Ersten Pull Request öffnen** (z. B. eine kleine Doku-Änderung), damit `ci.yml` und `pr-title.yml` einmal
+  laufen. GitHub bietet Status-Checks in der Branch-Protection erst zur Auswahl an, nachdem sie gelaufen sind.
+- [ ] **Branch-Protection** für `main` (Settings → Branches oder Rulesets), nach dem ersten PR: Pull Request
+  vorschreiben und diese Status-Checks verlangen (die Namen der Jobs): `test`, `e2e`, `image`, `chart`,
+  `renovate-config` (aus `ci.yml`) und `pr-title` (aus `pr-title.yml`).
   Der Renovate-Automerge wartet dann auf grüne Checks. Eine Ausnahme für den Release-Bot ist nicht nötig,
   weil nichts nach `main` zurückgeschrieben wird.
 - [ ] **Actions-Rechte** (Settings → Actions → General → Workflow permissions): Die Workflows fordern ihre Rechte
