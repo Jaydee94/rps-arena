@@ -9,6 +9,7 @@ import {
   createTournament,
   generateCode,
   isFinished,
+  markForfeited,
   nextPairing,
   recordResult,
   settleAutomatic,
@@ -22,11 +23,19 @@ import type {
   SeatId,
   TournamentFormat,
 } from '@rps/shared';
-import { isAbandoned, newSpectator } from './engine';
+import {
+  isAbandoned,
+  leave,
+  markConnected,
+  markDisconnected,
+  newSpectator,
+  rejoinSpectator,
+  sameToken,
+} from './engine';
 import type { Who } from './engine';
 import { spectatorsOf } from './room';
 import type { Participant, Player, Room, TournamentRoom } from './room';
-import { settle } from './settle';
+import { graceEnd, participantActive, participantGraceEnd, participantOut, settle, spectatorGraceEnd } from './settle';
 import type { Rng } from './settle';
 
 /**
@@ -44,8 +53,14 @@ import type { Rng } from './settle';
  * intermission end through `untilMs`, which feeds the room's wake-up `deadline`, so the ticker of
  * any replica advances them and a racing replica's `tick` is a no-op (see `advanceTournament`).
  *
- * Not here yet (Stage 2 Task 3b): grace and forfeit timing between matches, host change, rematch
- * and rejoin by token for participants outside the running pairing.
+ * Absence (Stage 2 Task 3b): a participant's `disconnectedAt` is the start of its running grace
+ * period. Only a member of the running pairing forfeits when it ends (through its seat: the engine's
+ * grace expiry in `tick` → `forfeitSeat` → draw guard → `finishPairing`); its grace runs from
+ * max(disconnect, call-up). Waiting and eliminated participants and spectators have no grace: their
+ * disconnect only flips `connected`. Leaving for good forfeits (`leaveParticipant`). A forfeited
+ * participant stays in `participants` (results and names refer to it); coming back by token it is
+ * a spectator (`{ role: 'spectator', id }`, its participant id) without any influence. The host
+ * role follows `settleTournamentHost` (in every settle).
  */
 
 /** Who a session is in a tournament room: a pairing seat, a spectator, or a waiting participant. */
@@ -75,6 +90,22 @@ function requireTournament(room: Room): TournamentRoom {
 
 function withTournament(room: Room, patch: Partial<TournamentRoom>): Room {
   return { ...room, tournament: { ...requireTournament(room), ...patch } };
+}
+
+/**
+ * In the lobby, participants that are disconnected past their grace (`participantGraceEnd` <= now)
+ * are dropped like expired spectators, freeing their place; a connected participant (the host
+ * included) is never dropped. A dropped host's role moves on in the next `settle`. Any other phase,
+ * or nothing to drop, returns the identical room. Called from `tick` and `startTournament`.
+ */
+export function dropLobbyGhosts(room: Room, now: number): Room {
+  const t = room.tournament;
+  if (!t || t.phase !== 'lobby') return room;
+  const participants = t.participants.filter((p) => {
+    const end = participantGraceEnd(p);
+    return end === null || end > now;
+  });
+  return participants.length === t.participants.length ? room : withTournament(room, { participants });
 }
 
 /** Everyone holding an id in the room (participants and spectators share one id space). */
@@ -130,28 +161,33 @@ export function joinTournamentRoom(
   if (isAbandoned(room, now)) fail('room_not_found');
   const person = newSpectator(people(room), nickname, avatar, socketId);
   if (t.phase === 'lobby' && t.participants.length < TOURNAMENT_MAX_PLAYERS) {
-    return {
-      room: withTournament(room, { participants: [...t.participants, person] }),
-      who: { role: 'participant', id: person.id },
-    };
+    // settle: a newcomer takes over a host that is gone past its grace at once.
+    const joined = withTournament(room, { participants: [...t.participants, person] });
+    return { room: settle(room.match, joined, now, Math.random), who: { role: 'participant', id: person.id } };
   }
   const spectators = spectatorsOf(room);
   if (spectators.length >= MAX_SPECTATORS) fail('room_full');
   return { room: { ...room, spectators: [...spectators, person] }, who: { role: 'spectator', id: person.id } };
 }
 
-/** Host only, from the lobby, with at least TOURNAMENT_MIN_PLAYERS participants: draw, then wait DRAW_MS. */
+/**
+ * Host only, from the lobby, with at least TOURNAMENT_MIN_PLAYERS participants (lobby ghosts, i.e.
+ * disconnected past their grace, do not count and are dropped): draw, then wait DRAW_MS.
+ */
 export function startTournament(room: Room, byId: string, now: number, rng: Rng): Room {
   const t = requireTournament(room);
   if (byId !== t.hostId) fail('not_host');
   if (t.phase !== 'lobby') fail('wrong_phase');
-  if (t.participants.length < TOURNAMENT_MIN_PLAYERS) fail('not_enough_players');
+  // Defensive: lobby ghosts (gone past their grace) never get drawn, even if no tick dropped them yet.
+  const present = settleTournamentHost(dropLobbyGhosts(room, now), now);
+  const participants = requireTournament(present).participants;
+  if (participants.length < TOURNAMENT_MIN_PLAYERS) fail('not_enough_players');
   const state = createTournament(
     t.format,
-    t.participants.map((p) => p.id),
+    participants.map((p) => p.id),
     rng,
   );
-  const next = withTournament(room, { state, phase: 'draw', currentPairingId: null, untilMs: now + DRAW_MS });
+  const next = withTournament(present, { state, phase: 'draw', currentPairingId: null, untilMs: now + DRAW_MS });
   return settle(room.match, next, now, rng);
 }
 
@@ -246,14 +282,23 @@ export function syncPairing(room: Room): Room {
 /**
  * Puts the pairing's two participants on a0/b0 and starts their match through the engine
  * (`settle` sets the phase deadline). Tie-break pairings play best of 1. The idle-round state
- * starts over; there are never bots.
+ * starts over; there are never bots. A member who is disconnected at the call-up has its grace
+ * period start now (`disconnectedAt` moves to the call-up), so it forfeits RECONNECT_GRACE_MS
+ * later unless it comes back.
  */
 export function projectPairing(room: Room, pairing: Pairing, now: number, rng: Rng): Room {
   const t = requireTournament(room);
   const known = (id: string | null) => id !== null && t.participants.some((p) => p.id === id);
   if (!known(pairing.a) || !known(pairing.b)) fail('internal');
+  // A member who is away at the call-up gets the full grace period from now on: the grace runs
+  // from max(disconnect, call-up), never from a disconnect between matches.
+  const participants = t.participants.map((p) =>
+    (p.id === pairing.a || p.id === pairing.b) && !p.connected
+      ? { ...p, disconnectedAt: Math.max(p.disconnectedAt ?? now, now) }
+      : p,
+  );
   const next: Room = {
-    ...withTournament(room, { phase: 'match', currentPairingId: pairing.id, untilMs: null }),
+    ...withTournament(room, { participants, phase: 'match', currentPairingId: pairing.id, untilMs: null }),
     match: createMatch({ ...room.config, bestOf: pairing.bestOf }),
     botLevel: null,
     history: [],
@@ -288,4 +333,203 @@ export function finishPairing(room: Room, now: number, rng: Rng): Room {
     phase: done ? 'finished' : 'intermission',
     untilMs: done ? null : now + INTERMISSION_MS,
   });
+}
+
+
+/**
+ * The seat of a participant in the running pairing (phase `match`), or null. Unlike
+ * `participantIdOfSeat` this looks from the participant's side.
+ */
+function seatOfParticipant(room: Room, id: string): SeatId | null {
+  if (participantIdOfSeat(room, 'a0') === id) return 'a0';
+  if (participantIdOfSeat(room, 'b0') === id) return 'b0';
+  return null;
+}
+
+function updateParticipant(room: Room, id: string, change: Partial<Participant>): Room {
+  const t = requireTournament(room);
+  return withTournament(room, { participants: t.participants.map((p) => (p.id === id ? { ...p, ...change } : p)) });
+}
+
+/**
+ * Host succession, run in every `settle` after `finishPairing`: while the host is active (not
+ * forfeited, connected or within its grace) nothing happens. Otherwise the role passes to the
+ * first connected participant (join order) that is not out; spectators never take it. Without such
+ * a participant a running tournament (draw, match, intermission) ends: phase `finished`, a running
+ * match ends without a winner (and is not recorded), so the room is abandoned once the last grace
+ * runs out and the ticker deletes it. In the lobby and after the end the role stays where it is
+ * until someone comes back. Rooms without a tournament are returned unchanged.
+ */
+export function settleTournamentHost(room: Room, now: number, leaving: string | null = null): Room {
+  const t = room.tournament;
+  if (!t) return room;
+  const host = t.participants.find((p) => p.id === t.hostId);
+  if (host && host.id !== leaving && participantActive(room, host, now)) return room;
+  const heir = t.participants.find(
+    (p) => p.id !== t.hostId && p.id !== leaving && p.connected && !participantOut(room, p),
+  );
+  if (heir) return withTournament(room, { hostId: heir.id });
+  if (t.phase === 'lobby' || t.phase === 'finished') return room;
+  const match = room.match && room.match.phase !== 'finished' ? { ...room.match, phase: 'finished' as const, winner: null } : room.match;
+  return { ...withTournament(room, { phase: 'finished', untilMs: null }), match };
+}
+
+/**
+ * A participant's connection dropped. A member of the running pairing is handled like any seat
+ * (`markDisconnected`: its grace runs, then it forfeits); anyone else (waiting, eliminated,
+ * forfeited) only flips `connected`, with no timer of its own. Unknown ids leave the room as it is.
+ */
+export function markParticipantDisconnected(room: Room, id: string, now: number): Room {
+  const t = requireTournament(room);
+  if (!t.participants.some((p) => p.id === id)) return room;
+  const seat = seatOfParticipant(room, id);
+  if (seat) return markDisconnected(room, seat, now);
+  const next = updateParticipant(room, id, { connected: false, disconnectedAt: now, socketId: null });
+  return settle(room.match, next, now, Math.random);
+}
+
+/** A participant is connected (again) on `socketId`; the counterpart of `markParticipantDisconnected`. */
+export function markParticipantConnected(room: Room, id: string, now: number, socketId: string | null): Room {
+  const t = requireTournament(room);
+  if (!t.participants.some((p) => p.id === id)) return room;
+  const seat = seatOfParticipant(room, id);
+  if (seat) return markConnected(room, seat, now, socketId);
+  const next = updateParticipant(room, id, { connected: true, disconnectedAt: null, socketId });
+  return settle(room.match, next, now, Math.random);
+}
+
+/**
+ * A participant leaves for good. In the lobby it is removed. In a running tournament it forfeits:
+ * in its own running match through `forfeitSeat` (the match ends at once, the opponent wins),
+ * otherwise through `markForfeited` (all its open pairings are lost automatically). After the end
+ * it only disconnects (the results stay as they are). In every case it is no longer host.
+ * Unknown ids leave the room as it is; leaving twice changes nothing more.
+ */
+export function leaveParticipant(room: Room, id: string, now: number, rng: Rng): Room {
+  const t = requireTournament(room);
+  if (!t.participants.some((p) => p.id === id)) return room;
+  if (t.phase === 'lobby') {
+    const next = withTournament(room, { participants: t.participants.filter((p) => p.id !== id) });
+    return settleThenHandOver(room, next, id, now, rng);
+  }
+  const seat = seatOfParticipant(room, id);
+  let next = seat ? markDisconnected(room, seat, now) : room;
+  if (seat) {
+    next = leave(next, seat);
+  } else {
+    next = updateParticipant(next, id, { connected: false, disconnectedAt: now, socketId: null });
+    if (t.state && t.phase !== 'finished') next = withTournament(next, { state: markForfeited(t.state, id, rng) });
+  }
+  return settleThenHandOver(room, next, id, now, rng);
+}
+
+/**
+ * Settles first (the leaver's forfeit ends its match through drawGuard and `finishPairing` records
+ * it, exactly as a grace expiry would), then takes the host role off the leaver and settles again.
+ */
+function settleThenHandOver(room: Room, next: Room, leaving: string, now: number, rng: Rng): Room {
+  const settled = settle(room.match, next, now, rng);
+  return settle(settled.match, settleTournamentHost(settled, now, leaving), now, rng);
+}
+
+/** Who `socketId` is in a tournament room: a pairing seat, a participant, a spectator (forfeiters included), or null. */
+export function tournamentWhoOfSocket(room: Room, socketId: string): TournamentWho | null {
+  const t = requireTournament(room);
+  const participant = t.participants.find((p) => p.socketId === socketId);
+  if (participant) {
+    const seat = seatOfParticipant(room, participant.id);
+    if (seat) return { role: 'player', seat };
+    if (participantOut(room, participant)) return { role: 'spectator', id: participant.id };
+    return { role: 'participant', id: participant.id };
+  }
+  const spectator = spectatorsOf(room).find((s) => s.socketId === socketId);
+  return spectator ? { role: 'spectator', id: spectator.id } : null;
+}
+
+/**
+ * Restores the participant or spectator owning `token` and binds it to `socketId` (the tournament
+ * counterpart of `rejoinRoom`). A member of the running pairing resolves to its seat and, as in a
+ * duel, is `bad_token` once its seat's grace is over (the tick forfeits it). Waiting and eliminated
+ * participants have no grace and may come back any time, unless the room is abandoned
+ * (`room_not_found`). A forfeited participant comes back as a spectator under its participant id.
+ * Spectators follow the stage 1 rules. `previousSocketId` is the connection that held the binding.
+ */
+export function rejoinTournament(
+  room: Room,
+  token: string,
+  now: number,
+  socketId: string,
+): { room: Room; who: TournamentWho; previousSocketId: string | null } {
+  const t = requireTournament(room);
+  const participant = t.participants.find((p) => p.token !== '' && sameToken(p.token, token));
+  if (!participant) return rejoinSpectator(room, token, now, socketId);
+  const seat = seatOfParticipant(room, participant.id);
+  const player = seat ? room.players[seat] : undefined;
+  if (player && !participantOut(room, participant)) {
+    const end = graceEnd(room, player);
+    if (end !== null && now >= end) fail('bad_token');
+  }
+  if (isAbandoned(room, now)) fail('room_not_found');
+  const previousSocketId =
+    participant.connected && participant.socketId !== socketId ? participant.socketId : null;
+  const next = markParticipantConnected(room, participant.id, now, socketId);
+  let who: TournamentWho;
+  if (participantOut(room, participant)) who = { role: 'spectator', id: participant.id };
+  else if (seat) who = { role: 'player', seat };
+  else who = { role: 'participant', id: participant.id };
+  return { room: next, who, previousSocketId };
+}
+
+/**
+ * Host only, after the end: back to the lobby for a new tournament. All currently connected people
+ * take part, participants first and then spectators (each in join order), up to
+ * TOURNAMENT_MAX_PLAYERS; everyone else (overflow and the disconnected) watches as a spectator,
+ * keeping its token and connection state. People already past their grace are dropped, and if the
+ * spectators would still exceed MAX_SPECTATORS the disconnected ones with the earliest grace end
+ * are dropped too (connected ones always fit: at most 8 + MAX_SPECTATORS people exist and 8 of the
+ * connected ones become participants). The draw, results and match are cleared; the host stays
+ * if it is still a participant, otherwise the role moves on (`settleTournamentHost`).
+ */
+export function tournamentRematch(room: Room, byId: string, now: number, rng: Rng): Room {
+  const t = requireTournament(room);
+  if (byId !== t.hostId) fail('not_host');
+  if (t.phase !== 'finished') fail('wrong_phase');
+  // People whose grace already ran out are gone for good.
+  const everyone = [...t.participants, ...spectatorsOf(room)].filter((p) => {
+    const end = spectatorGraceEnd(p);
+    return end === null || end > now;
+  });
+  const participants = everyone.filter((p) => p.connected).slice(0, TOURNAMENT_MAX_PLAYERS);
+  const spectators = capSpectators(everyone.filter((p) => !participants.includes(p)));
+  const next: Room = {
+    ...withTournament(room, {
+      participants,
+      state: null,
+      phase: 'lobby',
+      currentPairingId: null,
+      untilMs: null,
+    }),
+    spectators,
+    players: {},
+    match: null,
+    phaseDeadline: null,
+    nextReady: [],
+    history: [],
+    idleRounds: 0,
+    roundActed: false,
+  };
+  return settle(room.match, next, now, rng);
+}
+
+/** Trims disconnected spectators (earliest grace end first) until at most MAX_SPECTATORS remain. */
+function capSpectators(spectators: Participant[]): Participant[] {
+  const excess = spectators.length - MAX_SPECTATORS;
+  if (excess <= 0) return spectators;
+  const dropped = new Set(
+    spectators
+      .filter((s) => !s.connected)
+      .sort((x, y) => (x.disconnectedAt ?? 0) - (y.disconnectedAt ?? 0))
+      .slice(0, excess),
+  );
+  return spectators.filter((s) => !dropped.has(s));
 }

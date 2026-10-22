@@ -12,7 +12,7 @@ import type { MatchState, SeatId, Team } from '@rps/shared';
 import { chooseBotEmote, chooseBotGesture } from './bot';
 import { spectatorsOf } from './room';
 import type { Participant, Player, Room, Spectator } from './room';
-import { finishPairing, syncPairing } from './tournament';
+import { finishPairing, settleTournamentHost, syncPairing } from './tournament';
 
 /**
  * Derived-state bookkeeping shared by every engine operation: bot moves, the endless-draw guard,
@@ -71,16 +71,36 @@ export function isAbandoned(room: Room, now: number): boolean {
   });
 }
 
-/** A tournament participant that can still act: not forfeited, connected or within grace. */
-function participantActive(room: Room, participant: Participant, now: number): boolean {
+/**
+ * A tournament participant that is out of the tournament: forfeited in the tournament state, or
+ * inside the running match before `finishPairing` recorded it.
+ */
+export function participantOut(room: Room, participant: Participant): boolean {
   const t = room.tournament;
-  if (t?.state?.forfeited.includes(participant.id)) return false;
-  // Forfeited inside the running match, before `finishPairing` recorded it.
-  const pairing = t?.phase === 'match' ? t.state?.pairings.find((p) => p.id === t.currentPairingId) : undefined;
-  if (pairing?.a === participant.id && isForfeited(room, 'a0')) return false;
-  if (pairing?.b === participant.id && isForfeited(room, 'b0')) return false;
-  if (participant.connected) return true;
-  return participant.disconnectedAt !== null && now < participant.disconnectedAt + RECONNECT_GRACE_MS;
+  if (!t) return false;
+  if (t.state?.forfeited.includes(participant.id)) return true;
+  const pairing = t.phase === 'match' ? t.state?.pairings.find((p) => p.id === t.currentPairingId) : undefined;
+  if (pairing?.a === participant.id && isForfeited(room, 'a0')) return true;
+  return pairing?.b === participant.id && isForfeited(room, 'b0');
+}
+
+/**
+ * Grace end of a disconnected participant, or null while connected. `disconnectedAt` is the start
+ * of the running grace period: the disconnect, or the call-up of the participant's pairing if that
+ * came later (`projectPairing` moves it), so for a pairing member this equals its seat's
+ * `graceEnd`. Only pairing members forfeit at this time; for everyone else it only decides the
+ * host role and abandonment.
+ */
+export function participantGraceEnd(participant: Participant): number | null {
+  if (participant.connected || participant.disconnectedAt === null) return null;
+  return participant.disconnectedAt + RECONNECT_GRACE_MS;
+}
+
+/** A tournament participant that can still act: not out, connected or within grace. */
+export function participantActive(room: Room, participant: Participant, now: number): boolean {
+  if (participantOut(room, participant)) return false;
+  const end = participantGraceEnd(participant);
+  return end === null || now < end;
 }
 
 /** A timed phase key: changes whenever a new phase (or round) starts. */
@@ -186,8 +206,40 @@ function wakeUp(room: Room, phaseDeadline: number | null): number | null {
     ...spectatorsOf(room).map(spectatorGraceEnd),
     phaseDeadline,
     room.tournament?.untilMs ?? null,
+    tournamentPeopleWakeUp(room),
   ].filter((t): t is number => t !== null);
   return wakeUps.length > 0 ? Math.min(...wakeUps) : null;
+}
+
+/**
+ * When a tournament room must look at its participants next (pairing members' forfeits come from
+ * their seats' `graceEnd` above). Null for duel rooms.
+ * - Some participant (not out) is connected: the host's grace end, if the host is away. At that
+ *   moment the host role moves on (`settleTournamentHost`); after every settle the host is
+ *   connected, within grace or out of options, so this is never in the past.
+ * - Nobody (not out) is connected: the room is abandoned once the last grace runs out, so wake up
+ *   then for the ticker to delete it; with nobody left at all that is now (0 = due at once). Either
+ *   time is only reached by an abandoned room, which the ticker deletes, so it cannot go stale.
+ * - In the lobby instead: the earliest grace end of a disconnected participant (it is dropped then).
+ * Waiting and eliminated participants who merely drop out never need a wake-up of their own.
+ */
+function tournamentPeopleWakeUp(room: Room): number | null {
+  const t = room.tournament;
+  if (!t) return null;
+  if (t.phase === 'lobby') {
+    // Lobby ghosts are dropped at their grace end (`dropLobbyGhosts` in tick); that also covers the
+    // host role and abandonment. An empty lobby is due at once (abandoned).
+    if (t.participants.length === 0) return 0;
+    const ends = t.participants.map(participantGraceEnd).filter((e): e is number => e !== null);
+    return ends.length > 0 ? Math.min(...ends) : null;
+  }
+  const present = t.participants.filter((p) => !participantOut(room, p));
+  if (present.some((p) => p.connected)) {
+    const host = present.find((p) => p.id === t.hostId);
+    return host ? participantGraceEnd(host) : null;
+  }
+  const ends = present.map(participantGraceEnd).filter((e): e is number => e !== null);
+  return ends.length > 0 ? Math.max(...ends) : 0;
 }
 
 /**
@@ -202,7 +254,8 @@ export function rescheduleWakeUp(room: Room): Room {
 /**
  * Brings derived state up to date after an operation changed `room` (whose match was `prev`
  * before): bot catches up, history, draw guard, tournament bookkeeping (a finished pairing match
- * is recorded, the seats are re-derived from the participants), deadlines. The tournament steps
+ * is recorded, the host role moves away from a participant who is gone, the seats are re-derived
+ * from the participants), deadlines. The tournament steps
  * leave rooms without `tournament` untouched.
  */
 export function settle(prev: MatchState | null, room: Room, now: number, rng: Rng): Room {
@@ -210,6 +263,7 @@ export function settle(prev: MatchState | null, room: Room, now: number, rng: Rn
   next = recordHistory(prev, next);
   next = drawGuard(next);
   next = finishPairing(next, now, rng);
+  next = settleTournamentHost(next, now);
   next = syncPairing(next);
   return schedule(prev, next, now);
 }
