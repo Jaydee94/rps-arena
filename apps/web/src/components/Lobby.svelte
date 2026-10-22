@@ -4,6 +4,7 @@
   import { t } from '../lib/i18n';
   import { canStart, isHost } from '../lib/seats';
   import CopyRow from './CopyRow.svelte';
+  import RulesPanel from './RulesPanel.svelte';
   import SeatSlot from './SeatSlot.svelte';
   import SpectatorBadge from './SpectatorBadge.svelte';
 
@@ -71,6 +72,8 @@
       </div>
     {/if}
 
+    <RulesPanel mode={view.config.mode} />
+
     {#if host}
       <button type="button" class="btn btn-primary" disabled={!canStart(view)} onclick={() => startMatch()}>
         {t('lobby.start')}
@@ -85,10 +88,15 @@
 <style>
   .lobby {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
     max-width: 48rem;
     margin: 0 auto;
     width: 100%;
+  }
+
+  .lobby > :global(*) {
+    min-width: 0;
   }
 
   h2 {
@@ -116,6 +124,7 @@
 
   .share {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
   }
 
@@ -128,6 +137,7 @@
 
   .team {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
     gap: var(--space-3);
   }

@@ -1,7 +1,7 @@
 import type { RoomView } from '@rps/shared';
 import { audio, SOUND_LENGTH, type SoundName } from './audio';
 import { room } from './connection';
-import { shouldCountDown } from './countdown';
+import { onCountdownEnded, shouldCountDown } from './countdown';
 import { countdownMs } from './motion';
 
 /** Which team a seat belongs to ("a0" -> "a"). */
@@ -54,6 +54,59 @@ export function scheduleRoomSounds(
   });
 }
 
+type PlannedSound = { name: SoundName; delay: number };
+
+/**
+ * Plays the room-state sounds. Sounds that wait for the reveal countdown are held back and played
+ * when the countdown ends: on `countdownEnded()` (its last beat or a skip) or, if nobody signals,
+ * after `countdownMs()`. A newer state with a different phase drops the held sounds, so a stale
+ * reveal never plays late or after the match-end sound.
+ */
+export function createRoomSoundPlayer(play: (name: SoundName, delay: number) => void) {
+  let pending: { phase: string; sounds: PlannedSound[]; leadUntil: number } | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const drop = () => {
+    clearTimeout(timer);
+    timer = undefined;
+    pending = null;
+  };
+
+  const countdownEnded = () => {
+    if (!pending) return;
+    const { sounds, leadUntil } = pending;
+    drop();
+    // Sounds already started (lock) still finish before the reveal chain begins.
+    const lead = Math.max(0, (leadUntil - Date.now()) / 1000);
+    for (const { name, delay } of sounds) play(name, lead + delay);
+  };
+
+  const update = (prev: RoomView | null, next: RoomView | null) => {
+    if (pending && next?.match?.phase !== pending.phase) drop();
+    const planned = scheduleRoomSounds(prev, next);
+    const phase = next?.match?.phase;
+    const gate = shouldCountDown(prev, next) ? planned.findIndex(({ name }) => name === 'reveal') : -1;
+    const reveal = planned[gate];
+    if (!reveal || !phase) {
+      for (const { name, delay } of planned) play(name, delay);
+      return;
+    }
+    const now = planned.slice(0, gate);
+    for (const { name, delay } of now) play(name, delay);
+    const last = now.at(-1);
+    const leadSeconds = last ? last.delay + SOUND_LENGTH[last.name] : 0;
+    drop();
+    pending = {
+      phase,
+      sounds: planned.slice(gate).map(({ name, delay }) => ({ name, delay: delay - reveal.delay })),
+      leadUntil: Date.now() + leadSeconds * 1000,
+    };
+    timer = setTimeout(countdownEnded, countdownMs());
+  };
+
+  return { update, countdownEnded, dispose: drop };
+}
+
 /**
  * Wires the sounds to the app: unlocks audio on the first user gesture, clicks on buttons and
  * the room-state sounds. Returns a cleanup function.
@@ -73,9 +126,11 @@ export function startSfxBridge(): () => void {
   // Registered after the unlock listener, so the click can already sound on a fresh context.
   document.addEventListener('pointerdown', onPointerDown, true);
 
+  const player = createRoomSoundPlayer((name, delay) => audio.play(name, delay));
+  const unsubscribeCountdown = onCountdownEnded(player.countdownEnded);
   let prev: RoomView | null = null;
   const unsubscribe = room.subscribe((next) => {
-    for (const { name, delay } of scheduleRoomSounds(prev, next)) audio.play(name, delay);
+    player.update(prev, next);
     prev = next;
   });
 
@@ -83,5 +138,7 @@ export function startSfxBridge(): () => void {
     document.removeEventListener('pointerdown', onPointerDown, true);
     for (const type of GESTURES) document.removeEventListener(type, onGesture, true);
     unsubscribe();
+    unsubscribeCountdown();
+    player.dispose();
   };
 }

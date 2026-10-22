@@ -47,12 +47,21 @@ function decode(raw: string): ReceivedFrame {
 /**
  * Opens a fresh browser context and records the websocket frames from the very first page load.
  * `cpuThrottle` (CDP `Emulation.setCPUThrottlingRate`) makes the page slow, to prove the tests do not race the reveal.
+ * `reducedMotion` overrides the config default ('reduce', which skips the reveal countdown); pass 'no-preference' to see it.
  */
 export async function newPlayer(
   browser: Browser,
-  options: { viewport?: { width: number; height: number }; cpuThrottle?: number } = {},
+  options: {
+    viewport?: { width: number; height: number };
+    cpuThrottle?: number;
+    reducedMotion?: 'reduce' | 'no-preference';
+  } = {},
 ): Promise<Player> {
-  const context = await browser.newContext({ locale: 'en-US', ...(options.viewport ? { viewport: options.viewport } : {}) });
+  const context = await browser.newContext({
+    locale: 'en-US',
+    ...(options.viewport ? { viewport: options.viewport } : {}),
+    ...(options.reducedMotion ? { reducedMotion: options.reducedMotion } : {}),
+  });
   const page = await context.newPage();
   const frames: ReceivedFrame[] = [];
   page.on('websocket', (ws) => {
