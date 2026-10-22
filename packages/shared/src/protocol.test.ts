@@ -48,9 +48,20 @@ describe('parseNickname', () => {
 });
 
 describe('AVATARS', () => {
-  it('lists 8 lowercase kebab ids', () => {
-    expect(AVATARS).toHaveLength(8);
+  it('lists 32 lowercase kebab ids', () => {
+    expect(AVATARS).toHaveLength(32);
     for (const a of AVATARS) expect(a).toMatch(/^[a-z]+(-[a-z]+)*$/);
+  });
+
+  it('has no duplicates and keeps the original 8 first, in order', () => {
+    expect(new Set(AVATARS).size).toBe(AVATARS.length);
+    expect(AVATARS.slice(0, 8)).toStrictEqual(['fox', 'robot', 'cat', 'owl', 'panda', 'dino', 'alien', 'ghost']);
+  });
+
+  it('accepts every avatar in room:create and rejects unknown ones', () => {
+    const base = { config: { mode: 'classic', bestOf: 3 }, nickname: 'Ann' };
+    for (const avatar of AVATARS) expect(ClientEvents['room:create'].safeParse({ ...base, avatar }).success).toBe(true);
+    expect(ClientEvents['room:create'].safeParse({ ...base, avatar: 'dragon' }).success).toBe(false);
   });
 });
 
@@ -85,7 +96,7 @@ describe('ClientEvents', () => {
 
   it('rejects an unknown vsBot level and an unknown avatar', () => {
     expect(ClientEvents['room:create'].safeParse({ ...create, vsBot: 'godlike' }).success).toBe(false);
-    expect(ClientEvents['room:create'].safeParse({ ...create, avatar: 'unicorn' }).success).toBe(false);
+    expect(ClientEvents['room:create'].safeParse({ ...create, avatar: 'dragon' }).success).toBe(false);
   });
 
   it('applies nickname rules inside room:create and room:join', () => {
