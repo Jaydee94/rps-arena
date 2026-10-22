@@ -41,10 +41,11 @@
       {@render panel(left, true)}
       {@render panel(right, false)}
     </div>
-    <span class="vs" role="group" aria-label={t('board.score_label')}>
-      <span class="vs-star" aria-hidden="true"><ComicBurst text="VS" variant="bam" /></span>
-      <span class="sr-only">{t('board.score', { a: left.score, b: right.score })}</span>
+    <!-- Decorative star on the seam; kept outside the score group so the group's text is only the score. -->
+    <span class="vs" aria-hidden="true">
+      <span class="vs-star"><ComicBurst text="VS" variant="bam" /></span>
     </span>
+    <span class="sr-only" role="group" aria-label={t('board.score_label')}>{t('board.score', { a: left.score, b: right.score })}</span>
   </div>
   <p class="meta">
     <span>{t('board.round', { round })}</span>

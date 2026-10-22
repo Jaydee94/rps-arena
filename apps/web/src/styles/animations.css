@@ -220,17 +220,6 @@
     }
   }
 
-  @keyframes droop {
-    0% {
-      rotate: 0deg;
-    }
-    100% {
-      rotate: 12deg;
-      translate: 0.3rem 0.4rem;
-      filter: saturate(0.4);
-    }
-  }
-
   /* ---- Timer: the bar shifts color in the last seconds and pulses at the end; the track shakes (PICK section) ---- */
   .timer .bar {
     transition:
@@ -449,21 +438,6 @@
     50% {
       scale: 1.15;
       rotate: 12deg;
-    }
-  }
-
-  @keyframes zack {
-    0% {
-      scale: 0;
-      rotate: 40deg;
-    }
-    70% {
-      scale: 1.2;
-      rotate: -8deg;
-    }
-    100% {
-      scale: 1;
-      rotate: -6deg;
     }
   }
 
