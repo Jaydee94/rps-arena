@@ -11,9 +11,23 @@
 # A real run needs a prior `docker login ghcr.io` (docker/login-action in CI), a buildx
 # builder that can build multi-platform images (docker/setup-buildx-action + QEMU in CI) and helm.
 #
-# Re-running a version never overwrites a published artifact: if the image tag or the chart
-# version already exists in GHCR, that part is skipped (so a run that failed half-way can be
-# resumed). Note that a skipped image also leaves the "latest" tag untouched.
+# Existing artifacts are never overwritten. In a real run the script first asks GHCR whether the
+# image tag / chart version already exists and skips that part if it does (so a publish that failed
+# half-way can be resumed). The answer is tri-state: exists, definitely not found, or unknown.
+# "Unknown" (network error, 401/403, timeout, 5xx, ...) ABORTS the script with a non-zero exit
+# before anything is built or pushed. "Not found" means the command's output (stdout+stderr)
+# matches NOT_FOUND_RE below:
+#   docker buildx imagetools inspect <image:tag>   -> "<ref>: not found" (registry 404, containerd resolver)
+#   helm show chart oci://<repo>/rps-arena --version <v>
+#                                                  -> "...manifests/<v>: not found" (oras 404)
+#   both, when the registry answers with its error code text: MANIFEST_UNKNOWN / NAME_UNKNOWN, or "404".
+# A skipped image also leaves the "latest" tag untouched. --dry-run never contacts the registry.
+#
+# Recovery: semantic-release creates the git tag and the GitHub Release BEFORE calling this script.
+# If this script fails, the tag exists and re-running the "release" workflow will NOT call it again
+# (nothing new to release). Re-publish the artifacts of that tag with the "release" workflow's manual
+# trigger (Actions -> release -> Run workflow -> version, e.g. 1.2.3), which runs this script on
+# the tag's commit, or run `scripts/publish.sh <version>` manually from a checkout of the tag v<version>.
 set -euo pipefail
 
 IMAGE="ghcr.io/jaydee94/rps-arena"
@@ -21,6 +35,8 @@ CHART_REPO="oci://ghcr.io/jaydee94/charts"
 CHART_REF="${CHART_REPO}/rps-arena"
 PLATFORMS="linux/amd64,linux/arm64"
 # Semver 2.0.0 core plus an optional prerelease; build metadata ("+...") is not a valid image tag.
+# Registry answers that mean "this tag/version definitely does not exist" (case-insensitive ERE).
+NOT_FOUND_RE=': not found|MANIFEST_UNKNOWN|NAME_UNKNOWN|manifest unknown|name unknown|status code 404|404 Not Found'
 SEMVER_RE='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
 
 usage() {
@@ -56,6 +72,24 @@ for tool in docker helm git; do
   command -v "$tool" >/dev/null 2>&1 || die "required tool '$tool' not found in PATH"
 done
 
+# exists_in_registry <description> <command...>
+# Returns 0 if the command succeeds (the artifact exists), 1 if it fails with a "not found" answer
+# (see NOT_FOUND_RE), and aborts the whole script for any other failure.
+exists_in_registry() {
+  local what="$1" out rc=0
+  shift
+  out="$("$@" 2>&1)" || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    return 0
+  fi
+  if grep -Eiq "$NOT_FOUND_RE" <<<"$out"; then
+    return 1
+  fi
+  echo "error: could not determine whether ${what} exists (exit code ${rc}); aborting before anything is built or pushed:" >&2
+  head -n 5 <<<"$out" | sed 's/^/    /' >&2
+  exit 3
+}
+
 revision="$(git rev-parse HEAD)"
 
 # "latest" only moves for stable versions (no prerelease suffix).
@@ -79,7 +113,7 @@ if [ "$dry_run" = true ]; then
   echo "==> [dry-run] Building ${IMAGE}:${version} for the host platform only (loaded, not pushed)"
   docker buildx build "${build_args[@]}" "${tags[@]}" --load .
   image_done=true
-elif docker buildx imagetools inspect "${IMAGE}:${version}" >/dev/null 2>&1; then
+elif exists_in_registry "image ${IMAGE}:${version}" docker buildx imagetools inspect "${IMAGE}:${version}"; then
   echo "==> ${IMAGE}:${version} already exists in the registry; not rebuilding or overwriting it"
 else
   echo "==> Building and pushing ${IMAGE}:${version} for ${PLATFORMS}"
@@ -102,7 +136,7 @@ chart_done=false
 if [ "$dry_run" = true ]; then
   echo "==> [dry-run] Chart packaged as $(basename "$chart_tgz"); not pushing"
   chart_done=true
-elif helm show chart "$CHART_REF" --version "$version" >/dev/null 2>&1; then
+elif exists_in_registry "chart ${CHART_REF}:${version}" helm show chart "$CHART_REF" --version "$version"; then
   echo "==> ${CHART_REF}:${version} already exists in the registry; not overwriting it"
 else
   echo "==> Pushing chart to ${CHART_REPO}"
