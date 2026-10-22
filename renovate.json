@@ -1,0 +1,26 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Berlin",
+  "semanticCommits": "enabled",
+  "platformAutomerge": true,
+  "packageRules": [
+    {
+      "description": "Every dependency update is released as a patch by semantic-release (fix(deps)).",
+      "matchManagers": ["npm", "dockerfile", "github-actions", "helm-values", "helmv3"],
+      "semanticCommitType": "fix",
+      "semanticCommitScope": "deps"
+    },
+    {
+      "description": "Group non-major npm updates into one pull request.",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "npm non-major dependencies"
+    },
+    {
+      "description": "Merge patch and minor updates automatically once the required checks are green. Major updates stay manual.",
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    }
+  ]
+}
