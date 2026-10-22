@@ -5,3 +5,4 @@ coverage
 .DS_Store
 apps/web/public/models
 apps/web/public/mediapipe-wasm
+.playwright-mcp/
