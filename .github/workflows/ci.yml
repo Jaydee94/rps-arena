@@ -48,8 +48,18 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run build
+      # `npm run e2e` builds first, so no separate build step
       - run: npm run e2e
+      # the HTML reporter writes to ./playwright-report, the config's outputDir resolves next to the config (e2e/)
+      - uses: actions/upload-artifact@v7.0.2 # v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            e2e/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
 
   image:
     runs-on: ubuntu-latest
