@@ -142,6 +142,8 @@
   "audio.mute": "Mute",
   "audio.unmute": "Unmute",
   "audio.music": "Music",
+  "audio.on": "On",
+  "audio.off": "Off",
   "audio.effects": "Effects",
 
   "camera.title": "Camera gesture control",

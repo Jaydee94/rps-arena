@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import AudioToggle from './components/AudioToggle.svelte';
   import Board from './components/Board.svelte';
   import ErrorBanner from './components/ErrorBanner.svelte';
   import Home from './components/Home.svelte';
@@ -6,6 +8,7 @@
   import Result from './components/Result.svelte';
   import { room, status } from './lib/connection';
   import { locale, setLocale, t, type Locale } from './lib/i18n';
+  import { startSfxBridge } from './lib/sfx-bridge';
 
   const LOCALES: Locale[] = ['de', 'en'];
 
@@ -14,6 +17,8 @@
     if (!$room.match) return 'lobby';
     return $room.match.phase === 'finished' ? 'result' : 'board';
   });
+
+  onMount(() => startSfxBridge());
 
   $effect(() => {
     document.documentElement.lang = $locale;
@@ -33,6 +38,7 @@
         </button>
       {/each}
     </div>
+    <AudioToggle />
   </header>
 
   <ErrorBanner />
