@@ -54,32 +54,6 @@
     scale: 1.08 0.86;
   }
 
-  /* ---- Locked-in stamp: the chosen gesture slams down onto the pad ---- */
-  .gesture.selected {
-    animation: stamp 420ms var(--ease-pop) both;
-  }
-
-  @keyframes stamp {
-    0% {
-      scale: 1.9;
-      rotate: -14deg;
-      opacity: 0.2;
-    }
-    55% {
-      scale: 0.9;
-      rotate: 3deg;
-      opacity: 1;
-    }
-    100% {
-      scale: 1;
-      rotate: 0deg;
-    }
-  }
-
-  .stamp-in {
-    animation: stamp 420ms var(--ease-pop) both;
-  }
-
   /* ---- Comic burst: pops in with overshoot ---- */
   .burst--animated {
     animation: burst-pop 520ms var(--ease-pop) both;
