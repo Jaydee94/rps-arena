@@ -11,13 +11,28 @@ therefore means editing CSS, not the SVG files. Outlines use the fixed `--line` 
 
 | Path | Content |
 | --- | --- |
-| `apps/web/src/assets/avatars/{fox,robot,cat,owl,panda,dino,alien,ghost}.svg` | The 8 avatars from `AVATARS` in `packages/shared` |
+| `apps/web/src/assets/avatars/*.svg` | The 32 avatars from `AVATARS` in `packages/shared/src/protocol.ts`, one file per id. Original 8: `fox`, `robot`, `cat`, `owl`, `panda`, `dino`, `alien`, `ghost`. Animals: `shark`, `frog`, `unicorn`, `penguin`, `octopus`, `rabbit`. Monsters & fantasy: `vampire`, `zombie`, `yeti`, `wizard`, `mermaid`, `cyclops`. Heroes & sci-fi: `astronaut`, `ninja`, `pirate`, `cyborg`, `hero`, `viking`. Food & plants: `pizza`, `taco`, `donut`, `cactus`, `mushroom`, `banana` |
 | `apps/web/src/assets/gestures/{rock,fire,scissors,snake,human,tree,wolf,sponge,paper,air,water,dragon,devil,lightning,gun}.svg` | The 15 gestures of the wheel (also used by the wheel-7 and wheel-9 sets) |
 | `apps/web/src/assets/gestures/{lizard,spock}.svg` | The two extra gestures of Lizard & Spock (and Bluff) |
 
 Tests (`apps/web/src/lib/gestures-ui.test.ts`) fail when a gesture of any set or an avatar id has no file.
 
 The favicon is an inline `data:` SVG in `apps/web/index.html` (also original work).
+
+## Logo
+
+| Path | Content |
+| --- | --- |
+| `docs/images/logo.svg` | Wide banner (1200x420) for the README: the three classic gesture stickers on a halftone panel, the "RPS" slab and the "ARENA" banner of the in-app wordmark |
+| `docs/images/logo-mark.svg` | Square mark (512x512) with the stickers and the "RPS" slab, for avatars and small spaces |
+| `docs/images/social-preview.png` | 1280x640 GitHub social preview: the banner centred on a halftone paper background |
+
+The lettering is not live text: the glyphs of Bangers (SIL OFL 1.1, see Fonts below) are converted to outlines, so the
+SVGs need no font. The artwork itself (stickers, burst, frames) is original work by this project under the repository's
+MIT license. Unlike the in-app illustrations, the logo SVGs use literal hex colors (the light-theme values of
+`tokens.css`) with the strokes written inline, because GitHub renders SVGs through `<img>`, where CSS variables and
+the stylesheets of the page do not apply. Each file has its own opaque background, so it reads on both light and dark
+pages. The PNG is a screenshot of the banner rendered with headless Chromium.
 
 ## Fonts (self-hosted, SIL Open Font License 1.1)
 
