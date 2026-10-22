@@ -87,7 +87,7 @@
   "result.match_win": "Du hast gewonnen!",
   "result.match_lose": "Diesmal verloren.",
   "result.abandoned.title": "Spiel vorzeitig beendet",
-  "result.abandoned.hint": "Das Spiel wurde beendet, weil mehrere Runden lang keine Züge gemacht wurden.",
+  "result.abandoned.hint": "Das Spiel konnte nicht weitergeführt werden.",
   "result.team_win": "Team {team} gewinnt!",
   "result.forfeit": "{name} hat das Spiel verlassen.",
   "result.next": "Nächste Runde",

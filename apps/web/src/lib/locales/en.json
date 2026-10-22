@@ -87,7 +87,7 @@
   "result.match_win": "You won the match!",
   "result.match_lose": "Not this time.",
   "result.abandoned.title": "Match ended early",
-  "result.abandoned.hint": "The match was ended because no moves were made for several rounds.",
+  "result.abandoned.hint": "The match could not be continued.",
   "result.team_win": "Team {team} wins!",
   "result.forfeit": "{name} left the game.",
   "result.next": "Next round",

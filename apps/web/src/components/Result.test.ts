@@ -37,8 +37,8 @@ describe('Result', () => {
   });
 
   describe.each([
-    ['de', 'Spiel vorzeitig beendet', 'Endstand 1 : 1', 'Endstand 2 : 0', 'Endstand 0 : 2', 'Das Spiel wurde beendet, weil mehrere Runden lang keine Züge gemacht wurden.', 'Nochmal spielen', 'Zum Start'],
-    ['en', 'Match ended early', 'Final score 1 : 1', 'Final score 2 : 0', 'Final score 0 : 2', 'The match was ended because no moves were made for several rounds.', 'Play again', 'Back to start'],
+    ['de', 'Spiel vorzeitig beendet', 'Endstand 1 : 1', 'Endstand 2 : 0', 'Endstand 0 : 2', 'Das Spiel konnte nicht weitergeführt werden.', 'Nochmal spielen', 'Zum Start'],
+    ['en', 'Match ended early', 'Final score 1 : 1', 'Final score 2 : 0', 'Final score 0 : 2', 'The match could not be continued.', 'Play again', 'Back to start'],
   ] as const)('without a winner (%s)', (locale, headline, score, scoreLead, scoreTrail, hint, rematch, leave) => {
     beforeEach(() => {
       setLocale(locale);
@@ -46,9 +46,9 @@ describe('Result', () => {
     });
 
     it.each([
-      ['a', 'b0', scoreTrail],
-      ['a', 'a0', scoreLead],
-    ] as const)('keeps the neutral headline and shows a non-zero score (%s scored, viewer %s)', (_scorer, you, expected) => {
+      ['b0', scoreTrail],
+      ['a0', scoreLead],
+    ] as const)('keeps the neutral headline and shows a non-zero score (viewer %s)', (you, expected) => {
       roomStore.set(makeRoom({ you, match: { phase: 'finished', winner: null, score: { a: 2, b: 0 } } }));
       render(Result);
       expect(screen.getByRole('heading', { name: headline })).toBeInTheDocument();
