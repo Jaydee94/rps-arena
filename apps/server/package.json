@@ -9,6 +9,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"
   },
+  "dependencies": {
+    "@rps/shared": "*",
+    "ioredis": "6.0.0"
+  },
   "devDependencies": {
     "tsx": "4.23.15"
   }

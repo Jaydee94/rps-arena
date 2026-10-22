@@ -21,6 +21,11 @@ export interface RoomStore {
   touch(code: string): Promise<void>;
 }
 
+/** Deep copy with the same lossy semantics as persisting the room as JSON. */
+function cloneRoom(room: Room): Room {
+  return JSON.parse(JSON.stringify(room)) as Room;
+}
+
 /**
  * In-memory store for tests and single-process dev.
  *
@@ -30,7 +35,9 @@ export interface RoomStore {
  * can overwrite another's result. If `fn` throws, nothing has been written yet and the
  * returned promise rejects without affecting later calls.
  *
- * Rooms are deep-copied in and out so callers cannot mutate stored state by reference.
+ * Rooms are deep-copied in and out so callers cannot mutate stored state by reference. The copy
+ * is a JSON round trip (not `structuredClone`) so non-JSON data (Map, Date, undefined) is lost
+ * here exactly as it would be in Redis, and tests against this store catch it.
  * Inactivity expiry is not enforced here; `touch` only records `touchedAt` bookkeeping.
  */
 export class MemoryRoomStore implements RoomStore {
@@ -41,14 +48,14 @@ export class MemoryRoomStore implements RoomStore {
 
   create(room: Room): Promise<boolean> {
     if (this.rooms.has(room.code)) return Promise.resolve(false);
-    this.rooms.set(room.code, structuredClone(room));
+    this.rooms.set(room.code, cloneRoom(room));
     this.touchedAt.set(room.code, this.clock());
     return Promise.resolve(true);
   }
 
   get(code: string): Promise<Room | null> {
     const room = this.rooms.get(code);
-    return Promise.resolve(room ? structuredClone(room) : null);
+    return Promise.resolve(room ? cloneRoom(room) : null);
   }
 
   update(code: string, fn: (room: Room) => Room | null): Promise<Room | null> {
@@ -56,12 +63,12 @@ export class MemoryRoomStore implements RoomStore {
     try {
       const current = this.rooms.get(code);
       if (!current) return Promise.resolve(null);
-      const next = fn(structuredClone(current));
-      if (next === null) return Promise.resolve(structuredClone(current));
-      const stored: Room = { ...structuredClone(next), version: current.version + 1 };
+      const next = fn(cloneRoom(current));
+      if (next === null) return Promise.resolve(cloneRoom(current));
+      const stored: Room = { ...cloneRoom(next), version: current.version + 1 };
       this.rooms.set(code, stored);
       this.touchedAt.set(code, this.clock());
-      return Promise.resolve(structuredClone(stored));
+      return Promise.resolve(cloneRoom(stored));
     } catch (error) {
       return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     }
