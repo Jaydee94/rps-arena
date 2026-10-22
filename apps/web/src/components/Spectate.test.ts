@@ -6,6 +6,7 @@ import type { SpectatorView } from '@rps/shared';
 import Spectate from './Spectate.svelte';
 import { setLocale } from '../lib/i18n';
 import { motion } from '../lib/motion';
+import { onCountdownEnded } from '../lib/countdown';
 import { actions, resetConnectionMock, roomStore } from '../test/connection-mock';
 import { makeSpectatorRoom } from '../test/fixtures';
 
@@ -255,6 +256,71 @@ describe('Spectate', () => {
       await tick();
       expect(screen.queryByTestId('countdown')).not.toBeInTheDocument();
       expect(screen.getAllByTestId('duel')).toHaveLength(1);
+    });
+
+    // The sound bridge holds the spectator's reveal sound until this signal (lib/sfx-bridge.ts).
+    it('signals the end of the countdown once on a key skip, not again from the timer', async () => {
+      const ended = vi.fn();
+      const off = onCountdownEnded(ended);
+      try {
+        feed(picking(['a0', 'b0']));
+        render(Spectate);
+        feed(revealed());
+        await tick();
+        vi.advanceTimersByTime(200);
+        expect(ended).not.toHaveBeenCalled();
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+        expect(ended).toHaveBeenCalledTimes(1);
+        vi.advanceTimersByTime(5000);
+        await tick();
+        expect(ended).toHaveBeenCalledTimes(1);
+      } finally {
+        off();
+      }
+    });
+
+    it('signals the end of the countdown once after its last beat', async () => {
+      const ended = vi.fn();
+      const off = onCountdownEnded(ended);
+      try {
+        feed(picking(['a0', 'b0']));
+        render(Spectate);
+        feed(revealed());
+        await tick();
+        vi.advanceTimersByTime(1259);
+        expect(ended).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+        expect(ended).toHaveBeenCalledTimes(1);
+        vi.advanceTimersByTime(5000);
+        await tick();
+        expect(ended).toHaveBeenCalledTimes(1);
+      } finally {
+        off();
+      }
+    });
+
+    it('sends no stale signal when the phase leaves reveal during the countdown', async () => {
+      const ended = vi.fn();
+      const off = onCountdownEnded(ended);
+      try {
+        feed(picking(['a0', 'b0']));
+        render(Spectate);
+        feed(revealed());
+        await tick();
+        expect(screen.getByTestId('countdown')).toBeInTheDocument();
+
+        feed(makeSpectatorRoom({ match: { phase: 'pick', round: 2 } }));
+        await tick();
+        expect(screen.queryByTestId('countdown')).not.toBeInTheDocument();
+        vi.advanceTimersByTime(5000);
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+        await tick();
+        expect(ended).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('duel')).not.toBeInTheDocument();
+      } finally {
+        off();
+      }
     });
   });
 });

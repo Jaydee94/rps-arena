@@ -431,6 +431,29 @@ describe('createRoomSoundPlayer', () => {
     player.countdownEnded();
     expect(played).toEqual([]);
   });
+
+  describe('for a spectator', () => {
+    const lastRound = { picks: {}, duels: [], winner: 'a' as const };
+    const pick = () => makeSpectatorRoom({ match: { phase: 'pick', lockedSeats: ['a0', 'b0'] } });
+    const reveal = () => makeSpectatorRoom({ match: { phase: 'reveal', lastRound } });
+
+    it('holds the reveal sound and plays it at the skip', () => {
+      player.update(pick(), reveal());
+      vi.advanceTimersByTime(300);
+      expect(played).toEqual([]);
+      player.countdownEnded();
+      vi.advanceTimersByTime(5000);
+      expect(played).toEqual([{ name: 'reveal', delay: 0, at: 300 }]);
+    });
+
+    it('falls back to the timer without a signal', () => {
+      player.update(pick(), reveal());
+      vi.advanceTimersByTime(1259);
+      expect(played).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(played).toEqual([{ name: 'reveal', delay: 0, at: 1260 }]);
+    });
+  });
 });
 
 describe('diffRoomSounds for spectators', () => {
