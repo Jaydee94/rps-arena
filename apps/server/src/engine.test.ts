@@ -447,3 +447,75 @@ describe('rematch', () => {
     expect(again.match?.phase).toBe('pick');
   });
 });
+
+describe('abandonment rule (idle rounds)', () => {
+  /** Runs the ticker at every deadline until `rounds` pick timeouts have passed. */
+  function idleRounds(room: Room, rounds: number, start = T0): { room: Room; now: number } {
+    let r = room;
+    let now = start;
+    let timeouts = 0;
+    for (let i = 0; i < 50 && r.deadline !== null && timeouts < rounds; i++) {
+      now = r.deadline;
+      const wasPick = r.match?.phase === 'pick';
+      r = tick(r, now, fixed(0));
+      if (wasPick && r.match?.phase !== 'pick') timeouts++;
+    }
+    return { room: r, now };
+  }
+
+  it('(a) two idle humans: finished, no winner, no deadline after 3 rounds; ticks stay no-ops', () => {
+    const two = idleRounds(duelRoom(), 2);
+    expect(two.room.match?.phase).toBe('reveal');
+    expect(two.room.idleRounds).toBe(2);
+    const { room, now } = idleRounds(two.room, 1, two.now);
+    expect(room.match).toMatchObject({ phase: 'finished', winner: null, round: 3 });
+    expect(room.idleRounds).toBe(3);
+    expect(room.deadline).toBeNull();
+    expect(room.phaseDeadline).toBeNull();
+    expect(tick(room, now + 10 * PICK_TIMEOUT_MS)).toBe(room);
+  });
+
+  it('(b) a human action resets the counter', () => {
+    let { room } = idleRounds(duelRoom(), 1);
+    room = tick(room, room.deadline!); // reveal -> round 2
+    const now = room.deadline! - 1;
+    room = applyPick(room, 'b0', { gesture: 'rock' }, now);
+    expect(room.idleRounds).toBe(0);
+    ({ room } = idleRounds(room, 2, now)); // round 2 (acted) and round 3 time out
+    expect(room.match?.phase).not.toBe('finished');
+    expect(room.idleRounds).toBe(1);
+  });
+
+  it('a bluff announce counts as an action', () => {
+    let room = duelRoom({ mode: 'bluff', bestOf: 3 });
+    room = applyAnnounce(room, 'a0', { emote: 'rock' }, T0);
+    ({ room } = idleRounds(room, 1));
+    expect(room.idleRounds).toBe(0);
+  });
+
+  it('(c) human vs bot with an idle human ends after 3 rounds', () => {
+    const bot = createRoom({ config: { mode: 'classic', bestOf: 7 }, nickname: 'Ann', avatar: 'fox', vsBot: 'easy' }, T0);
+    const { room } = idleRounds(bot, 3);
+    // The bot wins every round by default (bestOf 7 needs 4), so only the idle rule ends it.
+    expect(room.match).toMatchObject({ phase: 'finished', winner: null });
+    expect(room.deadline).toBeNull();
+  });
+
+  it('(d) ghost seats (connected, bound to dead sockets, never acting) end the same way', () => {
+    const ghost = duelRoom(); // both connected with socket ids nobody uses any more
+    expect(ghost.players.a0?.connected && ghost.players.b0?.connected).toBe(true);
+    const { room } = idleRounds(ghost, 3);
+    expect(room.match).toMatchObject({ phase: 'finished', winner: null });
+    expect(room.deadline).toBeNull();
+  });
+
+  it('rematch resets the counter; old rooms without the field count from 0', () => {
+    const { room } = idleRounds(duelRoom(), 3);
+    expect(rematch(room, 'a0', T0).idleRounds).toBe(0);
+    const legacy = duelRoom() as Partial<Room>;
+    delete legacy.idleRounds;
+    delete legacy.roundActed;
+    const { room: after } = idleRounds(legacy as Room, 1);
+    expect(after.idleRounds).toBe(1);
+  });
+});

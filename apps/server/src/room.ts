@@ -28,4 +28,11 @@ export interface Room {
   history: { human: string; bot: string }[];
   /** Seats that asked to skip the current reveal (`game:next`). */
   nextReady: SeatId[];
+  /**
+   * Consecutive rounds that timed out without any human action (see IDLE_ROUNDS_LIMIT).
+   * Optional: rooms stored before this field existed count as 0.
+   */
+  idleRounds?: number;
+  /** Whether a human picked or announced in the current round. Missing counts as false. */
+  roundActed?: boolean;
 }
