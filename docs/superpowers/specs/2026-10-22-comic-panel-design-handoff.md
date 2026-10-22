@@ -1,161 +1,161 @@
-# RPS Arena – Design-Handoff „Comic-Panel“ (Variante A)
+# RPS Arena – Design Handoff "Comic Panel" (Variant A)
 
-Für: Coding-Agent, der das Design im Repo `Jaydee94/rps-arena` umsetzt (`apps/web`).
-Stand: 2026-10-22. Freigegeben von Jan: Variante A mit Animationen.
-Referenz-Mockups: `reference/*.dc.html` neben dieser Datei. Sie sind statisches HTML mit Inline-Styles und zeigen nur Werte und Verhalten. **Den Code nicht übernehmen**, sondern in die Struktur des Repos übersetzen (siehe §1).
+For: the coding agent implementing the design in the repo `Jaydee94/rps-arena` (`apps/web`).
+Date: 2026-10-22. Approved by Jan: variant A with animations.
+Reference mockups: `reference/*.dc.html` next to this file. They are static HTML with inline styles and only show values and behavior. **Do not copy the code**; translate it into the structure of the repo (see §1).
 
-> Hinweis zum Repo: Die Mockups `reference/*.dc.html` lagen dem Handoff nicht bei (Stand der Umsetzung). Maßgeblich sind die Werte in diesem Dokument.
-
----
-
-## 0. Auftrag und Definition of Done
-
-Das Web-Frontend bekommt den Look „Comic-Panel“: Jeder Screen ist wie eine Comicseite aus Panels gebaut. Dazu kommen ein neuer Countdown vor dem Aufdecken („Schnick, Schnack, Schnuck“) und ein stärkerer Aufprall beim Aufdecken. Farben, Schriften und Avatar-/Gesten-Art bleiben unverändert.
-
-Fertig ist es, wenn:
-
-- alle Screens (Start, Lobby, Wahl, Aufdecken, Ergebnis) dem Panel-Look aus §3 folgen, auf 360 px Breite und auf dem Desktop (max. 48rem Inhalt);
-- alle Animationen aus §4 vorhanden sind und mit `prefers-reduced-motion: reduce` komplett entfallen;
-- der Countdown aus §5 läuft, übersprungen werden kann und weder Tests noch Ton aus dem Takt bringt;
-- `npm test`, `npm run lint` und die Playwright-E2E grün sind (vorhandene Tests nur anpassen, wenn §5 das ausdrücklich verlangt);
-- Light- **und** Dark-Mode geprüft sind. Die Mockups zeigen nur Light, siehe §8.
+> Note on the repo: the mockups `reference/*.dc.html` were not included with the handoff (as of the implementation). The values in this document are authoritative.
 
 ---
 
-## 1. Leitplanken (nicht verhandelbar, ergeben sich aus dem Repo)
+## 0. Assignment and definition of done
 
-1. **Tokens zuerst.** Alle Farben, Radien, Schatten, Schriften und Zeiten kommen aus `src/styles/tokens.css`. Keine Hex-Werte in Komponenten. Neue Tokens nur nach §2.
-2. **Alle Bewegung steht in `src/styles/animations.css`,** innerhalb des einen Blocks `@media (prefers-reduced-motion: no-preference) { … }`. `styles/animations.test.ts` prüft das. `ui.css` und `base.css` dürfen kein `animation`, kein `transition` und kein `@keyframes` enthalten. Auch die `<style>`-Blöcke der Svelte-Komponenten bleiben frei von Bewegung. Komponenten setzen nur Klassen.
-3. **Keine Inline-Styles,** außer CSS-Custom-Properties per `style:--x`, wie in `Confetti.svelte`.
-4. **Semantik bleibt erhalten:**
-   - Modus, Best-of und Bot-Stufe bleiben native `<input type="radio">` in `fieldset.group`. Die Bot-Option bleibt eine Checkbox. Im Mockup stehen dort Buttons mit `aria-pressed`, das ist nur Mockup-Vereinfachung.
-   - `GesturePad` bleibt `role="radiogroup"` mit Roving-Tabindex.
-   - Der Statussatz bleibt `role="status"`.
-   - Auswahl wird nie nur über Farbe gezeigt (Häkchen, dickerer Versatz).
-5. **i18n:** Jeder neue Text kommt in `de.json` **und** `en.json`. `i18n.test.ts` prüft, dass beide dieselben Keys haben.
-6. **Server unangetastet,** bis auf die optionale Konstante in §5.4.
-7. **Transform-Disziplin:** `animations.css` nutzt die Einzel-Properties `translate`, `rotate` und `scale`. Daran halten. Ein Element mit Dauer-Animation (Wippen) verliert seinen Hover-Versatz, weil die Animation die Property überschreibt. Deshalb wippt das **innere** Element (Sticker), und Hover und Press sitzen auf dem **äußeren** (Button).
+The web frontend gets the "Comic Panel" look: every screen is built like a comic page made of panels. In addition there is a new countdown before the reveal ("Schnick, Schnack, Schnuck", the German rock-paper-scissors chant) and a stronger impact on reveal. Colors, fonts and the avatar/gesture style stay unchanged.
+
+It is done when:
+
+- all screens (start, lobby, pick, reveal, result) follow the panel look from §3, at 360 px width and on desktop (content max. 48rem);
+- all animations from §4 are present and are removed entirely under `prefers-reduced-motion: reduce`;
+- the countdown from §5 runs, can be skipped, and throws neither tests nor sound out of sync;
+- `npm test`, `npm run lint` and the Playwright E2E tests are green (adapt existing tests only where §5 explicitly requires it);
+- light **and** dark mode have been checked. The mockups only show light, see §8.
+
+---
+
+## 1. Guardrails (non-negotiable, derived from the repo)
+
+1. **Tokens first.** All colors, radii, shadows, fonts and durations come from `src/styles/tokens.css`. No hex values in components. New tokens only per §2.
+2. **All motion lives in `src/styles/animations.css`,** inside the single block `@media (prefers-reduced-motion: no-preference) { … }`. `styles/animations.test.ts` checks this. `ui.css` and `base.css` must not contain `animation`, `transition` or `@keyframes`. The `<style>` blocks of the Svelte components also stay free of motion. Components only set classes.
+3. **No inline styles,** except CSS custom properties via `style:--x`, as in `Confetti.svelte`.
+4. **Semantics are preserved:**
+   - Mode, best-of and bot level stay native `<input type="radio">` in `fieldset.group`. The bot option stays a checkbox. The mockup shows buttons with `aria-pressed` there; that is only a mockup simplification.
+   - `GesturePad` stays `role="radiogroup"` with roving tabindex.
+   - The status sentence stays `role="status"`.
+   - A selection is never indicated by color alone (checkmark, thicker offset).
+5. **i18n:** every new text goes into `de.json` **and** `en.json`. `i18n.test.ts` checks that both have the same keys.
+6. **Server untouched,** except for the optional constant in §5.4.
+7. **Transform discipline:** `animations.css` uses the individual properties `translate`, `rotate` and `scale`. Stick to that. An element with a continuous animation (bobbing) loses its hover offset because the animation overrides the property. That is why the **inner** element (sticker) bobs, while hover and press sit on the **outer** one (button).
 
 ---
 
 ## 2. Tokens
 
-Die Farbpalette bleibt komplett. Neu oder geändert in `tokens.css`, mit Dark-Mode-Werten im bestehenden `@media (prefers-color-scheme: dark)`:
+The color palette stays complete. New or changed in `tokens.css`, with dark-mode values in the existing `@media (prefers-color-scheme: dark)`:
 
 ```css
-/* Panels: kantiger als Karten, wie gezeichnete Comic-Rahmen */
+/* Panels: more angular than cards, like drawn comic frames */
 --radius-panel: 6px;
 --shadow-panel: 6px 6px 0 var(--cast);
---gutter: var(--space-5);              /* Abstand zwischen Panels */
+--gutter: var(--space-5);              /* gap between panels */
 
-/* Raster */
---dot-panel: rgb(255 79 163 / 55%);    /* große pinke Punkte im Hero-Panel */
+/* Dot grid */
+--dot-panel: rgb(255 79 163 / 55%);    /* large pink dots in the hero panel */
 --dot-panel-size: 16px;
---dot-on-tile: rgb(255 255 255 / 38%); /* helle Punkte auf farbigen Gesten-Kacheln */
+--dot-on-tile: rgb(255 255 255 / 38%); /* light dots on colored gesture tiles */
 
-/* Bewegung (zusätzlich zu --dur-fast/--dur/--dur-slow, --ease-pop, --ease-slam) */
---dur-beat: 420ms;                     /* ein Takt im Countdown */
+/* Motion (in addition to --dur-fast/--dur/--dur-slow, --ease-pop, --ease-slam) */
+--dur-beat: 420ms;                     /* one beat in the countdown */
 --dur-slam: 520ms;
---impact-at: 440ms;                    /* Moment des Aufpralls nach Reveal-Start */
+--impact-at: 440ms;                    /* moment of impact after reveal start */
 ```
 
-Dark-Mode: `--dot-panel: rgb(255 111 181 / 40%)`. Alle anderen Werte erben. Farbige Panels (Gelb, Blau, Pink, Teal) bleiben im Dark-Mode farbig. Text darauf nutzt `--on-bright`, das sich nicht umdreht. Genau so macht es das Repo heute schon.
+Dark mode: `--dot-panel: rgb(255 111 181 / 40%)`. All other values are inherited. Colored panels (yellow, blue, pink, teal) stay colored in dark mode. Text on them uses `--on-bright`, which does not invert. This is exactly how the repo already does it today.
 
-**Panel-Farben (bestehende Tokens):**
+**Panel colors (existing tokens):**
 
-| Einsatz | Token |
+| Use | Token |
 | --- | --- |
-| Hero-Panel Grund | `--blue` + Punkte `--dot-panel` |
-| Eigene Seite (Scoreboard, Aufdecken oben) | `--yellow`, Punkte `--red` 45 % |
-| Gegner-Seite | `--sky` (Scoreboard) bzw. `--blue` mit `--sky`-Punkten (Aufdecken) |
-| Caption-Box / Ribbon | `--yellow`; „Mit Code beitreten“ in `--sky` |
-| Gesten-Kacheln, reihum | `--pink`, `--yellow`, `--teal`, dann `--orange`, `--green`, `--sky`, `--red` (für Sets mit 5–15) |
-| Burst Sieg / Niederlage / Unentschieden | wie heute in `ComicBurst` (`pow`/`bam`/`zap`) |
+| Hero panel background | `--blue` + dots `--dot-panel` |
+| Own side (scoreboard, top of reveal) | `--yellow`, dots `--red` 45 % |
+| Opponent side | `--sky` (scoreboard) or `--blue` with `--sky` dots (reveal) |
+| Caption box / ribbon | `--yellow`; "Mit Code beitreten" (Join with code) in `--sky` |
+| Gesture tiles, in turn | `--pink`, `--yellow`, `--teal`, then `--orange`, `--green`, `--sky`, `--red` (for sets with 5–15) |
+| Burst win / loss / draw | as today in `ComicBurst` (`pow`/`bam`/`zap`) |
 
 ---
 
-## 3. Bausteine und Screens
+## 3. Building blocks and screens
 
-Maße beziehen sich auf 390 px Breite. Seitenrand `--space-4`, Panel-Abstand `--gutter`.
+Dimensions refer to 390 px width. Page margin `--space-4`, panel gap `--gutter`.
 
-### 3.1 Panel (neue Klasse `.panel` in `ui.css`)
-- `border: var(--border)`, `border-radius: var(--radius-panel)`, `background: var(--surface)`, `box-shadow: var(--shadow-panel)`, Innenabstand `--space-4`, oben `--space-6` wenn ein Ribbon drin sitzt.
-- Die Überschrift ist das vorhandene `.ribbon`: −1,5° gedreht und an die linke obere Ecke **gehängt** (`position: absolute; left: -8px; top: -18px`). Nicht in den Fluss gestellt. Das Panel braucht dafür `position: relative`.
-- `.card` bleibt für kleine Elemente, `.panel` ist für Screen-Abschnitte.
+### 3.1 Panel (new class `.panel` in `ui.css`)
+- `border: var(--border)`, `border-radius: var(--radius-panel)`, `background: var(--surface)`, `box-shadow: var(--shadow-panel)`, padding `--space-4`, top `--space-6` when a ribbon sits inside.
+- The heading is the existing `.ribbon`: rotated −1.5° and **hung** on the top left corner (`position: absolute; left: -8px; top: -18px`). Not placed in the flow. The panel needs `position: relative` for this.
+- `.card` stays for small elements, `.panel` is for screen sections.
 
 ### 3.2 Start (`Home.svelte`, `CreatePanel.svelte`, `ModePicker.svelte`, `AvatarPicker.svelte`, `Wordmark.svelte`)
-Reihenfolge: Kopfzeile → Hero-Panel → Panel „Wer bist du?“ → Panel „Neues Spiel“ → Panel „Mit Code beitreten“.
-- **Hero-Panel** (Höhe ca. 252 px): blauer Grund mit pinkem Großraster. Oben links eine Caption-Box in Gelb, die über den Rand ragt (`left: -6px`, −2°), Text `home.caption`. Unten links die drei Gesten-Sticker (86 px, −9° / 3° / 11°, je −10 px überlappend). Rechts eine Sprechblase (170 px breit, `--radius-lg`, 2°) mit `home.title` (Bangers 27 px, Text-Schatten `--yellow`) und `home.tagline`. Der Hero ersetzt die heutige `.hero`-Struktur. `home.title` bleibt die Überschrift der Seite.
-- **Avatar-Raster** 4 × 2, Kachel 72 px hoch, Radius 14 px. Ausgewählt: Grund `--yellow`, `--shadow-sm` und ein rotes Häkchen-Badge (24 px, oben rechts, über den Rand ragend).
-- **Modus-Auswahl:**
-  - Der gewählte Modus nimmt die ganze Breite ein, mit Name (Bangers 22 px) und Beschreibung.
-  - Die übrigen Modi stehen als kompakte Kacheln in 2 Spalten, nur mit Namen, mindestens 48 px hoch.
-  - Bleibt eine Radiogruppe. Die Beschreibung des gewählten Modus hängt per `aria-describedby` dran.
-- **Best-of:** ein zusammenhängender Pill-Schalter (3 Segmente à 56 × 44 px, Trennlinien `--outline`). Gewählt ist rot hinterlegt, Text in Weiß. Der Kontrast reicht für die Schrift in Bangers fett. Trotzdem prüfen, notfalls `--on-bright` auf `--yellow` nehmen.
-- **Bot:** Die Checkbox wird als Schalter gestaltet (58 × 34 px) und sitzt in einer gestrichelten Box. Die Stufen erscheinen darunter wie heute.
-- **CTA** „Raum erstellen!“: `.btn-primary`, volle Breite, 60 px hoch, `--shadow-panel`.
-- **Beitreten:** Code-Feld in Monospace, 20 px, `letter-spacing: .3em`, `maxlength={CODE_LENGTH}`. Button „Rein!“ (`home.join_short`) daneben in `.btn-blue`.
-- **Wordmark:** bleibt wie es ist, bekommt nur die Einflug-Animation (§4).
+Order: header row → hero panel → panel "Wer bist du?" (Who are you?) → panel "Neues Spiel" (New game) → panel "Mit Code beitreten" (Join with code).
+- **Hero panel** (height approx. 252 px): blue background with a large pink dot grid. Top left a yellow caption box that overhangs the edge (`left: -6px`, −2°), text `home.caption`. Bottom left the three gesture stickers (86 px, −9° / 3° / 11°, overlapping by −10 px each). On the right a speech bubble (170 px wide, `--radius-lg`, 2°) with `home.title` (Bangers 27 px, text shadow `--yellow`) and `home.tagline`. The hero replaces the current `.hero` structure. `home.title` stays the heading of the page.
+- **Avatar grid** 4 × 2, tile 72 px high, radius 14 px. Selected: background `--yellow`, `--shadow-sm` and a red checkmark badge (24 px, top right, overhanging the edge).
+- **Mode selection:**
+  - The selected mode takes the full width, with name (Bangers 22 px) and description.
+  - The other modes appear as compact tiles in 2 columns, name only, at least 48 px high.
+  - Stays a radio group. The description of the selected mode is attached via `aria-describedby`.
+- **Best-of:** a connected pill switch (3 segments of 56 × 44 px, dividers `--outline`). The selected one has a red background, text in white. The contrast is sufficient for text in bold Bangers. Check it anyway; if necessary use `--on-bright` on `--yellow`.
+- **Bot:** the checkbox is styled as a switch (58 × 34 px) and sits in a dashed box. The levels appear below it as today.
+- **CTA** "Raum erstellen!" (Create room!): `.btn-primary`, full width, 60 px high, `--shadow-panel`.
+- **Join:** code field in monospace, 20 px, `letter-spacing: .3em`, `maxlength={CODE_LENGTH}`. Button "Rein!" (Go!, `home.join_short`) next to it in `.btn-blue`.
+- **Wordmark:** stays as it is, only gets the fly-in animation (§4).
 
-### 3.3 Wahl (`BoardView.svelte`, `Scoreboard.svelte`, `TimerBar.svelte`, `GesturePad.svelte`, `GestureButton.svelte`, `PlayerCard.svelte`)
-- **Scoreboard:** zwei Panels nebeneinander. Links eigene Seite in Gelb, rechts Gegner in `--sky`. Die inneren Kanten sind schräg geschnitten: links `clip-path: polygon(0 0,100% 0,92% 100%,0 100%)`, rechts gespiegelt. In der Mitte sitzt ein roter „VS“-Stern (56 px).
-  - ⚠ `clip-path` schneidet `box-shadow` ab. Den Schatten deshalb auf einen Wrapper setzen, mit `filter: drop-shadow(5px 5px 0 var(--cast))`. Im Mockup fehlt der Schatten aus genau diesem Grund.
-  - Avatar 48 px, Punktzahl in Bangers 40 px.
-  - In 2v2 statt Avatar den Team-Punkt wie heute.
-- **Meta-Zeile** unter dem Scoreboard: links „Runde n“, rechts „Best of n · Modus“, in Bangers 18 px.
-- **Timer:** bleibt die Komponente mit ihrer `warn`/`urgent`-Logik. Neu sind Diagonalstreifen auf dem Balken (`repeating-linear-gradient(-45deg, transparent 0 8px, rgb(23 15 46 / 14%) 8px 16px)`), die Höhe 26 px und die Zahl **im** Balken rechts.
-- **Status und Gegner:** Links die Status-Sprechblase (Bangers 26 px, Schatten `--yellow`). Rechts eine kleine Denkblase mit zwei Kreisen als Schweif und dem Gegner-Status. Sobald der Gegner gewählt hat, erscheint statt der Denkblase der „ZACK!“-Stern (§4) mit `board.opponent_locked`.
-- **Gesten-Kacheln:**
-  - Panels mit farbigem Grund (Reihenfolge §2) und hellem Punkteraster. Darin der Gesten-Sticker (92 px) und darunter das Label auf weißem Kasten.
-  - Leichte Neigung reihum (−1,5° / 1° / −0,8°). Die mittlere Kachel sitzt 8 px höher.
-  - Bei ≤ 5 Gesten in einer Reihe bzw. 3 + 2. Bei 7–15 Gesten kleinere Kacheln (heutige Größe) mit derselben Farblogik.
-- **Kamera-Toggle:** eine Zeile in weißem Panel: Icon, Titel, Unterzeile `camera.badge · camera.privacy` (Kurzform) und Schalter.
+### 3.3 Pick (`BoardView.svelte`, `Scoreboard.svelte`, `TimerBar.svelte`, `GesturePad.svelte`, `GestureButton.svelte`, `PlayerCard.svelte`)
+- **Scoreboard:** two panels side by side. On the left the own side in yellow, on the right the opponent in `--sky`. The inner edges are cut diagonally: on the left `clip-path: polygon(0 0,100% 0,92% 100%,0 100%)`, on the right mirrored. In the middle sits a red "VS" star (56 px).
+  - ⚠ `clip-path` cuts off `box-shadow`. Therefore put the shadow on a wrapper, using `filter: drop-shadow(5px 5px 0 var(--cast))`. The mockup lacks the shadow for exactly this reason.
+  - Avatar 48 px, score in Bangers 40 px.
+  - In 2v2, show the team dot instead of the avatar, as today.
+- **Meta row** below the scoreboard: on the left "Runde n" (Round n), on the right "Best of n · mode", in Bangers 18 px.
+- **Timer:** stays the component with its `warn`/`urgent` logic. New are diagonal stripes on the bar (`repeating-linear-gradient(-45deg, transparent 0 8px, rgb(23 15 46 / 14%) 8px 16px)`), the height of 26 px, and the number **inside** the bar on the right.
+- **Status and opponent:** on the left the status speech bubble (Bangers 26 px, shadow `--yellow`). On the right a small thought bubble with two circles as its tail and the opponent status. As soon as the opponent has picked, the "ZACK!" star (§4) with `board.opponent_locked` appears instead of the thought bubble.
+- **Gesture tiles:**
+  - Panels with a colored background (order in §2) and a light dot grid. Inside, the gesture sticker (92 px) and below it the label on a white box.
+  - Slight tilt in turn (−1.5° / 1° / −0.8°). The middle tile sits 8 px higher.
+  - For ≤ 5 gestures in one row or 3 + 2. For 7–15 gestures, smaller tiles (today's size) with the same color logic.
+- **Camera toggle:** a row in a white panel: icon, title, sub-line `camera.badge · camera.privacy` (short form) and switch.
 
-### 3.4 Aufdecken (`BoardView.svelte` im Reveal-Zweig, `PlayerCard.svelte`, `ComicBurst.svelte`)
-- **Ein großes Panel** (ca. 520 px hoch), diagonal geteilt. Oben die eigene Hälfte in Gelb (`clip-path: polygon(0 0,100% 0,100% 38%,0 58%)`), unten die Gegner-Hälfte in Blau (`polygon(0 61%,100% 41%,100% 100%,0 100%)`). Dazwischen bleibt ein schmaler dunkler Spalt aus dem `--line`-Grund.
-- **Eigene Geste:** oben links, Sticker 138 px, −10°, darüber das Namensschild „Du · Stein“.
-- **Gegner:** unten rechts, gespiegelt, 14°.
-- **Mitte:** Speed-Lines (§4.2), Raster-Blitz und darüber `ComicBurst` (ca. 216 px breit).
-- **Unter dem Panel:** Status-Sprechblase („Runde gewonnen!“), daneben der Button „Weiter“ und darunter der Regel-Satz („Stein schlägt Schere“, neuer Key `board.rule`).
-- **2v2:** Zwei Duelle untereinander, jedes Panel halb so hoch, Burst kleiner. Das ist nicht gemockt und darf frei abgeleitet werden.
+### 3.4 Reveal (`BoardView.svelte` in the reveal branch, `PlayerCard.svelte`, `ComicBurst.svelte`)
+- **One large panel** (approx. 520 px high), split diagonally. On top the own half in yellow (`clip-path: polygon(0 0,100% 0,100% 38%,0 58%)`), below the opponent half in blue (`polygon(0 61%,100% 41%,100% 100%,0 100%)`). Between them remains a narrow dark gap from the `--line` background.
+- **Own gesture:** top left, sticker 138 px, −10°, above it the name tag "Du · Stein" (You · Rock).
+- **Opponent:** bottom right, mirrored, 14°.
+- **Center:** speed lines (§4.2), dot-grid flash and on top of it `ComicBurst` (approx. 216 px wide).
+- **Below the panel:** status speech bubble ("Runde gewonnen!", Round won!), next to it the button "Weiter" (Next) and below that the rule sentence ("Stein schlägt Schere", Rock beats Scissors, new key `board.rule`).
+- **2v2:** two duels one below the other, each panel half as high, smaller burst. This is not mocked up and may be derived freely.
 
-### 3.5 Ergebnis (`Result.svelte`)
-Struktur bleibt. Die Überschrift kommt in einen weißen Panel-Kasten mit Text-Schatten `--pink`. Bei Sieg Konfetti und hüpfender Avatar (gibt es schon), bei Niederlage sackt er ab (gibt es schon).
+### 3.5 Result (`Result.svelte`)
+The structure stays. The heading goes into a white panel box with text shadow `--pink`. On a win, confetti and a hopping avatar (already exist); on a loss it sags (already exists).
 
 ---
 
-## 4. Motion-Spezifikation
+## 4. Motion specification
 
-Alles innerhalb des `no-preference`-Blocks in `animations.css`. „Neu“ heißt hinzufügen, „vorhanden“ heißt den bestehenden Namen weiter nutzen.
+Everything inside the `no-preference` block in `animations.css`. "New" means add, "existing" means keep using the existing name.
 
-| # | Name | Element / Auslöser | Dauer · Verzögerung · Easing | Status |
+| # | Name | Element / trigger | Duration · delay · easing | Status |
 | --- | --- | --- | --- | --- |
-| 1 | `screen-in` | jedes Panel beim Mount, versetzt +110 ms je Panel (`style:--i`) | `--dur` · `calc(var(--i) * 110ms)` · `--ease-pop` | vorhanden, um Verzögerung erweitern |
-| 2 | `wm-drop` / `wm-swing` | Wordmark: „RPS“ fällt von oben, „ARENA“ schwingt von rechts | 620 ms / 700 ms · 150 / 380 ms · `--ease-pop` | neu |
-| 3 | `caption-slide` | Caption-Box im Hero gleitet von links rein | 520 ms · 650 ms · `--ease-pop` | neu |
-| 4 | `sticker-pop` + `bob` | Hero-Sticker poppen und wippen dann dauerhaft (versetzt 0 / 0,2 / 0,4 s) | 480 ms Pop, danach 2,4 s ∞ | neu |
-| 5 | `bubble-pop` + `breathe` | Hero-Sprechblase poppt aus dem Schweif-Eck und atmet dann leicht | 560 ms · 700 ms, dann 3,2 s ∞ | neu |
-| 6 | `dots-drift` | Großraster im Hero-Panel wandert (`background-position`) | 5 s linear ∞ | neu |
-| 7 | `zack` | Häkchen-Badge am gewählten Avatar und ZACK-Stern bei Gegner-Lock | 380–420 ms · `--ease-pop` | neu |
-| 8 | `cta-wiggle` | „Raum erstellen!“ wackelt kurz alle 3 s | 3 s ∞, Start nach 2 s | neu, siehe §8 |
-| 9 | `tile-bob` | Gesten-Kachel wippt im Ruhezustand (inneres Element!) | 2,4 s ∞, Versatz −0,8 s je Kachel | neu |
-| 10 | Hover/Press | Kachel hebt sich (−5 px, 1,04), Press staucht (1,08 / 0,86) | `--dur-fast` · `--ease-pop` | vorhanden (`.gesture`), Werte angleichen |
-| 11 | `stamp` | gewählte Geste knallt aufs Pad | 420 ms | vorhanden |
-| 12 | `timer-stripes` | Streifen laufen über den Balken | 600 ms linear ∞ | neu |
-| 13 | `timer-*` | warn/urgent wie heute; urgent zittert zusätzlich der ganze Track | wie heute | vorhanden, erweitern |
-| 14 | `think-dots` | Denkblasen-Kreise blinken versetzt | 1 s ∞, 0 / 0,2 s | neu |
-| 15 | `vs-pulse` | VS-Stern pulsiert (1,15, 12°) | 1,4 s ∞ | neu |
-| 16 | **Countdown** | siehe §5 | 3 × `--dur-beat` | neu |
-| 17 | `slam-left/right` | Gesten fliegen ein, jetzt diagonal (±190 % / ∓30 %, ±40°) | `--dur-slam` · `--ease-slam` | vorhanden, Werte ändern |
-| 18 | `clash-shake` | Panel wackelt beim Aufprall | 380 ms · 480 ms | vorhanden |
-| 19 | **`speed-lines`** | Strahlen vom Aufprallpunkt: erscheinen, skalieren 0,3 → 1,3, drehen dann langsam weiter | 1,1 s · `--impact-at`, dann 30 s linear ∞ | neu |
-| 20 | **`impact-flash`** | Punkteraster-Kreis (220 px) blitzt auf und dehnt sich aus (0,2 → 2,4, Deckkraft 0 → 1 → 0) | 650 ms · 450 ms | neu |
-| 21 | `burst-pop` + `throb` | Burst poppt, danach leichtes Pulsieren | 520 ms · `--impact-at`, dann 1,1 s ∞ | vorhanden + neu |
-| 22 | `loser-droop` | Verlierer-Sticker kippt weg (16°, 12 px runter, `saturate(.25)`) | 900 ms · 1 s | neu (ähnlich `droop`) |
-| 23 | `headline-bounce` | Status nach dem Aufdecken springt rein | 700 ms · 900 ms | vorhanden |
-| 24 | Konfetti / `hop` / `droop` | Ergebnis-Screen | wie heute | vorhanden |
+| 1 | `screen-in` | every panel on mount, staggered +110 ms per panel (`style:--i`) | `--dur` · `calc(var(--i) * 110ms)` · `--ease-pop` | existing, extend with delay |
+| 2 | `wm-drop` / `wm-swing` | wordmark: "RPS" drops in from above, "ARENA" swings in from the right | 620 ms / 700 ms · 150 / 380 ms · `--ease-pop` | new |
+| 3 | `caption-slide` | caption box in the hero slides in from the left | 520 ms · 650 ms · `--ease-pop` | new |
+| 4 | `sticker-pop` + `bob` | hero stickers pop and then bob continuously (staggered 0 / 0.2 / 0.4 s) | 480 ms pop, then 2.4 s ∞ | new |
+| 5 | `bubble-pop` + `breathe` | hero speech bubble pops out of the tail corner and then breathes gently | 560 ms · 700 ms, then 3.2 s ∞ | new |
+| 6 | `dots-drift` | large dot grid in the hero panel drifts (`background-position`) | 5 s linear ∞ | new |
+| 7 | `zack` | checkmark badge on the selected avatar and ZACK star on opponent lock | 380–420 ms · `--ease-pop` | new |
+| 8 | `cta-wiggle` | "Raum erstellen!" wiggles briefly every 3 s | 3 s ∞, starts after 2 s | new, see §8 |
+| 9 | `tile-bob` | gesture tile bobs at rest (inner element!) | 2.4 s ∞, offset −0.8 s per tile | new |
+| 10 | hover/press | tile lifts (−5 px, 1.04), press squashes (1.08 / 0.86) | `--dur-fast` · `--ease-pop` | existing (`.gesture`), align values |
+| 11 | `stamp` | selected gesture slams onto the pad | 420 ms | existing |
+| 12 | `timer-stripes` | stripes run across the bar | 600 ms linear ∞ | new |
+| 13 | `timer-*` | warn/urgent as today; on urgent the whole track additionally shakes | as today | existing, extend |
+| 14 | `think-dots` | thought bubble circles blink in turn | 1 s ∞, 0 / 0.2 s | new |
+| 15 | `vs-pulse` | VS star pulses (1.15, 12°) | 1.4 s ∞ | new |
+| 16 | **Countdown** | see §5 | 3 × `--dur-beat` | new |
+| 17 | `slam-left/right` | gestures fly in, now diagonally (±190 % / ∓30 %, ±40°) | `--dur-slam` · `--ease-slam` | existing, change values |
+| 18 | `clash-shake` | panel shakes on impact | 380 ms · 480 ms | existing |
+| 19 | **`speed-lines`** | rays from the impact point: appear, scale 0.3 → 1.3, then keep rotating slowly | 1.1 s · `--impact-at`, then 30 s linear ∞ | new |
+| 20 | **`impact-flash`** | dot-grid circle (220 px) flashes up and expands (0.2 → 2.4, opacity 0 → 1 → 0) | 650 ms · 450 ms | new |
+| 21 | `burst-pop` + `throb` | burst pops, then pulses slightly | 520 ms · `--impact-at`, then 1.1 s ∞ | existing + new |
+| 22 | `loser-droop` | loser sticker tips away (16°, 12 px down, `saturate(.25)`) | 900 ms · 1 s | new (similar to `droop`) |
+| 23 | `headline-bounce` | status after the reveal bounces in | 700 ms · 900 ms | existing |
+| 24 | confetti / `hop` / `droop` | result screen | as today | existing |
 
-### 4.1 Keyframes zum Einfügen (neue Einträge)
+### 4.1 Keyframes to insert (new entries)
 
 ```css
 @keyframes wm-drop { 0% { translate: 0 -140%; rotate: -25deg; opacity: 0 } 60% { translate: 0 8%; rotate: 4deg; opacity: 1 } }
@@ -179,112 +179,112 @@ Alles innerhalb des `no-preference`-Blocks in `animations.css`. „Neu“ heißt
 @keyframes loser-droop { to { rotate: 16deg; translate: 0 12px; filter: saturate(.25) } }
 ```
 
-Für Keyframes, die auf einem Element mit eigener Grundneigung laufen (Sticker mit `rotate: -9deg`): Die Animation überschreibt `rotate`. Entweder die Neigung auf einen Wrapper legen oder die Grundneigung per `var(--tilt)` in die Keyframes einbauen.
+For keyframes that run on an element with its own base tilt (a sticker with `rotate: -9deg`): the animation overrides `rotate`. Either put the tilt on a wrapper or build the base tilt into the keyframes via `var(--tilt)`.
 
-### 4.2 Neue visuelle Bausteine
-- **Speed-Lines:** ein `aria-hidden`-Div (760 × 760 px), zentriert hinter dem Burst. Grund: `repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--line) 85%, transparent) 0 2.5deg, transparent 2.5deg 13deg)`. Maske: `radial-gradient(circle, transparent 0 20%, #000 34%)`, damit die Mitte frei bleibt. Statisch, also bei reduzierter Bewegung, steht es mit 45 % Deckkraft.
-- **Raster-Blitz:** ein Kreis von 220 px, `background: var(--white)` plus Punkte `radial-gradient(circle, var(--pink) 30%, transparent 33%)` / 16 px. **Grunddeckkraft 0.** Er ist nur über die Animation sichtbar und fehlt damit bei reduzierter Bewegung.
-- **ZACK-Stern:** derselbe Stern-Generator wie `ComicBurst`, als neue Variante `zack` (Füllung `--pink`, Text weiß mit Kontur `--line`). Nicht neu bauen.
+### 4.2 New visual building blocks
+- **Speed lines:** an `aria-hidden` div (760 × 760 px), centered behind the burst. Background: `repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--line) 85%, transparent) 0 2.5deg, transparent 2.5deg 13deg)`. Mask: `radial-gradient(circle, transparent 0 20%, #000 34%)` so that the center stays clear. Static, meaning under reduced motion it is displayed at 45 % opacity.
+- **Dot-grid flash:** a circle of 220 px, `background: var(--white)` plus dots `radial-gradient(circle, var(--pink) 30%, transparent 33%)` / 16 px. **Base opacity 0.** It is only visible through the animation and is therefore absent under reduced motion.
+- **ZACK star:** the same star generator as `ComicBurst`, as a new variant `zack` (fill `--pink`, text white with `--line` outline). Do not build a new one.
 
 ---
 
-## 5. Neuer Ablauf: Countdown „Schnick, Schnack, Schnuck“
+## 5. New flow: countdown "Schnick, Schnack, Schnuck"
 
-### 5.1 Verhalten
-1. Ich wähle: Stempel (vorhanden), Status „Gewählt – warte …“.
-2. Der Gegner wählt: Der ZACK-Stern ersetzt die Denkblase. Kommt jetzt vom Server.
-3. Server-Phase wechselt auf `reveal`: Der Client zeigt **zuerst** den Countdown und erst danach das Aufdeck-Panel.
-   - Zwei „?“-Sticker (104 px, Gelb und `--sky`) pumpen im Takt (`pump`, `--dur-beat`, ∞).
-   - Drei Wort-Boxen erscheinen nacheinander, jede `beat`, je `--dur-beat`: `countdown.1` (weiß), `countdown.2` (gelb), `countdown.3` (rot, Text weiß mit Kontur).
-   - Nach 3 × 420 ms = 1 260 ms kommt das Aufdeck-Panel mit §4 #17–23.
-4. **Tippen oder eine Taste** während des Countdowns springt sofort zum Aufdecken.
+### 5.1 Behavior
+1. I pick: stamp (existing), status "Gewählt – warte …" (Picked – waiting …).
+2. The opponent picks: the ZACK star replaces the thought bubble. This now comes from the server.
+3. The server phase switches to `reveal`: the client shows the countdown **first** and only afterwards the reveal panel.
+   - Two "?" stickers (104 px, yellow and `--sky`) pump in the beat (`pump`, `--dur-beat`, ∞).
+   - Three word boxes appear one after another, each `beat`, each `--dur-beat`: `countdown.1` (white), `countdown.2` (yellow), `countdown.3` (red, text white with outline).
+   - After 3 × 420 ms = 1,260 ms the reveal panel appears with §4 #17–23.
+4. **Tapping or a key press** during the countdown jumps to the reveal immediately.
 
-### 5.2 Umsetzung
-- Neue Komponente `Countdown.svelte` mit Prop `onDone`. Bei Mount startet ein Timer-Zustand `beat 0…2`, und nach dem dritten Takt wird `onDone()` aufgerufen. Bei Unmount aufräumen.
-- In `BoardView.svelte`: lokaler Zustand `countingDown`. Er wird beim Übergang `phase !== 'reveal' → 'reveal'` gesetzt, als primitiver Key wie das vorhandene `phaseKey`. Solange er gesetzt ist, steht dort `<Countdown>` statt der Duelle.
-- **Reduzierte Bewegung:** `prefersReducedMotion()` (aus `lib/motion.ts`) → kein Countdown, sofort aufdecken.
-- **Barrierefreiheit:** Der Countdown ist `aria-hidden="true"`. Der Statussatz (`role="status"`) wechselt erst mit dem Ergebnis, damit Screenreader nicht drei Takte vorlesen.
-- **Wiederverbinden:** Kommt der Client mitten in `reveal` an (`prev === null`), läuft kein Countdown. Gleiche Regel wie `diffRoomSounds`.
+### 5.2 Implementation
+- New component `Countdown.svelte` with prop `onDone`. On mount a timer state `beat 0…2` starts, and after the third beat `onDone()` is called. Clean up on unmount.
+- In `BoardView.svelte`: local state `countingDown`. It is set on the transition `phase !== 'reveal' → 'reveal'`, as a primitive key like the existing `phaseKey`. As long as it is set, `<Countdown>` is rendered there instead of the duels.
+- **Reduced motion:** `prefersReducedMotion()` (from `lib/motion.ts`) → no countdown, reveal immediately.
+- **Accessibility:** the countdown is `aria-hidden="true"`. The status sentence (`role="status"`) only changes with the result, so that screen readers do not read out three beats.
+- **Reconnecting:** if the client arrives in the middle of `reveal` (`prev === null`), no countdown runs. Same rule as `diffRoomSounds`.
 
-### 5.3 Ton
-`sfx-bridge.ts` spielt `reveal` und `win`/`lose`/`draw` heute sofort beim Phasenwechsel. Mit Countdown kämen die Töne 1,26 s zu früh. Lösung: In `startSfxBridge` die Reveal-Töne um die Countdown-Dauer verzögern, sofern der Countdown läuft (gleiche Bedingung wie in 5.2, am besten eine gemeinsame Funktion `shouldCountDown(prev, next)` in `lib/`). Optional ein kurzer `beat`-Ton pro Takt, das braucht einen neuen Sound in `audio.ts`. `diffRoomSounds` bleibt eine reine Funktion und bekommt einen Test für den verzögerten Fall.
+### 5.3 Sound
+`sfx-bridge.ts` plays `reveal` and `win`/`lose`/`draw` immediately on the phase change today. With a countdown the sounds would come 1.26 s too early. Solution: in `startSfxBridge`, delay the reveal sounds by the countdown duration if the countdown is running (same condition as in 5.2, ideally a shared function `shouldCountDown(prev, next)` in `lib/`). Optionally a short `beat` sound per beat; that needs a new sound in `audio.ts`. `diffRoomSounds` stays a pure function and gets a test for the delayed case.
 
-### 5.4 Zeitfenster – Entscheidung nötig (siehe §8)
-`REVEAL_MS` (4 s, `packages/shared/src/constants.ts`) startet auf dem Server mit dem Aufdecken. Der Countdown frisst davon 1,26 s, sichtbar bleiben also nur ca. 2,7 s. Die Empfehlung ist `REVEAL_MS = 5_500`. Die Server-Tests nutzen die Konstante und bleiben grün. Prüfen, ob `constants.test.ts` den Wert fest erwartet.
+### 5.4 Time window – decision needed (see §8)
+`REVEAL_MS` (4 s, `packages/shared/src/constants.ts`) starts on the server together with the reveal. The countdown eats 1.26 s of that, so only approx. 2.7 s remain visible. The recommendation is `REVEAL_MS = 5_500`. The server tests use the constant and stay green. Check whether `constants.test.ts` expects the value hard-coded.
 
 ### 5.5 Tests
-- **Unit (`Board.test.ts`)** erwartet die Duelle sofort nach `phase: 'reveal'`. jsdom hat kein `matchMedia`, also liefert `prefersReducedMotion()` dort `false` und der Countdown würde laufen. Lösung: Die Countdown-Dauer kommt aus einem kleinen exportierten Setting (z. B. `motion.countdownBeatMs`). `test/setup.ts` setzt es auf `0`, und `Countdown` ruft bei 0 sofort `onDone`. Dazu ein eigener Test, der mit Fake-Timern den Countdown prüft: drei Takte, Überspringen, `aria-hidden`.
-- **E2E:** `e2e/game.spec.ts` hält die Aufdeck-Ansicht für ca. 4 s. Die Kommentare dort und der `@throttled`-Test hängen daran. Funktionstests mit `reducedMotion: 'reduce'` in `playwright.config.ts` (`use`) laufen lassen, damit der Countdown entfällt. Einen eigenen kleinen Test ohne Reduktion ergänzen, der nur prüft, dass nach dem Countdown aufgedeckt wird.
+- **Unit (`Board.test.ts`)** expects the duels immediately after `phase: 'reveal'`. jsdom has no `matchMedia`, so `prefersReducedMotion()` returns `false` there and the countdown would run. Solution: the countdown duration comes from a small exported setting (e.g. `motion.countdownBeatMs`). `test/setup.ts` sets it to `0`, and `Countdown` calls `onDone` immediately at 0. In addition a dedicated test that verifies the countdown with fake timers: three beats, skipping, `aria-hidden`.
+- **E2E:** `e2e/game.spec.ts` holds the reveal view for approx. 4 s. The comments there and the `@throttled` test depend on that. Run functional tests with `reducedMotion: 'reduce'` in `playwright.config.ts` (`use`) so that the countdown is skipped. Add a small test of its own without reduction that only checks that the reveal appears after the countdown.
 
 ---
 
-## 6. Texte (neue Keys, DE / EN)
+## 6. Texts (new keys, DE / EN)
 
 | Key | DE | EN |
 | --- | --- | --- |
 | `home.caption` | Ohne Account. Link teilen, losspielen. | No account. Share a link, start playing. |
 | `home.who_heading` | Wer bist du? | Who are you? |
 | `home.join_short` | Rein! | Go! |
-| `home.create` | Raum erstellen! *(Ausrufezeichen ergänzen)* | Create room! |
+| `home.create` | Raum erstellen! *(add the exclamation mark)* | Create room! |
 | `countdown.1` | SCHNICK! | ROCK! |
 | `countdown.2` | SCHNACK! | PAPER! |
 | `countdown.3` | SCHNUCK! | SCISSORS! |
 | `board.rule` | {winner} schlägt {loser} | {winner} beats {loser} |
 | `burst.zack` | ZACK! | ZAP! |
 
-**Fix:** `home.code_placeholder` zeigt 4 Zeichen, `CODE_LENGTH` ist aber 5. Neu: „z. B. K7QXM“ / „e.g. K7QXM“ (nur Zeichen aus `CODE_ALPHABET`).
+**Fix:** `home.code_placeholder` shows 4 characters, but `CODE_LENGTH` is 5. New: "z. B. K7QXM" / "e.g. K7QXM" (only characters from `CODE_ALPHABET`).
 
 ---
 
-## 7. Betroffene Dateien
+## 7. Affected files
 
-| Datei | Änderung |
+| File | Change |
 | --- | --- |
-| `styles/tokens.css` | Tokens aus §2 |
-| `styles/ui.css` | `.panel`, Ribbon als Hänge-Variante, Segment-Schalter, Switch-Optik für Checkbox (alles ohne Bewegung) |
-| `styles/animations.css` | §4 komplett |
+| `styles/tokens.css` | Tokens from §2 |
+| `styles/ui.css` | `.panel`, ribbon as hanging variant, segment switch, switch look for checkbox (all without motion) |
+| `styles/animations.css` | §4 in full |
 | `components/Home.svelte`, `CreatePanel.svelte`, `ModePicker.svelte`, `AvatarPicker.svelte`, `Wordmark.svelte` | §3.2 |
 | `components/BoardView.svelte`, `Scoreboard.svelte`, `TimerBar.svelte`, `GesturePad.svelte`, `GestureButton.svelte`, `PlayerCard.svelte`, `CameraToggle.svelte` | §3.3 / §3.4 |
-| `components/ComicBurst.svelte` | Variante `zack` |
-| `components/Countdown.svelte` *(neu)*, `components/SpeedLines.svelte` *(neu, optional als reines Markup in BoardView)* | §4.2 / §5 |
+| `components/ComicBurst.svelte` | Variant `zack` |
+| `components/Countdown.svelte` *(new)*, `components/SpeedLines.svelte` *(new, optionally as plain markup in BoardView)* | §4.2 / §5 |
 | `components/Result.svelte` | §3.5 |
 | `lib/sfx-bridge.ts`, `lib/motion.ts` | §5.3 / §5.5 |
 | `lib/locales/de.json`, `en.json` | §6 |
-| `test/setup.ts`, `e2e/playwright.config.ts`, neue Tests | §5.5 |
-| `packages/shared/src/constants.ts` | nur falls §8 Punkt 1 freigegeben |
+| `test/setup.ts`, `e2e/playwright.config.ts`, new tests | §5.5 |
+| `packages/shared/src/constants.ts` | only if §8 item 1 is approved |
 
 ---
 
-## 8. Offene Entscheidungen (nicht allein treffen, Jan fragen)
+## 8. Open decisions (do not decide alone, ask Jan)
 
-1. **`REVEAL_MS` von 4 s auf 5,5 s?** Ohne die Änderung bleibt das Ergebnis nur ca. 2,7 s stehen (§5.4).
-2. **Rad-Modi zusammenfassen?** Das Mockup zeigt „Rad der 7 · 9 · 15“ als eine Kachel. Das braucht eine Unterauswahl, die nicht gezeichnet ist. Ohne Freigabe alle 7 Modi einzeln lassen.
-3. **Zifferntasten 1–n für Gesten?** Das Mockup zeigt `kbd`-Hinweise. Das wäre ein globaler Key-Handler und damit eine neue Funktion, kein Styling. Ohne Freigabe weglassen.
-4. **CTA-Wackeln:** Dauernde Bewegung kann nerven. Vorschlag: nur auf dem Start-Screen und höchstens fünfmal.
-5. **Dark-Mode:** Die Mockups sind nur in Light. Die Token-Regeln in §2 sollten tragen. Schwachstelle sind die weißen Kästen (`--surface` wird im Dark-Mode dunkel, die Namensschilder auf den Aufdeck-Hälften müssen aber hell bleiben). Dort `--sticker` statt `--surface` nehmen.
-
----
-
-## 9. Abnahme-Checkliste
-
-- [ ] 360 px, 390 px und 1280 px Breite: kein horizontales Scrollen, kein abgeschnittener Text (lange Nicknames, EN-Texte).
-- [ ] Tastatur: Tab-Reihenfolge Start → Wahl → Weiter. Pfeiltasten im Pad. Der Fokus ist auf jedem Panel-Grund sichtbar.
-- [ ] Kontrast ≥ 4,5:1 für Text auf allen Panel-Farben, in beiden Modi.
-- [ ] `prefers-reduced-motion: reduce`: keine Bewegung, kein Countdown, Raster-Blitz unsichtbar, alles andere vollständig da.
-- [ ] Ton: Der Reveal-Sound fällt mit dem Aufprall zusammen, nicht mit dem Countdown-Start.
-- [ ] Wiederverbinden mitten im Reveal: kein Countdown, kein doppelter Ton.
-- [ ] 2v2 und Rad der 15 einmal manuell durchspielen. Diese Fälle sind nicht gemockt.
-- [ ] `npm test`, `npm run lint`, E2E grün. Commit-Titel im Conventional-Commit-Format (`pr-title.yml`), z. B. `feat(web): comic panel look and reveal countdown`.
+1. **`REVEAL_MS` from 4 s to 5.5 s?** Without the change the result stays visible for only approx. 2.7 s (§5.4).
+2. **Merge the wheel modes?** The mockup shows "Rad der 7 · 9 · 15" (Wheel of 7 · 9 · 15) as a single tile. That needs a sub-selection that is not drawn. Without approval, keep all 7 modes separate.
+3. **Number keys 1–n for gestures?** The mockup shows `kbd` hints. That would be a global key handler and thus a new feature, not styling. Without approval, leave it out.
+4. **CTA wiggle:** continuous motion can be annoying. Proposal: only on the start screen and at most five times.
+5. **Dark mode:** the mockups are light only. The token rules in §2 should hold. The weak spot is the white boxes (`--surface` turns dark in dark mode, but the name tags on the reveal halves must stay light). Use `--sticker` instead of `--surface` there.
 
 ---
 
-## 10. Referenz-Dateien
+## 9. Acceptance checklist
 
-| Datei | Zeigt |
+- [ ] 360 px, 390 px and 1280 px width: no horizontal scrolling, no truncated text (long nicknames, EN texts).
+- [ ] Keyboard: tab order start → pick → next. Arrow keys in the pad. Focus is visible on every panel background.
+- [ ] Contrast ≥ 4.5:1 for text on all panel colors, in both modes.
+- [ ] `prefers-reduced-motion: reduce`: no motion, no countdown, dot-grid flash invisible, everything else fully present.
+- [ ] Sound: the reveal sound coincides with the impact, not with the start of the countdown.
+- [ ] Reconnecting in the middle of the reveal: no countdown, no duplicate sound.
+- [ ] Play through 2v2 and wheel of 15 manually once. These cases are not mocked up.
+- [ ] `npm test`, `npm run lint`, E2E green. Commit title in Conventional Commit format (`pr-title.yml`), e.g. `feat(web): comic panel look and reveal countdown`.
+
+---
+
+## 10. Reference files
+
+| File | Shows |
 | --- | --- |
-| `reference/comic-start.dc.html` | Start mit allen Einstiegs-Animationen |
-| `reference/comic-pick.dc.html` | Wahl: Scoreboard, Timer, Kacheln, Denkblase |
-| `reference/comic-reveal.dc.html` | Aufdecken: Panel, Speed-Lines, Blitz, Burst |
-| `reference/comic-flow.dc.html` | **Kompletter Rundenablauf inkl. Countdown und Match-Ende** – die Timings im `<script>` sind die Soll-Werte |
+| `reference/comic-start.dc.html` | Start with all entry animations |
+| `reference/comic-pick.dc.html` | Pick: scoreboard, timer, tiles, thought bubble |
+| `reference/comic-reveal.dc.html` | Reveal: panel, speed lines, flash, burst |
+| `reference/comic-flow.dc.html` | **Complete round flow incl. countdown and match end** – the timings in the `<script>` are the target values |
 
-Die Dateien laufen nur im Design-Canvas. Für den Agenten sind sie Lesematerial (Werte, Reihenfolgen, Timings), keine Vorlage zum Kopieren.
+The files only run in the design canvas. For the agent they are reading material (values, sequences, timings), not a template to copy.
