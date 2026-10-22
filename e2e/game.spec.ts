@@ -51,7 +51,7 @@ async function playClassicDuel(browser: Browser, cpuThrottle?: number): Promise<
     await gesture(a.page, 'Rock').click();
     await gesture(b.page, 'Scissors').click();
 
-    // One atomic capture per player; the reveal is gone after 4 s, so nothing below polls the live page.
+    // One atomic capture per player; the reveal only lasts REVEAL_MS, so nothing below polls the live page.
     const [seenByA, seenByB] = await Promise.all([captureReveal(a.page), captureReveal(b.page)]);
     expect(seenByA.status).toBe('You win the round!');
     expect(seenByB.status).toBe('You lose the round!');
@@ -79,7 +79,7 @@ test('classic duel: two players play a best-of-3 to the result screen', async ({
   await playClassicDuel(browser);
 });
 
-// Slow clients (CDP CPU throttling, 6x) must not race the 4 s reveal.
+// Slow clients (CDP CPU throttling, 6x) must not race the reveal.
 test('classic duel on throttled CPUs @throttled', async ({ browser }) => {
   await playClassicDuel(browser, 6);
 });

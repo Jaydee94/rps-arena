@@ -120,7 +120,7 @@ export interface RevealSnapshot {
 
 /**
  * Waits (inside the page) for the reveal and captures status, score and cards in a single evaluation.
- * The reveal only lasts REVEAL_MS (4 s), so assertions belong on this snapshot, never on live polling expects.
+ * The reveal only lasts REVEAL_MS, so assertions belong on this snapshot, never on live polling expects.
  */
 export async function captureReveal(page: Page): Promise<RevealSnapshot> {
   const handle = await page.waitForFunction(() => {
