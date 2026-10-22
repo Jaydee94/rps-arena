@@ -227,6 +227,122 @@ describe('Board', () => {
       expect(screen.getAllByTestId('duel')).toHaveLength(2);
       expect(screen.getByRole('status')).toHaveTextContent('Unentschieden!');
     });
+
+    it('explains the round with a rule line under the panel', () => {
+      feed(revealed('a0'));
+      render(Board);
+      expect(screen.getByText('Stein schlägt Schere')).toBeInTheDocument();
+    });
+
+    it('names the winning gesture first from the losing side too', () => {
+      feed(revealed('b0'));
+      render(Board);
+      expect(screen.getByText('Stein schlägt Schere')).toBeInTheDocument();
+    });
+
+    it('shows no rule line for a draw', () => {
+      feed(
+        makeRoom({
+          match: {
+            phase: 'reveal',
+            lastRound: { picks: { a0: 'rock', b0: 'rock' }, duels: [{ seats: ['a0', 'b0'], result: 'draw' }], winner: 'draw' },
+          },
+        }),
+      );
+      const { container } = render(Board);
+      expect(screen.getAllByTestId('duel')).toHaveLength(1);
+      expect(screen.queryByText(/schlägt/)).not.toBeInTheDocument();
+      expect(container.textContent).not.toContain('undefined');
+    });
+
+    it('shows no rule line and no "undefined" when a pick is missing (timeout)', () => {
+      feed(
+        makeRoom({
+          match: {
+            phase: 'reveal',
+            lastRound: { picks: { a0: 'rock' }, duels: [{ seats: ['a0', 'b0'], result: 'a' }], winner: 'a' },
+          },
+        }),
+      );
+      const { container } = render(Board);
+      expect(within(opponentPanel()).getByText('Nichts gewählt')).toBeInTheDocument();
+      expect(within(opponentPanel()).queryByText(/undefined/)).not.toBeInTheDocument();
+      expect(opponentPanel().querySelector('[data-gesture]')).toBeNull();
+      expect(screen.queryByText(/schlägt/)).not.toBeInTheDocument();
+      expect(container.textContent).not.toContain('undefined');
+    });
+
+    it('labels the reveal stickers with name and gesture, one region per name', () => {
+      feed(revealed('a0'));
+      render(Board);
+      expect(screen.getAllByRole('region', { name: 'Du' })).toHaveLength(1);
+      expect(screen.getAllByRole('region', { name: 'Gegner' })).toHaveLength(1);
+      expect(screen.getByRole('region', { name: 'Du' })).toHaveTextContent('Du · Stein');
+      expect(opponentPanel()).toHaveTextContent('Gegner · Schere');
+      expect(screen.getByRole('region', { name: 'Du' }).querySelector('[data-gesture="rock"]')).not.toBeNull();
+      // The losing side droops; the winner does not.
+      expect(opponentPanel()).toHaveClass('loser');
+      expect(screen.getByRole('region', { name: 'Du' })).not.toHaveClass('loser');
+    });
+
+    it('draws the panel with speed lines, an impact flash and a burst in each duel', () => {
+      feed(revealed('a0'));
+      render(Board);
+      const duel = screen.getByTestId('duel');
+      expect(duel).toHaveClass('clash');
+      expect(duel.querySelector('.speed-lines[aria-hidden="true"]')).not.toBeNull();
+      expect(duel.querySelector('.impact-flash[aria-hidden="true"]')).not.toBeNull();
+      expect(duel.querySelector('.burst--pow')).toHaveTextContent('POW!');
+    });
+
+    it('keeps the named regions of both duels in team2v2', () => {
+      feed(
+        makeRoom({
+          config: { mode: 'team2v2', bestOf: 3 },
+          match: {
+            phase: 'reveal',
+            lastRound: {
+              picks: { a0: 'rock', b0: 'scissors', a1: 'paper', b1: 'scissors' },
+              duels: [
+                { seats: ['a0', 'b0'], result: 'a' },
+                { seats: ['a1', 'b1'], result: 'b' },
+              ],
+              winner: 'draw',
+            },
+          },
+        }),
+      );
+      render(Board);
+      const [first, second] = screen.getAllByTestId('duel') as [HTMLElement, HTMLElement];
+      expect(within(first).getByRole('region', { name: 'Spieler-a0' })).toHaveTextContent('Stein');
+      expect(within(first).getByRole('region', { name: 'Spieler-b0' })).toHaveTextContent('Schere');
+      expect(within(second).getByRole('region', { name: 'Spieler-a1' })).toHaveTextContent('Papier');
+      expect(within(second).getByRole('region', { name: 'Spieler-b1' })).toHaveTextContent('Schere');
+      expect(screen.getAllByRole('region', { name: 'Spieler-a0' })).toHaveLength(1);
+      expect(screen.getByText('Stein schlägt Schere')).toBeInTheDocument();
+      expect(screen.getByText('Schere schlägt Papier')).toBeInTheDocument();
+    });
+
+    it('shows the same rule twice when both 2v2 duels end alike', () => {
+      feed(
+        makeRoom({
+          config: { mode: 'team2v2', bestOf: 3 },
+          match: {
+            phase: 'reveal',
+            lastRound: {
+              picks: { a0: 'rock', b0: 'scissors', a1: 'rock', b1: 'scissors' },
+              duels: [
+                { seats: ['a0', 'b0'], result: 'a' },
+                { seats: ['a1', 'b1'], result: 'a' },
+              ],
+              winner: 'a',
+            },
+          },
+        }),
+      );
+      render(Board);
+      expect(screen.getAllByText('Stein schlägt Schere')).toHaveLength(2);
+    });
   });
 
   describe('comic pick screen', () => {

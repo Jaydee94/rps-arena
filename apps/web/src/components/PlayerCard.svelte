@@ -1,86 +1,136 @@
 <script lang="ts">
   import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
-  import Avatar from './Avatar.svelte';
   import GestureIcon from './GestureIcon.svelte';
 
   interface Props {
-    /** Accessible name of the region, e.g. "Du" or "Gegner". */
+    /** Accessible name of the region and first part of the name tag, e.g. "Du" or "Gegner" (nicknames in 2v2). */
     label: string;
-    nickname: string;
-    /** Avatar id. */
-    avatar: string;
-    /** Only ever set for the own pick or after the reveal. */
+    /** The revealed gesture; null or undefined when this seat picked nothing (timeout). */
     gesture?: string | null;
-    /** Status lines such as "Gegner hat gewählt". */
-    notes?: string[];
-    /** The reveal has happened but this seat has no pick. */
-    missing?: boolean;
-    /** Reveal: which side this card flies in from (see animations.css). */
-    slam?: 'left' | 'right';
+    /** Own side (top left of the reveal panel) or the opponent (bottom right, mirrored). */
+    side: 'mine' | 'theirs';
+    /** This side lost its duel: the sticker droops (see animations.css). */
+    loser?: boolean;
+    /** Smaller sticker for the half-height panels of 2v2. */
+    compact?: boolean;
   }
 
-  let { label, nickname, avatar, gesture = null, notes = [], missing = false, slam }: Props = $props();
+  let { label, gesture = null, side, loser = false, compact = false }: Props = $props();
 </script>
 
-<section class="player card" class:slam-left={slam === 'left'} class:slam-right={slam === 'right'} aria-label={label}>
-  <header>
-    <Avatar id={avatar} size={40} />
-    <span class="nick">{nickname}</span>
-  </header>
-  {#if gesture}
-    <p class="gesture">
-      <span class="stamp-in"><GestureIcon id={gesture} size={88} /></span>
-      <span class="gesture-name">{t(gestureKey(gesture))}</span>
-    </p>
-  {:else if missing}
-    <p class="note">{t('board.no_pick')}</p>
-  {/if}
-  {#each notes as note (note)}
-    <p class="note">{note}</p>
-  {/each}
+<!-- One reveal side: a name tag ("Du · Stein") and the big gesture sticker. -->
+<section
+  class="player {side}"
+  class:slam-left={side === 'mine'}
+  class:slam-right={side === 'theirs'}
+  class:loser
+  class:compact
+  aria-label={label}
+>
+  <p class="tag">
+    <span class="who">{label}</span> ·
+    {#if gesture}<span class="gesture-name">{t(gestureKey(gesture))}</span>{:else}<span class="gesture-name">{t('board.no_pick')}</span>{/if}
+  </p>
+  <span class="tilt">
+    <span class="reveal-art">
+      {#if gesture}
+        <GestureIcon id={gesture} size={compact ? 88 : 138} />
+      {:else}
+        <span class="none" aria-hidden="true">?</span>
+      {/if}
+    </span>
+  </span>
 </section>
 
 <style>
   .player {
+    position: absolute;
+    z-index: 3;
     display: grid;
-    align-content: start;
     gap: var(--space-2);
-    min-height: 8rem;
-    min-width: 0;
+    max-width: calc(100% - 2 * var(--space-4));
+  }
+
+  .mine {
+    top: var(--space-4);
+    left: var(--space-4);
+    justify-items: start;
+  }
+
+  .theirs {
+    right: var(--space-4);
+    bottom: var(--space-4);
+    justify-items: end;
+  }
+
+  /* The opponent mirrors the own side: sticker on top, name tag below. */
+  .theirs .tag {
+    order: 2;
+  }
+
+  .tag {
+    max-width: 100%;
+    padding: 0 var(--space-3);
+    border: var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--sticker);
+    color: var(--on-bright);
     box-shadow: var(--shadow-sm);
+    overflow-wrap: anywhere;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    letter-spacing: 0.04em;
+    line-height: 1.3;
     rotate: var(--tilt-1);
   }
 
-  .player:nth-child(2) {
+  .theirs .tag {
     rotate: var(--tilt-2);
   }
 
-  header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
+  .compact .tag {
+    font-size: var(--text-md);
   }
 
-  .nick {
-    min-width: 0;
-    overflow-wrap: anywhere;
-    font-weight: 700;
-  }
-
-  .gesture {
+  .tilt {
     display: grid;
-    justify-items: center;
-    gap: var(--space-2);
+    rotate: -10deg;
   }
 
-  .gesture-name {
+  /* Gespiegelt: the opponent's hand points back at the own one. */
+  .theirs .tilt {
+    rotate: 14deg;
+    scale: -1 1;
+  }
+
+  .reveal-art {
+    display: grid;
+  }
+
+  .none {
+    display: grid;
+    place-items: center;
+    width: 138px;
+    height: 138px;
+    border: var(--border);
+    border-radius: 50%;
+    background: var(--sticker);
+    color: var(--on-bright);
+    box-shadow: var(--shadow-sm);
     font-family: var(--font-display);
-    font-size: var(--text-xl);
-    letter-spacing: 0.04em;
+    font-size: 5rem;
+    line-height: 1;
   }
 
-  .note {
-    font-weight: 700;
+  /* A question mark must not read mirrored. */
+  .theirs .none {
+    scale: -1 1;
+  }
+
+  .compact .none {
+    width: 88px;
+    height: 88px;
+    font-size: 3.25rem;
   }
 </style>

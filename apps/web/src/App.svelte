@@ -68,12 +68,19 @@
     padding: var(--space-5) var(--space-4) var(--space-7);
   }
 
+  /*
+   * The wordmark flies in from far off to the side on load; that must never widen the page. The header
+   * reaches into the page gutter (negative margin, same padding back) and clips sideways only there, so
+   * shadows and focus rings of its buttons keep their room. overflow-x: clip makes no scroll container.
+   */
   header {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-3) var(--space-4);
-    padding-bottom: var(--space-3);
+    margin-inline: calc(-1 * var(--space-4));
+    padding: 0 var(--space-4) var(--space-3);
+    overflow-x: clip;
   }
 
   .badge {
