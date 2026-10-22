@@ -1,7 +1,7 @@
 # Local development and tests with Docker Compose.
 #
 #   docker compose up -d --build --wait redis app     app + Redis on http://127.0.0.1:8080
-#   docker compose run --rm tests                      whole test suite, Redis-backed tests included
+#   docker compose run --build --rm tests              whole test suite, Redis-backed tests included
 #   docker compose --profile replicas up -d --wait app2   second instance on http://127.0.0.1:8081
 #   docker compose --profile test --profile replicas down -v --remove-orphans
 #
@@ -80,24 +80,20 @@ services:
       retries: 15
       start_period: 3s
 
-  # Whole test suite in a clean Linux container. REDIS_URL is set, so the Redis-backed tests run
-  # instead of being skipped. COMPOSE_TEST_CMD overrides the command (default: npm test).
+  # Whole test suite in a clean Linux container built from the Dockerfile's `test` stage (sources
+  # and dependencies are baked into the image: no bind mount, nothing is written to the host).
+  # REDIS_URL is set, so the Redis-backed tests run instead of being skipped.
+  # COMPOSE_TEST_CMD overrides the command (default: npm test).
   tests:
     profiles: ["test"]
-    image: node:24.22.1-alpine3.24 # keep in sync with NODE_IMAGE in the Dockerfile
-    working_dir: /work
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    image: rps-arena:test
     environment:
       REDIS_URL: redis://redis:6379
-      CI: "true"
-    volumes:
-      - ./:/work
-      # Anonymous volumes shadow the host's node_modules (possibly macOS binaries): the container
-      # installs its own with `npm ci` and never touches the host copy.
-      - /work/node_modules
-      - /work/apps/web/node_modules
-      - /work/apps/server/node_modules
-      - /work/packages/shared/node_modules
     depends_on:
       redis:
         condition: service_healthy
-    command: ["sh", "-c", "npm ci --no-audit --no-fund && ${COMPOSE_TEST_CMD:-npm test}"]
+    command: ["sh", "-c", "${COMPOSE_TEST_CMD:-npm test}"]
