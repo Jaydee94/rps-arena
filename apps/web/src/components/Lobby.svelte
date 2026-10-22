@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { SeatId } from '@rps/shared';
-  import { moveSeat, room, startMatch } from '../lib/connection';
+  import { moveSeat, playerRoom, startMatch } from '../lib/connection';
   import { t } from '../lib/i18n';
   import { canStart, isHost } from '../lib/seats';
   import CopyRow from './CopyRow.svelte';
@@ -13,11 +13,11 @@
 
   let selected = $state<SeatId | null>(null);
 
-  const inviteLink = $derived($room ? `${location.origin}/?room=${$room.code}` : '');
+  const inviteLink = $derived($playerRoom ? `${location.origin}/?room=${$playerRoom.code}` : '');
 
   // Drop the pick-up when that seat was vacated meanwhile.
   $effect(() => {
-    if (selected !== null && !$room?.players[selected]) selected = null;
+    if (selected !== null && !$playerRoom?.players[selected]) selected = null;
   });
 
   function moveHere(to: SeatId) {
@@ -27,8 +27,8 @@
   }
 </script>
 
-{#if $room}
-  {@const view = $room}
+{#if $playerRoom}
+  {@const view = $playerRoom}
   {@const host = isHost(view)}
   {@const teamMode = view.config.mode === 'team2v2'}
   {#snippet slot(seat: SeatId)}

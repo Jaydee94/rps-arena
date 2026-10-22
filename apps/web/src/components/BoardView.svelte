@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { gestureSetFor, type PublicMatch, type RoomView, type SeatId } from '@rps/shared';
+  import { gestureSetFor, type PublicMatch, type PlayerView, type SeatId } from '@rps/shared';
   import { announce, next, pick } from '../lib/connection';
   import { duelViews, outcomeFor, type DuelView, type Side } from '../lib/board';
   import { shouldCountDown } from '../lib/countdown';
@@ -18,7 +18,7 @@
   import TimerBar from './TimerBar.svelte';
 
   interface Props {
-    room: RoomView;
+    room: PlayerView;
     match: PublicMatch;
   }
 
@@ -49,7 +49,7 @@
   let countingDown = $state(false);
   // The score from before the reveal: the scoreboard must not give the result away during the countdown.
   let heldScore = $state<PublicMatch['score'] | null>(null);
-  let prevRoom: RoomView | null = null;
+  let prevRoom: PlayerView | null = null;
   $effect.pre(() => {
     const current = room;
     if (shouldCountDown(prevRoom, current)) {
