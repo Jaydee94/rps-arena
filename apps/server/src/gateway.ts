@@ -28,13 +28,27 @@ import { TokenBucket } from './rate-limit';
 import { spectatorsOf } from './room';
 import type { Room } from './room';
 import type { RoomStore } from './store';
-import { spectatorViewFor, viewFor } from './view';
+import {
+  createTournamentRoom,
+  joinTournamentRoom,
+  markParticipantDisconnected,
+  participantIdOfSeat,
+  rejoinTournament,
+  skipTournamentWait,
+  startTournament,
+  tournamentRematch,
+  tournamentWhoOfSocket,
+} from './tournament';
+import type { TournamentWho } from './tournament';
+import { participantViewFor, spectatorViewFor, viewFor } from './view';
 
 export interface GatewayOptions {
   /** rng for room codes (tests inject collisions). */
   codeRng?: () => number;
   /** rng for bot moves. */
   botRng?: () => number;
+  /** rng for tournament draws and coin flips (tests inject fixed values). */
+  tournamentRng?: () => number;
   /** Per-socket token bucket. Default 20 events/s, burst 40. */
   rateLimit?: { perSecond: number; burst: number };
   /** Room code draws before `room:create` gives up with `internal`. */
@@ -44,11 +58,15 @@ export interface GatewayOptions {
 export interface Gateway {
   /**
    * Sends every seated human its own view and the shared spectator view once to the spectator
-   * channel. Reaches all replicas through the adapter.
+   * channel; in a tournament room every participant gets its own view on its personal channel.
+   * Reaches all replicas through the adapter.
    */
   broadcast(room: Room): void;
-  /** Detaches all sockets from a deleted room. */
-  dropRoom(code: string): void;
+  /**
+   * Detaches all sockets from a deleted room. `room` is its last stored state (the ticker passes
+   * it): its participants' and spectators' personal channels are left too.
+   */
+  dropRoom(code: string, room?: Room): void;
   /** Resolves once no socket event is being processed (for graceful shutdown). */
   idle(): Promise<void>;
 }
@@ -66,7 +84,12 @@ const RULE_ERRORS: Record<RuleErrorCode, ErrorCode> = {
 };
 
 /** Events without payload: a missing argument means `{}`. */
-const EMPTY_PAYLOAD_EVENTS = new Set<ClientEventName>(['room:start', 'game:next', 'room:rematch']);
+const EMPTY_PAYLOAD_EVENTS = new Set<ClientEventName>([
+  'room:start',
+  'game:next',
+  'room:rematch',
+  'tournament:skip',
+]);
 
 /** Socket.IO room carrying one seat's private view. */
 export const seatChannel = (code: string, seat: SeatId) => `${code}:${seat}`;
@@ -74,24 +97,93 @@ export const seatChannel = (code: string, seat: SeatId) => `${code}:${seat}`;
 /** Socket.IO room carrying the spectator view (identical for every spectator of the room). */
 export const spectatorChannel = (code: string) => `${code}:spec`;
 
-/** The private channel of a player seat or the shared one of all spectators. */
+/**
+ * Socket.IO room carrying the own view of one person of a tournament room (`id` is the
+ * tournament-local participant or spectator id, never a token). Every participant receives all of
+ * its views here, whether it plays (a `PlayerView`) or watches (a `SpectatorView` with `me`), so a
+ * pairing change never needs to move sockets between channels. Tournament spectators join it too
+ * (next to the shared spectator channel) so a rematch can re-home them without a socket handle.
+ */
+export const participantChannel = (code: string, id: string) => `${code}:p:${id}`;
+
+/** The private channel of a player seat or the shared one of all spectators (duel rooms). */
 const channelOf = (code: string, who: Who) =>
   who.role === 'player' ? seatChannel(code, who.seat) : spectatorChannel(code);
 
-function sameWho(a: Who, b: Who): boolean {
+/**
+ * A person of a tournament room: a participant (playing, waiting, eliminated or forfeited) or a
+ * plain spectator. Participant ids and spectator ids share one id space.
+ */
+type Person = { kind: 'participant' | 'spectator'; id: string };
+
+/** The person behind `who` in a tournament room (a seat resolves to its pairing participant). */
+function personOf(room: Room, who: TournamentWho): Person | null {
+  if (who.role === 'player') {
+    const id = participantIdOfSeat(room, who.seat);
+    return id === null ? null : { kind: 'participant', id };
+  }
+  if (who.role === 'participant') return { kind: 'participant', id: who.id };
+  // A forfeited participant comes back as `{ role: 'spectator' }` under its participant id.
+  const isParticipant = room.tournament?.participants.some((p) => p.id === who.id) ?? false;
+  return { kind: isParticipant ? 'participant' : 'spectator', id: who.id };
+}
+
+/** The channels (besides the room code) a socket bound as `who` sits in. */
+function channelsOf(room: Room, who: TournamentWho): string[] {
+  if (!room.tournament) return [channelOf(room.code, who as Who)];
+  const person = personOf(room, who);
+  if (!person) return [];
+  const own = participantChannel(room.code, person.id);
+  return person.kind === 'spectator' ? [own, spectatorChannel(room.code)] : [own];
+}
+
+/** Who `socketId` is: a seat or spectator, in a tournament room also a waiting participant. */
+function whoOf(room: Room, socketId: string): TournamentWho | null {
+  return room.tournament ? tournamentWhoOfSocket(room, socketId) : whoOfSocket(room, socketId);
+}
+
+function sameWho(room: Room, a: TournamentWho, b: TournamentWho): boolean {
+  if (room.tournament) {
+    const x = personOf(room, a);
+    const y = personOf(room, b);
+    return x !== null && y !== null && x.kind === y.kind && x.id === y.id;
+  }
   if (a.role === 'player') return b.role === 'player' && a.seat === b.seat;
   return b.role === 'spectator' && a.id === b.id;
 }
 
-/** Marks a player seat or a spectator as disconnected (starting its reconnect grace). */
-function markGone(room: Room, who: Who, now: number): Room {
+/** Marks a player seat, participant or spectator as disconnected (starting its reconnect grace). */
+function markGone(room: Room, who: TournamentWho, now: number): Room {
+  if (room.tournament) {
+    const person = personOf(room, who);
+    if (!person) return room;
+    return person.kind === 'participant'
+      ? markParticipantDisconnected(room, person.id, now)
+      : markSpectatorDisconnected(room, person.id, now);
+  }
   return who.role === 'player'
     ? markDisconnected(room, who.seat, now)
-    : markSpectatorDisconnected(room, who.id, now);
+    : markSpectatorDisconnected(room, (who as Who & { role: 'spectator' }).id, now);
 }
 
-/** What `room:joined` tells the bound socket; null if `who` is not in the room. */
-function joinedMessage(room: Room, who: Who): RoomJoined | null {
+/**
+ * What `room:joined` tells the bound socket; null if `who` is not in the room. In a tournament
+ * room only a member of the running pairing joins as `role: 'player'` with its seat; everyone else
+ * (waiting, eliminated, forfeited, plain spectators) joins as `role: 'spectator'`, `seat: null`
+ * (a participant's own view then carries `me`). The token is always the person's own.
+ */
+function joinedMessage(room: Room, who: TournamentWho): RoomJoined | null {
+  if (room.tournament) {
+    const person = personOf(room, who);
+    if (!person) return null;
+    const pool = person.kind === 'participant' ? room.tournament.participants : spectatorsOf(room);
+    const record = pool.find((p) => p.id === person.id);
+    if (!record) return null;
+    return who.role === 'player'
+      ? { code: room.code, token: record.token, role: 'player', seat: who.seat }
+      : { code: room.code, token: record.token, role: 'spectator', seat: null };
+  }
+  if (who.role === 'participant') return null;
   if (who.role === 'player') {
     const player = room.players[who.seat];
     return player ? { code: room.code, token: player.token, role: 'player', seat: who.seat } : null;
@@ -125,6 +217,9 @@ export function createGateway(
   const { perSecond, burst } = options.rateLimit ?? { perSecond: 20, burst: 40 };
   const maxCodeAttempts = options.maxCodeAttempts ?? 10;
   const botRng = options.botRng ?? Math.random;
+  const tournamentRng = options.tournamentRng ?? Math.random;
+  /** Tournament rooms draw and flip coins with `tournamentRng`, duel rooms move bots with `botRng`. */
+  const rngFor = (room: Room) => (room.tournament ? tournamentRng : botRng);
   const inFlight = new Set<Promise<void>>();
   /** Tracks a never-rejecting task so shutdown can wait for it. */
   function track(task: Promise<void>): Promise<void> {
@@ -135,17 +230,61 @@ export function createGateway(
   }
 
   function broadcast(room: Room): void {
+    if (room.tournament) {
+      broadcastTournament(room);
+      return;
+    }
     for (const [seat, player] of Object.entries(room.players) as [SeatId, Room['players'][SeatId]][]) {
       if (player && !player.isBot) io.to(seatChannel(room.code, seat)).emit('room:state', viewFor(room, seat));
     }
     if (spectatorsOf(room).length > 0) io.to(spectatorChannel(room.code)).emit('room:state', spectatorViewFor(room));
   }
 
-  function dropRoom(code: string): void {
+  /**
+   * Tournament rooms: each participant gets exactly one view per change on its personal channel
+   * (the seat's `viewFor` while it plays in the running pairing, otherwise its own
+   * `participantViewFor`), plain spectators share one `spectatorViewFor` on the spectator channel.
+   * The seat channels are not used, so whoever the pairing projects onto a0/b0 next, no socket can
+   * still sit on a channel that now carries someone else's picks; and since the view kind is
+   * chosen here from the room alone, ticker-driven pairing changes need no socket re-homing.
+   */
+  function broadcastTournament(room: Room): void {
+    const seatOf = new Map<string, SeatId>();
+    for (const seat of ['a0', 'b0'] as const) {
+      const id = participantIdOfSeat(room, seat);
+      if (id !== null && room.players[seat]) seatOf.set(id, seat);
+    }
+    for (const participant of room.tournament?.participants ?? []) {
+      const seat = seatOf.get(participant.id);
+      io.to(participantChannel(room.code, participant.id)).emit(
+        'room:state',
+        seat ? viewFor(room, seat) : participantViewFor(room, participant.id),
+      );
+    }
+    if (spectatorsOf(room).length > 0) io.to(spectatorChannel(room.code)).emit('room:state', spectatorViewFor(room));
+  }
+
+  /**
+   * After a tournament rematch some spectators became participants (and disconnected participants
+   * may have become spectators): move their sockets, on any replica, between the shared spectator
+   * channel and their personal one only. Runs before the broadcast.
+   */
+  function rehomeTournament(room: Room): void {
+    for (const participant of room.tournament?.participants ?? []) {
+      io.in(participantChannel(room.code, participant.id)).socketsLeave(spectatorChannel(room.code));
+    }
+    for (const spectator of spectatorsOf(room)) {
+      io.in(participantChannel(room.code, spectator.id)).socketsJoin(spectatorChannel(room.code));
+    }
+  }
+
+  function dropRoom(code: string, room?: Room): void {
+    const people = room ? [...(room.tournament?.participants ?? []), ...spectatorsOf(room)] : [];
     io.in(code).socketsLeave([
       code,
       ...(['a0', 'a1', 'b0', 'b1'] as const).map((s) => seatChannel(code, s)),
       spectatorChannel(code),
+      ...people.map((p) => participantChannel(code, p.id)),
     ]);
   }
 
@@ -161,12 +300,12 @@ export function createGateway(
       else fail('rate_limited');
     });
 
-    async function bind(room: Room, who: Who): Promise<void> {
+    async function bind(room: Room, who: TournamentWho): Promise<void> {
       // Resolve first, so an (unreachable) inconsistency cannot leave the socket half bound.
       const joined = joinedMessage(room, who);
       if (!joined) throw new ProtocolError('internal');
       socket.data.code = room.code;
-      await socket.join([room.code, channelOf(room.code, who)]);
+      await socket.join([room.code, ...channelsOf(room, who)]);
       socket.emit('room:joined', joined);
       broadcast(room);
     }
@@ -197,7 +336,7 @@ export function createGateway(
       for (const channel of socket.rooms) if (channel !== socket.id) await socket.leave(channel);
       let changed = false;
       const room = await store.update(code, (current) => {
-        const who = whoOfSocket(current, socket.id);
+        const who = whoOf(current, socket.id);
         if (!who) return null;
         changed = true;
         return markGone(current, who, clock());
@@ -206,32 +345,82 @@ export function createGateway(
     }
 
     /**
-     * Runs `fn` for this socket's own seat, atomically, then broadcasts (after `beforeBroadcast`,
-     * e.g. moving sockets to new seat channels). A spectator socket gets `not_player` and the
-     * room stays as it is.
+     * Runs `fn` for whoever this socket is bound as, atomically, then broadcasts (after
+     * `beforeBroadcast`, e.g. moving sockets to new channels). An unbound socket gets `bad_token`.
      */
-    async function asSeat(
-      fn: (room: Room, seat: SeatId, now: number) => Room,
+    async function act(
+      fn: (room: Room, who: TournamentWho, now: number) => Room,
       beforeBroadcast?: (room: Room) => void,
     ): Promise<void> {
       const code = socket.data.code;
       if (!code) throw new ProtocolError('bad_token');
       const room = await store.update(code, (current) => {
-        const who = whoOfSocket(current, socket.id);
+        const who = whoOf(current, socket.id);
         if (!who) throw new ProtocolError('bad_token');
-        if (who.role !== 'player') throw new ProtocolError('not_player');
-        return fn(current, who.seat, clock());
+        return fn(current, who, clock());
       });
       if (!room) throw new ProtocolError('room_not_found');
       beforeBroadcast?.(room);
       broadcast(room);
     }
 
+    /**
+     * `act` for this socket's own seat. Anyone without a seat (a spectator, or in a tournament a
+     * participant outside the running pairing) gets `not_player` and the room stays as it is.
+     */
+    function asSeat(
+      fn: (room: Room, seat: SeatId, now: number) => Room,
+      beforeBroadcast?: (room: Room) => void,
+    ): Promise<void> {
+      return act((room, who, now) => {
+        if (who.role !== 'player') throw new ProtocolError('not_player');
+        return fn(room, who.seat, now);
+      }, beforeBroadcast);
+    }
+
+    /**
+     * Host events. In a tournament room the acting participant (on a seat or not) is passed by its
+     * participant id (the engine checks it is the host: `not_host`); spectators, forfeited
+     * participants included, get `not_player`. In a duel room `duel` runs for the own seat.
+     */
+    function asHost(
+      tournament: (room: Room, byId: string, now: number) => Room,
+      duel: (room: Room, seat: SeatId, now: number) => Room,
+      beforeBroadcast?: (room: Room) => void,
+    ): Promise<void> {
+      return act((room, who, now) => {
+        if (!room.tournament) {
+          if (who.role !== 'player') throw new ProtocolError('not_player');
+          return duel(room, who.seat, now);
+        }
+        const person = personOf(room, who);
+        if (who.role === 'spectator' || !person || person.kind !== 'participant') {
+          throw new ProtocolError('not_player');
+        }
+        return tournament(room, person.id, now);
+      }, beforeBroadcast);
+    }
+
     const handlers: { [K in ClientEventName]: (p: ClientEventPayloads[K]) => Promise<unknown> } = {
       'room:create': async (p) => {
         await release();
+        const { tournament, ...duel } = p;
+        // A tournament has no bots.
+        if (tournament && duel.vsBot) throw new ProtocolError('invalid_input');
         for (let attempt = 0; attempt < maxCodeAttempts; attempt++) {
-          const room = createRoom({ ...p, socketId: socket.id }, clock(), options.codeRng);
+          if (tournament) {
+            // Mode and length are checked by `createTournamentRoom` (invalid_input).
+            const room = createTournamentRoom(
+              { config: p.config, format: tournament.format, nickname: p.nickname, avatar: p.avatar, socketId: socket.id },
+              clock(),
+              options.codeRng,
+            );
+            const hostId = room.tournament?.hostId;
+            if (!hostId) throw new ProtocolError('internal');
+            if (await store.create(room)) return bind(room, { role: 'participant', id: hostId });
+            continue;
+          }
+          const room = createRoom({ ...duel, socketId: socket.id }, clock(), options.codeRng);
           if (await store.create(room)) return bind(room, { role: 'player', seat: 'a0' });
         }
         throw new ProtocolError('internal');
@@ -242,15 +431,21 @@ export function createGateway(
         // disconnected and its slot frees up once its reconnect grace runs out).
         await release();
         const { room, result: who } = await updateWith(p.code, (current) => {
-          const joined = joinRoom(current, p.nickname, p.avatar, clock(), socket.id);
+          const joined: { room: Room; who: TournamentWho } = current.tournament
+            ? joinTournamentRoom(current, p.nickname, p.avatar, clock(), socket.id)
+            : joinRoom(current, p.nickname, p.avatar, clock(), socket.id);
           return { room: joined.room, result: joined.who };
         });
         await bind(room, who);
       },
-      'tournament:skip': async () => {
-        // TODO(Stage 2 Task 4): skip the draw or intermission; until then there is no tournament to skip.
-        throw new ProtocolError('wrong_phase');
-      },
+      'tournament:skip': () =>
+        asHost(
+          (room, byId, now) => skipTournamentWait(room, byId, now, tournamentRng),
+          () => {
+            // A duel has no draw or intermission to skip.
+            throw new ProtocolError('wrong_phase');
+          },
+        ),
       'room:rejoin': async (p) => {
         if (socket.data.code !== p.code) await release();
         const { room, result } = await updateWith(p.code, (current) => {
@@ -258,28 +453,46 @@ export function createGateway(
           // Within the same room the socket may hold another binding (e.g. a spectator rejoining
           // with a player token): release it, or it would stay connected forever as a ghost.
           // Rejoining the own binding again changes nothing here.
-          const before = whoOfSocket(current, socket.id);
-          const rejoined = rejoinRoom(current, p.token, now, socket.id);
-          const stale = before && !sameWho(before, rejoined.who) ? before : null;
+          const before = whoOf(current, socket.id);
+          // Tournament rooms have their own rejoin (`rejoinRoom` refuses them): it also finds
+          // waiting, eliminated and forfeited participants.
+          const rejoined: { room: Room; who: TournamentWho; previousSocketId: string | null } =
+            current.tournament
+              ? rejoinTournament(current, p.token, now, socket.id)
+              : rejoinRoom(current, p.token, now, socket.id);
+          const stale = before && !sameWho(current, before, rejoined.who) ? before : null;
           return {
             room: stale ? markGone(rejoined.room, stale, now) : rejoined.room,
-            result: { who: rejoined.who, previous: rejoined.previousSocketId, stale },
+            result: {
+              who: rejoined.who,
+              previous: rejoined.previousSocketId,
+              staleChannels: stale ? channelsOf(current, stale) : [],
+            },
           };
         });
-        const { who, previous, stale } = result;
-        if (stale) await socket.leave(channelOf(room.code, stale));
+        const { who, previous, staleChannels } = result;
+        for (const channel of staleChannels) await socket.leave(channel);
         if (previous) {
-          // The seat (or spectator) now belongs to this socket; cut the old one (on any replica)
-          // off the room.
+          // The seat (or spectator, or participant) now belongs to this socket; cut the old one
+          // (on any replica) off the room.
           io.to(previous).emit('room:error', { code: 'bad_token', message: 'bad_token' });
-          io.in(previous).socketsLeave([room.code, channelOf(room.code, who)]);
+          io.in(previous).socketsLeave([room.code, ...channelsOf(room, who)]);
         }
         await bind(room, who);
       },
-      'room:start': () => asSeat((room, seat, now) => startMatch(room, seat, now)),
+      'room:start': () =>
+        asHost(
+          (room, byId, now) => startTournament(room, byId, now, tournamentRng),
+          (room, seat, now) => startMatch(room, seat, now),
+        ),
       'seat:move': (p) =>
-        asSeat(
-          (room, seat) => moveSeat(room, seat, p.from, p.to),
+        act(
+          (room, who) => {
+            // A tournament places its pairings itself.
+            if (room.tournament) throw new ProtocolError('invalid_input');
+            if (who.role !== 'player') throw new ProtocolError('not_player');
+            return moveSeat(room, who.seat, p.from, p.to);
+          },
           (room) => {
             // Re-home the moved player's sockets (on any replica) before the views go out.
             const from = seatChannel(room.code, p.from);
@@ -287,10 +500,17 @@ export function createGateway(
             io.in(from).socketsLeave(from);
           },
         ),
-      'game:announce': (p) => asSeat((room, seat, now) => applyAnnounce(room, seat, p, now, botRng)),
-      'game:pick': (p) => asSeat((room, seat, now) => applyPick(room, seat, p, now, botRng)),
-      'game:next': () => asSeat((room, seat, now) => applyNext(room, seat, now, botRng)),
-      'room:rematch': () => asSeat((room, seat, now) => rematch(room, seat, now, botRng)),
+      'game:announce': (p) => asSeat((room, seat, now) => applyAnnounce(room, seat, p, now, rngFor(room))),
+      'game:pick': (p) => asSeat((room, seat, now) => applyPick(room, seat, p, now, rngFor(room))),
+      'game:next': () => asSeat((room, seat, now) => applyNext(room, seat, now, rngFor(room))),
+      'room:rematch': () =>
+        asHost(
+          (room, byId, now) => tournamentRematch(room, byId, now, tournamentRng),
+          (room, seat, now) => rematch(room, seat, now, botRng),
+          (room) => {
+            if (room.tournament) rehomeTournament(room);
+          },
+        ),
     };
 
     /**
