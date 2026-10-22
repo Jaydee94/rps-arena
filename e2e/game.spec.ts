@@ -178,23 +178,22 @@ test('reveal countdown: with motion the reveal appears after the countdown', asy
   const countdown = p.page.getByTestId('countdown');
 
   await gesture(p.page, 'Rock').click();
-  await expect(countdown).toBeVisible();
   // The duels are not there yet, and the new score is not given away before the clash. Read in one
-  // step: the countdown is short, so this must not be two separate polls.
-  const during = await p.page.waitForFunction(() =>
-    document.querySelector('[data-testid="countdown"]')
-      ? {
-          duels: document.querySelectorAll('[data-testid="duel"]').length,
-          score: [...(document.querySelector('[role="group"][aria-label="Score"]')?.children ?? [])]
-            .filter((child) => child.getAttribute('aria-hidden') !== 'true')
-            .map((child) => (child.textContent ?? '').replace(/\s+/g, ' ').trim())
-            .join(' '),
-        }
-      : null,
+  // step: the countdown is short, so this must not be separate polls. A missed countdown fails here, clearly.
+  const during = await p.page.waitForFunction(
+    () =>
+      document.querySelector('[data-testid="countdown"]')
+        ? {
+            duels: document.querySelectorAll('[data-testid="duel"]').length,
+            score: (document.querySelector('[role="group"][aria-label="Score"]')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+          }
+        : null,
+    undefined,
+    { timeout: 5_000 },
   );
   const seen = (await during.jsonValue()) as { duels: number; score: string };
   expect(seen.duels).toBe(0);
-  // Needs the Scoreboard to hold back the new score during the countdown (fails without that; checked against a local patch).
+  // The Scoreboard holds back the new score until the clash.
   expect(seen.score).toBe('0 : 0');
 
   const reveal = await captureReveal(p.page);
@@ -211,8 +210,16 @@ test('reveal countdown: a key press skips it', async ({ browser }) => {
   const countdown = p.page.getByTestId('countdown');
 
   await gesture(p.page, 'Rock').click();
-  await expect(countdown).toBeVisible();
-  await p.page.keyboard.press('Shift');
+  // Find the countdown and press the key in one step in the page, so no slow poll can miss the window.
+  await p.page.waitForFunction(
+    () => {
+      if (!document.querySelector('[data-testid="countdown"]')) return false;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift' }));
+      return true;
+    },
+    undefined,
+    { timeout: 5_000 },
+  );
 
   // Far less than the countdown lasts (three beats), so this is the skip, not the countdown running out.
   await expect(countdown).toHaveCount(0, { timeout: 500 });

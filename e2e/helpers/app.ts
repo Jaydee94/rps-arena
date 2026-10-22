@@ -113,8 +113,7 @@ export async function lobbyCode(page: Page): Promise<string> {
 export const gesture = (page: Page, name: string) => page.getByRole('radio', { name, exact: true });
 export const continueButton = (page: Page) => page.getByRole('button', { name: 'Continue' });
 export const playAgainButton = (page: Page) => page.getByRole('button', { name: 'Play again' });
-// The group also holds the decorative "VS" star (aria-hidden); the score itself is its readable text.
-export const score = (page: Page) => page.getByRole('group', { name: 'Score' }).locator(':scope > :not([aria-hidden="true"])');
+export const score = (page: Page) => page.getByRole('group', { name: 'Score' });
 
 export async function startMatch(host: Page): Promise<void> {
   await host.getByRole('button', { name: "Let's go!" }).click();
@@ -145,13 +144,7 @@ export async function captureReveal(page: Page): Promise<RevealSnapshot> {
     }
     return {
       status: clean(document.querySelector('[role="status"]')?.textContent),
-      // Only the readable part: the "VS" star inside the group is decorative (aria-hidden).
-      score: clean(
-        [...(document.querySelector('[role="group"][aria-label="Score"]')?.children ?? [])]
-          .filter((child) => child.getAttribute('aria-hidden') !== 'true')
-          .map((child) => child.textContent)
-          .join(' '),
-      ),
+      score: clean(document.querySelector('[role="group"][aria-label="Score"]')?.textContent),
       cards,
     };
   });
