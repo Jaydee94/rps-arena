@@ -1,6 +1,8 @@
 import type { RoomView } from '@rps/shared';
 import { audio, SOUND_LENGTH, type SoundName } from './audio';
 import { room } from './connection';
+import { shouldCountDown } from './countdown';
+import { countdownMs } from './motion';
 
 /** Which team a seat belongs to ("a0" -> "a"). */
 const teamOf = (seat: string): string => seat.charAt(0);
@@ -30,6 +32,26 @@ export function diffRoomSounds(prev: RoomView | null, next: RoomView | null): So
 }
 
 /**
+ * Sounds with their start delay in seconds (as in `audio.play(name, delay)`). Follow-ups start
+ * when the previous sound has finished; the reveal sound additionally waits for the countdown
+ * when one introduces the reveal.
+ */
+export function scheduleRoomSounds(
+  prev: RoomView | null,
+  next: RoomView | null,
+): { name: SoundName; delay: number }[] {
+  const countdown = shouldCountDown(prev, next);
+  const countdownSeconds = countdownMs() / 1000;
+  let delay = 0;
+  return diffRoomSounds(prev, next).map((name) => {
+    if (countdown && name === 'reveal') delay = Math.max(delay, countdownSeconds);
+    const entry = { name, delay };
+    delay += SOUND_LENGTH[name];
+    return entry;
+  });
+}
+
+/**
  * Wires the sounds to the app: unlocks audio on the first user gesture, clicks on buttons and
  * the room-state sounds. Returns a cleanup function.
  */
@@ -50,12 +72,7 @@ export function startSfxBridge(): () => void {
 
   let prev: RoomView | null = null;
   const unsubscribe = room.subscribe((next) => {
-    // Follow-up sounds start when the previous one has finished.
-    let delay = 0;
-    for (const name of diffRoomSounds(prev, next)) {
-      audio.play(name, delay);
-      delay += SOUND_LENGTH[name];
-    }
+    for (const { name, delay } of scheduleRoomSounds(prev, next)) audio.play(name, delay);
     prev = next;
   });
 
