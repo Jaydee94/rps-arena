@@ -93,6 +93,12 @@
   "result.leave": "Back to start",
   "result.final_score": "Final score {mine} : {theirs}",
 
+  "burst.pow": "POW!",
+  "burst.bam": "BAM!",
+  "burst.zap": "ZAP!",
+  "burst.win": "WIN!",
+  "burst.lose": "OUCH!",
+
   "errors.room_not_found": "That room doesn't exist (anymore).",
   "errors.room_full": "Sorry, that room is full.",
   "errors.invalid_input": "That didn't work. Please check your input.",

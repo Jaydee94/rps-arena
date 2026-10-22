@@ -1,0 +1,13 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <path class="red" d="M12 26 C8 18 8 8 12 3 C20 6 24 12 25 18 Z"/>
+  <path class="red" d="M52 26 C56 18 56 8 52 3 C44 6 40 12 39 18 Z"/>
+  <circle class="red" cx="32" cy="35" r="24"/>
+  <path class="white" d="M15 28 L28 33 L26 40 L14 36 Z"/>
+  <path class="white" d="M49 28 L36 33 L38 40 L50 36 Z"/>
+  <circle class="line" style="stroke:none" cx="24" cy="36" r="2.6"/>
+  <circle class="line" style="stroke:none" cx="40" cy="36" r="2.6"/>
+  <path class="line" style="stroke-width:5" d="M13 24 L28 30 M51 24 L36 30"/>
+  <path class="white" d="M18 46 Q32 62 46 46 Q32 51 18 46 Z"/>
+  <path d="M26 49 V53 M32 51 V56 M38 49 V53" style="stroke-width:2.5"/>
+  <path class="line" d="M30 58 L32 63 L34 58 Z"/>
+</svg>

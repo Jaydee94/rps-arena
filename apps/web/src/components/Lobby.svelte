@@ -57,7 +57,7 @@
       <div class="teams">
         {#each TEAM_SEATS as { team, seats } (team)}
           <div class="team" role="group" aria-label={t(`lobby.team_${team}`)}>
-            <h3>{t(`lobby.team_${team}`)}</h3>
+            <h3 class="team-banner" data-team={team}>{t(`lobby.team_${team}`)}</h3>
             {#each seats as seat (seat)}{@render slot(seat)}{/each}
           </div>
         {/each}
@@ -91,6 +91,25 @@
 
   h2 {
     font-size: var(--text-2xl);
+  }
+
+  .team-banner {
+    justify-self: start;
+    padding: 0 var(--space-4);
+    border: var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--red);
+    color: var(--on-bright);
+    box-shadow: var(--shadow-sm);
+    font-size: var(--text-lg);
+    text-shadow: none;
+    rotate: -1.5deg;
+  }
+
+  .team-banner[data-team='b'] {
+    background: var(--blue);
+    color: var(--on-blue);
+    rotate: 1.5deg;
   }
 
   .share {

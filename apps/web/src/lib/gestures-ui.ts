@@ -1,37 +1,24 @@
-/** Placeholder icons (emoji) until the real SVG art arrives; ids match @rps/shared. */
-const GESTURE_EMOJI: Record<string, string> = {
-  rock: '🪨',
-  fire: '🔥',
-  scissors: '✂️',
-  snake: '🐍',
-  human: '🧍',
-  tree: '🌳',
-  wolf: '🐺',
-  sponge: '🧽',
-  paper: '📄',
-  air: '💨',
-  water: '💧',
-  dragon: '🐉',
-  devil: '😈',
-  lightning: '⚡',
-  gun: '🔫',
-  lizard: '🦎',
-  spock: '🖖',
-};
+/**
+ * Icon and i18n lookups for gestures and avatars. The SVG art lives in
+ * src/assets/{gestures,avatars}/<id>.svg and is inlined as raw markup so it can be
+ * themed through the tokens (see styles/art.css). Ids match @rps/shared.
+ */
+function byId(files: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(files).map(([path, svg]) => [path.slice(path.lastIndexOf('/') + 1, -'.svg'.length), svg]),
+  );
+}
 
-const AVATAR_EMOJI: Record<string, string> = {
-  fox: '🦊',
-  robot: '🤖',
-  cat: '🐱',
-  owl: '🦉',
-  panda: '🐼',
-  dino: '🦖',
-  alien: '👽',
-  ghost: '👻',
-};
+export const GESTURE_ICONS: Readonly<Record<string, string>> = byId(
+  import.meta.glob<string>('../assets/gestures/*.svg', { query: '?raw', import: 'default', eager: true }),
+);
 
-const UNKNOWN = '❓';
+export const AVATAR_ICONS: Readonly<Record<string, string>> = byId(
+  import.meta.glob<string>('../assets/avatars/*.svg', { query: '?raw', import: 'default', eager: true }),
+);
 
-export const gestureEmoji = (id: string): string => GESTURE_EMOJI[id] ?? UNKNOWN;
+/** The SVG markup of a gesture, or null for an id without art. */
+export const gestureIcon = (id: string): string | null => GESTURE_ICONS[id] ?? null;
 export const gestureKey = (id: string): string => `gesture.${id}`;
-export const avatarEmoji = (id: string): string => AVATAR_EMOJI[id] ?? UNKNOWN;
+/** The SVG markup of an avatar, or null for an unknown id. */
+export const avatarIcon = (id: string): string | null => AVATAR_ICONS[id] ?? null;

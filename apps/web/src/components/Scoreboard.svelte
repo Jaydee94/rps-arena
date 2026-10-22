@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Side } from '../lib/board';
   import { t } from '../lib/i18n';
+  import Avatar from './Avatar.svelte';
 
   interface Props {
     left: Side;
@@ -12,9 +13,17 @@
   let { left, right, round, bestOf }: Props = $props();
 </script>
 
+{#snippet face(side: Side)}
+  {#if side.avatar}
+    <Avatar id={side.avatar} size={52} />
+  {:else}
+    <span class="team-dot" data-team={side.team} aria-hidden="true"></span>
+  {/if}
+{/snippet}
+
 <div class="scoreboard card">
   <div class="side">
-    <span class="avatar" aria-hidden="true">{left.avatar}</span>
+    {@render face(left)}
     <span class="name">{left.name}</span>
   </div>
   <div class="score">
@@ -27,7 +36,7 @@
     </span>
   </div>
   <div class="side right">
-    <span class="avatar" aria-hidden="true">{right.avatar}</span>
+    {@render face(right)}
     <span class="name">{right.name}</span>
   </div>
 </div>
@@ -38,6 +47,7 @@
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     gap: var(--space-3);
+    padding-block: var(--space-3);
   }
 
   .side {
@@ -52,15 +62,24 @@
     text-align: right;
   }
 
-  .avatar {
-    font-size: var(--text-xl);
-    line-height: 1;
+  .team-dot {
+    width: 52px;
+    height: 52px;
+    border: var(--border);
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .team-dot[data-team='b'] {
+    background: var(--blue);
   }
 
   .name {
     max-width: 100%;
     overflow-wrap: anywhere;
     font-weight: 700;
+    line-height: 1.2;
   }
 
   .score {
@@ -69,14 +88,25 @@
   }
 
   .points {
+    padding: 0 var(--space-3);
+    border: var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--yellow);
+    color: var(--on-bright);
+    box-shadow: var(--shadow-sm);
     font-family: var(--font-display);
     font-size: var(--text-2xl);
-    line-height: 1;
+    line-height: 1.1;
+    white-space: nowrap;
+    rotate: -2deg;
   }
 
   .meta {
     display: flex;
-    gap: var(--space-2);
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0 var(--space-2);
+    margin-top: var(--space-1);
     font-size: var(--text-sm);
     font-weight: 700;
   }

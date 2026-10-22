@@ -28,6 +28,8 @@ export function duelViews(round: RoundResult, you: SeatId): DuelView[] {
 /** One side of the scoreboard. */
 export interface Side {
   name: string;
-  avatar: string;
+  /** Avatar id of the player; null in team mode, where the team stands for the side. */
+  avatar: string | null;
+  team: Team;
   score: number;
 }

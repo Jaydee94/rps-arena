@@ -34,7 +34,7 @@
 </script>
 
 <section class="card create" aria-labelledby="create-heading">
-  <h2 id="create-heading">{t('home.create_heading')}</h2>
+  <h2 id="create-heading" class="ribbon">{t('home.create_heading')}</h2>
   <ModePicker bind:value={mode} />
 
   <fieldset class="group">

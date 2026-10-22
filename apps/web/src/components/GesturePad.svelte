@@ -37,6 +37,7 @@
       selected={picked === gesture}
       disabled={picked !== null}
       tabindex={index === active ? 0 : -1}
+      large={gestures.length <= 5}
       {onpick}
       {onkeydown}
       onfocus={() => (active = index)}
@@ -49,6 +50,6 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
 </style>

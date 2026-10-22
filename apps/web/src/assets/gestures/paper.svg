@@ -1,0 +1,5 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <path class="white" d="M12 4 L40 4 L54 18 L54 60 L12 60 Z"/>
+  <path class="grey" d="M40 4 L40 18 L54 18 Z"/>
+  <path d="M20 28 H46 M20 36 H46 M20 44 H46 M20 52 H34"/>
+</svg>
