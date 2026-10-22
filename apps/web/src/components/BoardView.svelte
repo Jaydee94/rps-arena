@@ -1,16 +1,19 @@
 <script lang="ts">
   import { gestureSetFor, type PublicMatch, type RoomView, type SeatId } from '@rps/shared';
   import { announce, next, pick } from '../lib/connection';
-  import { duelViews, outcomeFor, type Side } from '../lib/board';
+  import { duelViews, outcomeFor, type DuelView, type Side } from '../lib/board';
+  import { shouldCountDown } from '../lib/countdown';
   import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
   import { opponentSeat, teamOf } from '../lib/seats';
   import AnnouncePanel from './AnnouncePanel.svelte';
   import CameraToggle from './CameraToggle.svelte';
   import ComicBurst from './ComicBurst.svelte';
+  import Countdown from './Countdown.svelte';
   import GesturePad from './GesturePad.svelte';
   import PlayerCard from './PlayerCard.svelte';
   import Scoreboard from './Scoreboard.svelte';
+  import SpeedLines from './SpeedLines.svelte';
   import ThinkBubble from './ThinkBubble.svelte';
   import TimerBar from './TimerBar.svelte';
 
@@ -37,6 +40,25 @@
     localPick = null;
     localAnnounced = false;
   });
+
+  /*
+   * The countdown runs between the switch to reveal and the duels. The previous room is plain (not
+   * $state): it only remembers what the last run saw. The pre-effect runs before the DOM updates, so
+   * the duels never flash up before the countdown.
+   */
+  let countingDown = $state(false);
+  let prevRoom: RoomView | null = null;
+  $effect.pre(() => {
+    const current = room;
+    if (shouldCountDown(prevRoom, current)) countingDown = true;
+    else if (current.match?.phase !== 'reveal') countingDown = false;
+    prevRoom = current;
+  });
+  // May run while the Countdown is still mounting (beat 0 calls it at once); only flips state.
+  const endCountdown = () => {
+    countingDown = false;
+  };
+  const revealing = $derived(match.phase === 'reveal' && !countingDown);
 
   const picked = $derived(match.yourPick ?? localPick);
   const announced = $derived(localAnnounced || you in match.announces);
@@ -75,6 +97,18 @@
     draw: { text: 'zap', variant: 'zap' },
   } as const;
 
+  const pickOf = (seat: SeatId): string | undefined => match.lastRound?.picks[seat];
+
+  /** "Stein schlägt Schere" for a duel that someone won with a real gesture; null for draws and timeouts. */
+  function ruleFor(duel: DuelView): string | null {
+    const mine = pickOf(duel.mine);
+    const theirs = pickOf(duel.theirs);
+    if (duel.outcome === 'draw' || !mine || !theirs) return null;
+    const [winner, loser] = duel.outcome === 'win' ? [mine, theirs] : [theirs, mine];
+    return t('board.rule', { winner: t(gestureKey(winner)), loser: t(gestureKey(loser)) });
+  }
+  const rules = $derived(duels.map(ruleFor).filter((rule): rule is string => rule !== null));
+
   const roundOutcome = $derived(match.lastRound ? outcomeFor(match.lastRound.winner, myTeam) : 'draw');
 
   // Once the opponent has locked in, the thought bubble gives way to the ZACK star.
@@ -94,7 +128,9 @@
   }
 
   const prompt = $derived.by(() => {
-    if (match.phase === 'reveal') return t(`result.round_${roundOutcome}`);
+    if (revealing) return t(`result.round_${roundOutcome}`);
+    // During the countdown the status keeps the words from before the reveal; screen readers get the result once.
+    if (match.phase === 'reveal') return t(picked || pickOf(you) ? 'board.picked' : 'board.pick');
     if (match.phase === 'announce') return t(announced ? 'board.announced' : 'board.announce');
     return t(picked ? 'board.picked' : 'board.pick');
   });
@@ -104,22 +140,32 @@
   <Scoreboard {left} {right} round={match.round} bestOf={match.config.bestOf} {modeName} />
   <TimerBar deadline={room.deadline} phase={match.phase} />
   <!-- One persistent live region at one fixed position; where it shows is decided by CSS only. -->
-  <p class="status bubble-status" role="status" tabindex="-1" bind:this={statusEl}>{prompt}</p>
+  <p class="status bubble-status" class:is-revealed={revealing} role="status" tabindex="-1" bind:this={statusEl}>{prompt}</p>
 
   {#if match.phase === 'reveal'}
-    {#each duels as duel (duel.mine)}
-      {@const mineMissing = match.lastRound?.picks[duel.mine] === undefined}
-      {@const theirsMissing = match.lastRound?.picks[duel.theirs] === undefined}
-      <div class="duel clash" data-testid="duel">
-        <PlayerCard label={label(duel.mine)} nickname={nick(duel.mine)} avatar={avatar(duel.mine)}
-          gesture={match.lastRound?.picks[duel.mine]} missing={mineMissing} slam="left" />
-        <PlayerCard label={label(duel.theirs)} nickname={nick(duel.theirs)} avatar={avatar(duel.theirs)}
-          gesture={match.lastRound?.picks[duel.theirs]} missing={theirsMissing} slam="right" />
-        <div class="impact"><ComicBurst text={t(`burst.${BURST[duel.outcome].text}`)} variant={BURST[duel.outcome].variant} /></div>
-        {#if isTeamMode}<p class="duel-result">{t(`board.duel_${duel.outcome}`)}</p>{/if}
-      </div>
-    {/each}
-    <button type="button" class="btn btn-primary" onclick={() => next()}>{t('board.next')}</button>
+    {#if countingDown}
+      <Countdown onDone={endCountdown} />
+    {:else}
+      <!-- One diagonally split comic panel per duel: own side on top in yellow, the opponent below in blue. -->
+      {#each duels as duel (duel.mine)}
+        <div class="duel clash" class:team={isTeamMode} data-testid="duel">
+          <span class="half half-mine" aria-hidden="true"></span>
+          <span class="half half-theirs" aria-hidden="true"></span>
+          <SpeedLines />
+          <span class="impact-flash" aria-hidden="true"></span>
+          <PlayerCard label={label(duel.mine)} gesture={pickOf(duel.mine)} side="mine"
+            loser={duel.outcome === 'lose'} compact={isTeamMode} />
+          <PlayerCard label={label(duel.theirs)} gesture={pickOf(duel.theirs)} side="theirs"
+            loser={duel.outcome === 'win'} compact={isTeamMode} />
+          <div class="impact"><ComicBurst text={t(`burst.${BURST[duel.outcome].text}`)} variant={BURST[duel.outcome].variant} /></div>
+          {#if isTeamMode}<p class="duel-result">{t(`board.duel_${duel.outcome}`)}</p>{/if}
+        </div>
+      {/each}
+      <button type="button" class="btn btn-primary next" onclick={() => next()}>{t('board.next')}</button>
+      {#each rules as rule, i (i)}
+        <p class="rule">{rule}</p>
+      {/each}
+    {/if}
   {:else}
     <section class="who you" aria-label={label(you)}>
       <span class="nametag">{nick(you)}</span>
@@ -223,37 +269,137 @@
     rotate: var(--tilt-2);
   }
 
+  .board > .btn {
+    justify-self: center;
+  }
+
+  /*
+   * Reveal phase, placed by CSS only (grid order): the panel(s) or the countdown first, then the
+   * status bubble with "Weiter" beside it, then the rule line, the camera row last.
+   */
+  /* The button keeps its width; the bubble takes the rest of the row. */
+  .board:not(.picking) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .board:not(.picking) > .status {
+    order: 2;
+    grid-column: 1;
+    align-self: center;
+    justify-self: start;
+    padding-inline: var(--space-4);
+    font-size: clamp(1.25rem, 6vw, 1.625rem);
+  }
+
+  .board:not(.picking) > .next {
+    order: 2;
+    grid-column: 2;
+    align-self: center;
+    padding-inline: var(--space-4);
+  }
+
+  .board:not(.picking) > .rule {
+    order: 3;
+  }
+
+  .board:not(.picking) > :global(.camera) {
+    order: 4;
+  }
+
+  /* The panel: a dark --line ground shows as the gap between the two diagonal halves. */
   .duel {
     position: relative;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-3);
+    height: 32.5rem;
+    border: var(--outline) solid var(--line);
+    border-radius: var(--radius-panel);
+    background: var(--line);
+    box-shadow: var(--shadow-panel);
+    /* Flying stickers, rays and flash stay inside the panel: nothing may widen the page. */
+    overflow: clip;
   }
 
-  /* The burst sits on the seam between the two gestures. */
-  .impact {
-    --burst-size: 6.5rem;
+  .duel.team {
+    height: 17rem;
+  }
+
+  .half {
     position: absolute;
-    top: 3.2rem;
-    left: 50%;
-    translate: -50% 0;
-    z-index: var(--z-raised);
+    inset: 0;
+    z-index: 0;
   }
 
-  @media (min-width: 40rem) {
-    .impact {
-      --burst-size: 8rem;
-      top: 3rem;
-    }
+  .half-mine {
+    background:
+      radial-gradient(circle, color-mix(in srgb, var(--red) 45%, transparent) 22%, transparent 25%) 0 0 /
+        var(--dot-panel-size) var(--dot-panel-size),
+      var(--yellow);
+    clip-path: polygon(0 0, 100% 0, 100% 38%, 0 58%);
+  }
+
+  .half-theirs {
+    background:
+      radial-gradient(circle, var(--sky) 22%, transparent 25%) 0 0 / var(--dot-panel-size) var(--dot-panel-size),
+      var(--blue);
+    clip-path: polygon(0 61%, 100% 41%, 100% 100%, 0 100%);
+  }
+
+  /* Ben-Day flash at the point of impact: only ever visible while it moves (REVEAL section). */
+  .impact-flash {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 2;
+    width: 220px;
+    height: 220px;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle, var(--pink) 30%, transparent 33%) 0 0 / 16px 16px,
+      var(--white);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* The burst sits on the seam, over everything else. */
+  .impact {
+    --burst-size: min(13.5rem, 52vw);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 4;
+    translate: -50% -50%;
+  }
+
+  .team .impact {
+    --burst-size: 7rem;
   }
 
   .duel-result {
-    grid-column: 1 / -1;
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    z-index: 5;
+    max-width: 38%;
+    padding: 0 var(--space-2);
+    border: var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--sticker);
+    color: var(--on-bright);
+    box-shadow: var(--shadow-sm);
+    overflow-wrap: anywhere;
     text-align: center;
+    font-size: var(--text-sm);
     font-weight: 700;
+    rotate: var(--tilt-2);
   }
 
-  .board > .btn {
+  .rule {
     justify-self: center;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    letter-spacing: 0.04em;
   }
 </style>
