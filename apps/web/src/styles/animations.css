@@ -1,0 +1,274 @@
+/*
+ * All motion of the app. Everything sits inside prefers-reduced-motion: no-preference,
+ * so with reduced motion (or no preference support) the screens are simply static.
+ * Durations and easings come from tokens.css.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  /* ---- Screen transitions: each screen pops in from below ---- */
+  .screen {
+    animation: screen-in var(--dur) var(--ease-pop) both;
+  }
+
+  @keyframes screen-in {
+    from {
+      opacity: 0;
+      translate: 0 1.5rem;
+      scale: 0.97;
+    }
+  }
+
+  /* ---- Buttons: lift on hover, squash on press ---- */
+  .btn,
+  .gesture,
+  .chip,
+  .mode {
+    transition:
+      translate var(--dur-fast) var(--ease-pop),
+      scale var(--dur-fast) var(--ease-pop),
+      rotate var(--dur-fast) var(--ease-pop),
+      box-shadow var(--dur-fast) ease-out,
+      background-color var(--dur-fast) ease-out;
+  }
+
+  .btn:hover:not(:disabled),
+  .chip:hover,
+  .mode:hover {
+    translate: -1px -2px;
+    rotate: -0.8deg;
+  }
+
+  .btn:active:not(:disabled) {
+    scale: 1.06 0.88;
+    rotate: 0deg;
+  }
+
+  .gesture:hover:not(:disabled) {
+    translate: 0 -4px;
+    rotate: -3deg;
+    scale: 1.06;
+  }
+
+  .gesture:active:not(:disabled) {
+    translate: 3px 3px;
+    rotate: 0deg;
+    scale: 1.1 0.86;
+  }
+
+  /* ---- Locked-in stamp: the chosen gesture slams down onto the pad ---- */
+  .gesture.selected {
+    animation: stamp 420ms var(--ease-pop) both;
+  }
+
+  @keyframes stamp {
+    0% {
+      scale: 1.9;
+      rotate: -14deg;
+      opacity: 0.2;
+    }
+    55% {
+      scale: 0.9;
+      rotate: 3deg;
+      opacity: 1;
+    }
+    100% {
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  .stamp-in {
+    animation: stamp 420ms var(--ease-pop) both;
+  }
+
+  /* ---- Comic burst: pops in with overshoot ---- */
+  .burst--animated {
+    animation: burst-pop 520ms var(--ease-pop) both;
+    animation-delay: var(--burst-delay, 0ms);
+  }
+
+  @keyframes burst-pop {
+    0% {
+      scale: 0;
+      opacity: 0;
+    }
+    60% {
+      opacity: 1;
+    }
+    100% {
+      scale: 1;
+    }
+  }
+
+  /* ---- Reveal: both gestures fly in from the sides and collide ---- */
+  .slam-left {
+    animation: slam-left 520ms var(--ease-slam) backwards;
+  }
+
+  .slam-right {
+    animation: slam-right 520ms var(--ease-slam) backwards;
+  }
+
+  @keyframes slam-left {
+    from {
+      translate: -120% 0;
+      rotate: -18deg;
+    }
+    75% {
+      translate: 4% 0;
+      rotate: 3deg;
+    }
+  }
+
+  @keyframes slam-right {
+    from {
+      translate: 120% 0;
+      rotate: 18deg;
+    }
+    75% {
+      translate: -4% 0;
+      rotate: -3deg;
+    }
+  }
+
+  /* The impact shakes the whole clash. */
+  .clash {
+    animation: clash-shake 380ms linear 480ms both;
+  }
+
+  @keyframes clash-shake {
+    10%,
+    50%,
+    90% {
+      translate: -6px 3px;
+    }
+    30%,
+    70% {
+      translate: 6px -3px;
+    }
+    100% {
+      translate: 0 0;
+    }
+  }
+
+  .clash .burst {
+    --burst-delay: 440ms;
+  }
+
+  /* ---- Result: confetti for the winner, a sad wobble for the loser ---- */
+  .confetti i {
+    animation: confetti-fall 2.6s ease-in both;
+    animation-delay: calc(mod(var(--i) * 53, 100) * 14ms);
+  }
+
+  @keyframes confetti-fall {
+    0% {
+      opacity: 1;
+      translate: 0 0;
+      rotate: 0deg;
+    }
+    100% {
+      opacity: 1;
+      translate: calc(mod(var(--i), 5) * 18px - 36px) 105vh;
+      rotate: calc(var(--i) * 97deg);
+    }
+  }
+
+  .result-win .headline {
+    animation: headline-bounce 900ms var(--ease-pop) backwards;
+  }
+
+  .result-lose .headline {
+    animation: headline-droop 900ms ease-out both;
+  }
+
+  .result-win .avatar-hero {
+    animation: hop 800ms var(--ease-pop) 3 both;
+  }
+
+  .result-lose .avatar-hero {
+    animation: droop 1.2s ease-out both;
+  }
+
+  @keyframes headline-bounce {
+    0% {
+      scale: 0.3;
+      rotate: -12deg;
+    }
+    100% {
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  @keyframes headline-droop {
+    0% {
+      translate: 0 -2rem;
+      opacity: 0;
+    }
+    100% {
+      translate: 0 0;
+    }
+  }
+
+  @keyframes hop {
+    50% {
+      translate: 0 -0.8rem;
+      rotate: 4deg;
+    }
+  }
+
+  @keyframes droop {
+    0% {
+      rotate: 0deg;
+    }
+    100% {
+      rotate: 12deg;
+      translate: 0.3rem 0.4rem;
+      filter: saturate(0.4);
+    }
+  }
+
+  /* ---- Timer: the bar shifts color in the last seconds and pulses at the end ---- */
+  .timer .bar {
+    transition:
+      width 250ms linear,
+      background-color 400ms ease-out;
+  }
+
+  .timer .bar.urgent {
+    animation: timer-pulse 500ms ease-in-out infinite alternate;
+  }
+
+  .timer .seconds.urgent {
+    animation: timer-jitter 300ms linear infinite;
+  }
+
+  @keyframes timer-pulse {
+    to {
+      filter: brightness(1.3);
+    }
+  }
+
+  @keyframes timer-jitter {
+    25% {
+      translate: 1px -1px;
+      rotate: -3deg;
+    }
+    75% {
+      translate: -1px 1px;
+      rotate: 3deg;
+    }
+  }
+
+  /* ---- Waiting dots on status lines ---- */
+  .bubble-status {
+    animation: bubble-in var(--dur) var(--ease-pop) both;
+  }
+
+  @keyframes bubble-in {
+    from {
+      scale: 0.7;
+      opacity: 0;
+    }
+  }
+}

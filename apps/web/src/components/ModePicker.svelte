@@ -34,7 +34,7 @@
 <style>
   .modes {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
     gap: var(--space-3);
   }
 
@@ -46,7 +46,8 @@
     padding: var(--space-3);
     border: var(--border);
     border-radius: var(--radius);
-    background: var(--surface);
+    background: var(--sticker);
+    color: var(--on-bright);
     cursor: pointer;
   }
 
@@ -60,8 +61,8 @@
 
   .mode.checked {
     background: var(--yellow);
-    color: var(--on-bright);
     box-shadow: var(--shadow-sm);
+    rotate: -0.8deg;
   }
 
   /* Not only color: the chosen mode also gets a check mark. */
@@ -77,9 +78,11 @@
   .name {
     font-family: var(--font-display);
     font-size: var(--text-lg);
+    letter-spacing: 0.04em;
   }
 
   .desc {
     font-size: var(--text-sm);
+    font-weight: 700;
   }
 </style>

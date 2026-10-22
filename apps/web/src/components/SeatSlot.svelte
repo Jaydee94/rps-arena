@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PublicPlayer, SeatId } from '@rps/shared';
-  import { avatarEmoji } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
+  import Avatar from './Avatar.svelte';
 
   interface Props {
     seat: SeatId;
@@ -21,7 +21,7 @@
 
 <div class="slot card" class:free={!player} data-testid="seat-{seat}">
   {#if player}
-    <span class="avatar" aria-hidden="true">{avatarEmoji(player.avatar)}</span>
+    <Avatar id={player.avatar} size={64} />
     <span class="who">
       <span class="nick">{player.nickname}</span>
       <span class="tags">
@@ -37,6 +37,7 @@
       </button>
     {/if}
   {:else}
+    <span class="ghost" aria-hidden="true">?</span>
     <span class="who empty">{t('lobby.empty_seat')}</span>
     {#if canMove && selected !== null}
       <button type="button" class="btn btn-small" onclick={() => onmoveHere(seat)}>{t('lobby.move_here')}</button>
@@ -49,18 +50,28 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    min-height: 4.5rem;
+    min-height: 5.5rem;
     box-shadow: var(--shadow-sm);
   }
 
   .free {
     border-style: dashed;
     box-shadow: none;
+    background: transparent;
   }
 
-  .avatar {
-    font-size: var(--text-2xl);
-    line-height: 1;
+  .ghost {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 4rem;
+    height: 4rem;
+    border: var(--border);
+    border-style: dashed;
+    border-radius: 50%;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    opacity: 0.6;
   }
 
   .who {
@@ -77,8 +88,16 @@
   .tags {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--space-1) var(--space-2);
     font-size: var(--text-sm);
+    font-weight: 700;
+  }
+
+  .tags > span {
+    padding: 0 var(--space-2);
+    border: 2px solid var(--edge);
+    border-radius: var(--radius-pill);
+    background: var(--paper-2);
   }
 
   .empty {

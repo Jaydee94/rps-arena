@@ -1,0 +1,39 @@
+/*
+ * Theming for the inline SVG art (avatars, gesture icons).
+ * The SVG files only carry a class per part; every color comes from tokens.css,
+ * so the whole illustration set restyles from one place.
+ */
+.art {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: var(--art-stroke);
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  overflow: visible;
+}
+
+.art .red { fill: var(--red); }
+.art .yellow { fill: var(--yellow); }
+.art .blue { fill: var(--blue); }
+.art .pink { fill: var(--pink); }
+.art .teal { fill: var(--teal); }
+.art .orange { fill: var(--orange); }
+.art .green { fill: var(--green); }
+.art .brown { fill: var(--brown); }
+.art .grey { fill: var(--grey); }
+.art .skin { fill: var(--skin); }
+.art .white { fill: var(--white); }
+.art .line { fill: var(--line); }
+.art .n { fill: none; }
+
+/* Thick lines drawn twice (dark underlay, colored top) to get an outlined tube. */
+.art .st-green { stroke: var(--green); }
+.art .st-yellow { stroke: var(--yellow); }
+.art .st-skin { stroke: var(--skin); }
+.art .st-sky { stroke: var(--sky); }
+
+/* Unions of shapes: draw outlines first, then the fills without stroke on top. */
+.art .halo,
+.art .halo * { fill: var(--line); }
+.art .nostroke,
+.art .nostroke * { stroke: none; }

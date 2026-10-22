@@ -7,6 +7,21 @@
   box-shadow: var(--shadow);
 }
 
+/* A yellow label stuck on the top left edge of a card, like a comic caption box. */
+.ribbon {
+  justify-self: start;
+  margin: calc(var(--space-4) * -1 - var(--outline)) 0 var(--space-1) calc(var(--space-4) * -1 - var(--outline));
+  padding: var(--space-1) var(--space-4);
+  border: var(--border);
+  border-radius: var(--radius-sm) var(--radius-sm) var(--radius-sm) 0;
+  background: var(--yellow);
+  color: var(--on-bright);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-lg);
+  text-shadow: none;
+  rotate: -1.5deg;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -16,11 +31,16 @@
   padding: var(--space-2) var(--space-5);
   border: var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--sticker);
+  color: var(--on-bright);
   box-shadow: var(--shadow-sm);
   font-family: var(--font-display);
   font-size: var(--text-lg);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--paper-2);
 }
 
 .btn:active:not(:disabled) {
@@ -35,8 +55,15 @@
 }
 
 .btn-primary {
+  min-height: 3.5rem;
+  padding-inline: var(--space-6);
   background: var(--yellow);
-  color: var(--on-bright);
+  font-size: var(--text-xl);
+  box-shadow: var(--shadow);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--orange);
 }
 
 .btn-blue {
@@ -44,8 +71,13 @@
   color: var(--on-blue);
 }
 
+.btn-blue:hover:not(:disabled) {
+  background: var(--blue);
+  filter: brightness(1.12);
+}
+
 .btn-small {
-  min-height: 2.25rem;
+  min-height: 2.5rem;
   padding: var(--space-1) var(--space-3);
   font-size: var(--text-md);
 }
@@ -61,8 +93,14 @@
   padding: var(--space-2) var(--space-3);
   border: var(--border);
   border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
+  background: var(--sticker);
+  color: var(--on-bright);
+  box-shadow: inset 3px 3px 0 var(--dot);
+}
+
+.field input[type='text']::placeholder {
+  color: var(--on-bright);
+  opacity: 0.55;
 }
 
 fieldset.group {
@@ -88,7 +126,8 @@ fieldset.group > legend {
   padding: var(--space-1) var(--space-3);
   border: var(--border);
   border-radius: var(--radius-pill);
-  background: var(--surface);
+  background: var(--sticker);
+  color: var(--on-bright);
   font-weight: 700;
   cursor: pointer;
 }
@@ -103,7 +142,6 @@ fieldset.group > legend {
 
 .chip:has(input:checked) {
   background: var(--yellow);
-  color: var(--on-bright);
   box-shadow: var(--shadow-sm);
 }
 

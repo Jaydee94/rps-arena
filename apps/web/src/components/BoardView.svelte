@@ -2,10 +2,11 @@
   import { gestureSetFor, type PublicMatch, type RoomView, type SeatId } from '@rps/shared';
   import { announce, next, pick } from '../lib/connection';
   import { duelViews, outcomeFor, type Side } from '../lib/board';
-  import { avatarEmoji, gestureKey } from '../lib/gestures-ui';
+  import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
   import { opponentSeat, teamOf } from '../lib/seats';
   import AnnouncePanel from './AnnouncePanel.svelte';
+  import ComicBurst from './ComicBurst.svelte';
   import GesturePad from './GesturePad.svelte';
   import PlayerCard from './PlayerCard.svelte';
   import Scoreboard from './Scoreboard.svelte';
@@ -53,18 +54,25 @@
   }
 
   const nick = (seat: SeatId) => room.players[seat]?.nickname ?? '';
-  const avatar = (seat: SeatId) => avatarEmoji(room.players[seat]?.avatar ?? '');
+  const avatar = (seat: SeatId) => room.players[seat]?.avatar ?? '';
   const label = (seat: SeatId) => (isTeamMode ? nick(seat) : seat === you ? t('board.you') : t('board.opponent'));
 
   function side(team: 'a' | 'b', seat: SeatId): Side {
     return isTeamMode
-      ? { name: t(`lobby.team_${team}`), avatar: team === 'a' ? '🟥' : '🟦', score: match.score[team] }
-      : { name: nick(seat), avatar: avatar(seat), score: match.score[team] };
+      ? { name: t(`lobby.team_${team}`), avatar: null, team, score: match.score[team] }
+      : { name: nick(seat), avatar: avatar(seat), team, score: match.score[team] };
   }
   const left = $derived(side(myTeam, you));
   const right = $derived(side(teamOf(opponent), opponent));
 
   const duels = $derived(match.phase === 'reveal' && match.lastRound ? duelViews(match.lastRound, you) : []);
+  // The sound effect of every clash: a win is a POW, a loss a BAM, a draw a ZAP.
+  const BURST = {
+    win: { text: 'pow', variant: 'pow' },
+    lose: { text: 'bam', variant: 'bam' },
+    draw: { text: 'zap', variant: 'zap' },
+  } as const;
+
   const roundOutcome = $derived(match.lastRound ? outcomeFor(match.lastRound.winner, myTeam) : 'draw');
 
   function opponentNotes(): string[] {
@@ -89,17 +97,18 @@
 <main class="board">
   <Scoreboard {left} {right} round={match.round} bestOf={match.config.bestOf} />
   <TimerBar deadline={room.deadline} phase={match.phase} />
-  <p class="status" role="status" tabindex="-1" bind:this={statusEl}>{prompt}</p>
+  <p class="status bubble-status" role="status" tabindex="-1" bind:this={statusEl}>{prompt}</p>
 
   {#if match.phase === 'reveal'}
     {#each duels as duel (duel.mine)}
       {@const mineMissing = match.lastRound?.picks[duel.mine] === undefined}
       {@const theirsMissing = match.lastRound?.picks[duel.theirs] === undefined}
-      <div class="duel" data-testid="duel">
+      <div class="duel clash" data-testid="duel">
         <PlayerCard label={label(duel.mine)} nickname={nick(duel.mine)} avatar={avatar(duel.mine)}
-          gesture={match.lastRound?.picks[duel.mine]} missing={mineMissing} />
+          gesture={match.lastRound?.picks[duel.mine]} missing={mineMissing} slam="left" />
         <PlayerCard label={label(duel.theirs)} nickname={nick(duel.theirs)} avatar={avatar(duel.theirs)}
-          gesture={match.lastRound?.picks[duel.theirs]} missing={theirsMissing} />
+          gesture={match.lastRound?.picks[duel.theirs]} missing={theirsMissing} slam="right" />
+        <div class="impact"><ComicBurst text={t(`burst.${BURST[duel.outcome].text}`)} variant={BURST[duel.outcome].variant} /></div>
         {#if isTeamMode}<p class="duel-result">{t(`board.duel_${duel.outcome}`)}</p>{/if}
       </div>
     {/each}
@@ -127,16 +136,44 @@
     width: 100%;
   }
 
+  /* The prompt is a speech bubble. */
   .status {
+    justify-self: center;
+    max-width: 100%;
+    padding: var(--space-2) var(--space-5);
+    border: var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--sticker);
+    color: var(--on-bright);
+    box-shadow: var(--shadow-sm);
     text-align: center;
     font-family: var(--font-display);
     font-size: var(--text-xl);
+    letter-spacing: 0.04em;
   }
 
   .duel {
+    position: relative;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-3);
+  }
+
+  /* The burst sits on the seam between the two gestures. */
+  .impact {
+    --burst-size: 6.5rem;
+    position: absolute;
+    top: 3.2rem;
+    left: 50%;
+    translate: -50% 0;
+    z-index: var(--z-raised);
+  }
+
+  @media (min-width: 40rem) {
+    .impact {
+      --burst-size: 8rem;
+      top: 3rem;
+    }
   }
 
   .duel-result {

@@ -14,6 +14,9 @@
   let ticked = $state<number | null>(null);
   const remaining = $derived(ticked ?? (deadline === null ? 0 : remainingMs(deadline)));
   const share = $derived(fraction(remaining, phaseDuration(phase)));
+  // Last 5 s: the bar turns yellow, in the last 2 s red and shaky (see animations.css).
+  const warn = $derived(remaining <= 5000);
+  const urgent = $derived(remaining <= 2000);
 
   $effect(() => {
     if (deadline === null) return;
@@ -24,9 +27,9 @@
 {#if deadline !== null}
   <div class="timer" role="timer" aria-label={t('board.timer_label')}>
     <div class="track" aria-hidden="true">
-      <div class="bar" class:low={share < 0.25} style:width="{share * 100}%"></div>
+      <div class="bar" class:warn class:urgent style:width="{share * 100}%"></div>
     </div>
-    <span class="seconds">{t('board.timer', { seconds: Math.ceil(remaining / 1000) })}</span>
+    <span class="seconds" class:urgent>{t('board.timer', { seconds: Math.ceil(remaining / 1000) })}</span>
   </div>
 {/if}
 
@@ -43,7 +46,8 @@
     overflow: hidden;
     border: var(--border);
     border-radius: var(--radius-pill);
-    background: var(--surface);
+    background: var(--sticker);
+    box-shadow: var(--shadow-sm);
   }
 
   .bar {
@@ -51,7 +55,11 @@
     background: var(--teal);
   }
 
-  .bar.low {
+  .bar.warn {
+    background: var(--yellow);
+  }
+
+  .bar.urgent {
     background: var(--danger);
   }
 
@@ -59,6 +67,7 @@
     min-width: 3.5rem;
     text-align: right;
     font-family: var(--font-display);
-    font-size: var(--text-lg);
+    font-size: var(--text-xl);
+    line-height: 1;
   }
 </style>
