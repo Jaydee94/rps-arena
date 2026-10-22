@@ -31,6 +31,7 @@ import {
   spectatorGraceEnd,
 } from './settle';
 import type { Rng } from './settle';
+import { advanceTournament, updateSeatParticipant } from './tournament';
 
 /**
  * Pure room operations. Every function takes a room and returns a new one (never mutating its
@@ -93,7 +94,8 @@ function newSpectatorId(taken: Spectator[]): string {
   }
 }
 
-function newSpectator(
+/** A new spectator (or tournament participant, same shape) with an id not used in `taken`. */
+export function newSpectator(
   taken: Spectator[],
   nickname: string,
   avatar: string,
@@ -181,6 +183,8 @@ export function joinRoom(
   now: number,
   socketId: string | null = null,
 ): { room: Room; who: Who } {
+  // Tournament rooms take joiners through `joinTournamentRoom` (tournament.ts).
+  if (room.tournament) fail('invalid_input');
   if (isAbandoned(room, now)) fail('room_not_found');
   if (room.match) {
     const spectators = spectatorsOf(room);
@@ -202,6 +206,8 @@ export function joinRoom(
  * The host seat follows the host. Tokens belong to the player and stay valid.
  */
 export function moveSeat(room: Room, by: SeatId, from: SeatId, to: SeatId): Room {
+  // Tournament seats are derived from the running pairing, nobody moves them.
+  if (room.tournament) fail('invalid_input');
   if (by !== room.hostSeat && from !== by) fail('not_host');
   if (room.match) fail('invalid_input');
   const seats = seatsOf(room.config);
@@ -215,6 +221,8 @@ export function moveSeat(room: Room, by: SeatId, from: SeatId, to: SeatId): Room
 
 /** Host starts the match once every seat of the mode is taken. */
 export function startMatch(room: Room, by: SeatId, now: number): Room {
+  // Tournament matches start through the tournament flow (startTournament / advanceTournament).
+  if (room.tournament) fail('wrong_phase');
   if (by !== room.hostSeat) fail('not_host');
   if (room.match) fail('wrong_phase');
   if (seatsOf(room.config).some((s) => !room.players[s])) fail('wrong_phase');
@@ -257,6 +265,8 @@ export function applyNext(room: Room, seat: SeatId, now: number, rng: Rng = Math
 
 /** New match for the same players (bots included), from any seat once finished. */
 export function rematch(room: Room, by: SeatId, now: number, rng: Rng = Math.random): Room {
+  // A tournament has no duel rematch (its own rematch is Stage 2 Task 3b).
+  if (room.tournament) fail('wrong_phase');
   const match = requireMatch(room);
   if (match.phase !== 'finished' || !room.players[by]) fail('wrong_phase');
   // Players who left the old match for good give up their seat.
@@ -346,14 +356,25 @@ export function leaveSpectator(room: Room, id: string): Room {
   return updateSpectator(room, id, () => null);
 }
 
-export function markDisconnected(room: Room, seat: SeatId, now: number): Room {
+/**
+ * Applies a connection change to a seated human. In a tournament room the change goes to the
+ * seat's participant as well, because `settle` re-derives the seats from the participants.
+ */
+function changeConnection(
+  room: Room,
+  seat: SeatId,
+  now: number,
+  change: Pick<Player, 'connected' | 'disconnectedAt' | 'socketId'>,
+): Room {
   const player = room.players[seat];
   if (!player || player.isBot) return room;
-  const players = {
-    ...room.players,
-    [seat]: { ...player, connected: false, disconnectedAt: now, socketId: null },
-  };
-  return settle(room.match, { ...room, players }, now, Math.random);
+  const players = { ...room.players, [seat]: { ...player, ...change } };
+  const next = updateSeatParticipant({ ...room, players }, seat, change);
+  return settle(room.match, next, now, Math.random);
+}
+
+export function markDisconnected(room: Room, seat: SeatId, now: number): Room {
+  return changeConnection(room, seat, now, { connected: false, disconnectedAt: now, socketId: null });
 }
 
 export function markConnected(
@@ -362,13 +383,7 @@ export function markConnected(
   now: number,
   socketId: string | null = null,
 ): Room {
-  const player = room.players[seat];
-  if (!player || player.isBot) return room;
-  const players = {
-    ...room.players,
-    [seat]: { ...player, connected: true, disconnectedAt: null, socketId },
-  };
-  return settle(room.match, { ...room, players }, now, Math.random);
+  return changeConnection(room, seat, now, { connected: true, disconnectedAt: null, socketId });
 }
 
 function sameToken(a: string, b: string): boolean {
@@ -416,7 +431,7 @@ export function rejoinRoom(
 
 /**
  * Runs whatever is due: grace expiries (forfeit / free the seat; drop the spectator), the phase
- * timeout, bot catch-up. Returns the identical room when `deadline` is null or in the future, so
+ * timeout, bot catch-up, the end of a tournament's draw or intermission. Returns the identical room when `deadline` is null or in the future, so
  * a replica that lost the race to another one's tick changes nothing.
  */
 export function tick(room: Room, now: number, rng: Rng = Math.random): Room {
@@ -438,6 +453,8 @@ export function tick(room: Room, now: number, rng: Rng = Math.random): Room {
       if (match.phase === 'pick') next = countIdleRound(next);
     }
   }
+  // A due tournament draw or intermission starts the next pairing (or ends the tournament).
+  next = advanceTournament(next, now, rng);
   return settle(prev, next, now, rng);
 }
 

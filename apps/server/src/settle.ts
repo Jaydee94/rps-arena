@@ -11,7 +11,8 @@ import {
 import type { MatchState, SeatId, Team } from '@rps/shared';
 import { chooseBotEmote, chooseBotGesture } from './bot';
 import { spectatorsOf } from './room';
-import type { Player, Room, Spectator } from './room';
+import type { Participant, Player, Room, Spectator } from './room';
+import { finishPairing, syncPairing } from './tournament';
 
 /**
  * Derived-state bookkeeping shared by every engine operation: bot moves, the endless-draw guard,
@@ -54,14 +55,32 @@ export function spectatorGraceEnd(spectator: Spectator): number | null {
   return spectator.disconnectedAt + RECONNECT_GRACE_MS;
 }
 
-/** True once no human can act in the room anymore (all gone past grace or forfeited). */
+/**
+ * True once no human can act in the room anymore (all gone past grace or forfeited). In a
+ * tournament room the participants count instead of the seats (which only hold the running
+ * pairing and are empty between matches): it is abandoned once no participant that has not
+ * forfeited is connected or within its reconnect grace. Spectators never count.
+ */
 export function isAbandoned(room: Room, now: number): boolean {
+  if (room.tournament) return !room.tournament.participants.some((p) => participantActive(room, p, now));
   return !humans(room).some((p) => {
     if (isForfeited(room, p.seat)) return false;
     if (p.connected) return true;
     const end = graceEnd(room, p);
     return end !== null && now < end;
   });
+}
+
+/** A tournament participant that can still act: not forfeited, connected or within grace. */
+function participantActive(room: Room, participant: Participant, now: number): boolean {
+  const t = room.tournament;
+  if (t?.state?.forfeited.includes(participant.id)) return false;
+  // Forfeited inside the running match, before `finishPairing` recorded it.
+  const pairing = t?.phase === 'match' ? t.state?.pairings.find((p) => p.id === t.currentPairingId) : undefined;
+  if (pairing?.a === participant.id && isForfeited(room, 'a0')) return false;
+  if (pairing?.b === participant.id && isForfeited(room, 'b0')) return false;
+  if (participant.connected) return true;
+  return participant.disconnectedAt !== null && now < participant.disconnectedAt + RECONNECT_GRACE_MS;
 }
 
 /** A timed phase key: changes whenever a new phase (or round) starts. */
@@ -157,12 +176,16 @@ function schedule(prev: MatchState | null, room: Room, now: number): Room {
   return { ...room, phaseDeadline, nextReady, roundActed, deadline: wakeUp(room, phaseDeadline) };
 }
 
-/** Earliest of the phase timeout and every pending grace expiry (players and spectators). */
+/**
+ * Earliest of the phase timeout, every pending grace expiry (players and spectators) and the end
+ * of a tournament's draw or intermission.
+ */
 function wakeUp(room: Room, phaseDeadline: number | null): number | null {
   const wakeUps = [
     ...humans(room).map((p) => graceEnd(room, p)),
     ...spectatorsOf(room).map(spectatorGraceEnd),
     phaseDeadline,
+    room.tournament?.untilMs ?? null,
   ].filter((t): t is number => t !== null);
   return wakeUps.length > 0 ? Math.min(...wakeUps) : null;
 }
@@ -178,11 +201,15 @@ export function rescheduleWakeUp(room: Room): Room {
 
 /**
  * Brings derived state up to date after an operation changed `room` (whose match was `prev`
- * before): bot catches up, history, draw guard, deadlines.
+ * before): bot catches up, history, draw guard, tournament bookkeeping (a finished pairing match
+ * is recorded, the seats are re-derived from the participants), deadlines. The tournament steps
+ * leave rooms without `tournament` untouched.
  */
 export function settle(prev: MatchState | null, room: Room, now: number, rng: Rng): Room {
   let next = botStep(room, rng);
   next = recordHistory(prev, next);
   next = drawGuard(next);
+  next = finishPairing(next, now, rng);
+  next = syncPairing(next);
   return schedule(prev, next, now);
 }
