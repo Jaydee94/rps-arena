@@ -2,6 +2,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   AVATARS,
   IDLE_ROUNDS_LIMIT,
+  MAX_SPECTATORS,
   ProtocolError,
   activeSeats,
   advance,
@@ -15,17 +16,36 @@ import {
   timeoutPhase,
 } from '@rps/shared';
 import type { BotLevel, ErrorCode, MatchState, RoomConfig, SeatId } from '@rps/shared';
-import type { Player, Room } from './room';
-import { BOT_SEAT, HUMAN_SEAT, botStep, graceEnd, humans, isAbandoned, isForfeited, settle } from './settle';
+import { spectatorsOf } from './room';
+import type { Player, Room, Spectator } from './room';
+import {
+  BOT_SEAT,
+  HUMAN_SEAT,
+  botStep,
+  graceEnd,
+  humans,
+  isAbandoned,
+  isForfeited,
+  rescheduleWakeUp,
+  settle,
+  spectatorGraceEnd,
+} from './settle';
 import type { Rng } from './settle';
 
 /**
  * Pure room operations. Every function takes a room and returns a new one (never mutating its
  * input) or throws a `ProtocolError` / `RuleError`. Time comes in as `now`; randomness only via
- * `rng` (room code, bot) and `randomBytes` (tokens).
+ * `rng` (room code, bot) and `randomBytes` (tokens, spectator ids).
+ *
+ * Spectators (`room.spectators`) watch and never play: no operation that concerns them alone
+ * touches the match, `phaseDeadline`, `nextReady` or the idle-round state; their grace expiry
+ * only feeds the wake-up `deadline` so that `tick` can drop them.
  */
 
 export { isAbandoned } from './settle';
+
+/** Who a session or socket is in a room: a seated player or a spectator. */
+export type Who = { role: 'player'; seat: SeatId } | { role: 'spectator'; id: string };
 
 /** Seat fill order: the two duel seats first, then the 2v2 partners. */
 const SEAT_ORDER: SeatId[] = ['a0', 'b0', 'a1', 'b1'];
@@ -46,8 +66,13 @@ function seatsOf(config: RoomConfig): SeatId[] {
   return SEAT_ORDER.filter((s) => active.includes(s));
 }
 
-function newPlayer(seat: SeatId, nickname: string, avatar: string, socketId: string | null): Player {
+function parseAvatar(avatar: string): string {
   if (!AVATARS.includes(avatar)) fail('invalid_input');
+  return avatar;
+}
+
+function newPlayer(seat: SeatId, nickname: string, avatar: string, socketId: string | null): Player {
+  parseAvatar(avatar);
   return {
     seat,
     nickname: parseNickname(nickname),
@@ -57,6 +82,31 @@ function newPlayer(seat: SeatId, nickname: string, avatar: string, socketId: str
     connected: true,
     disconnectedAt: null,
     isBot: false,
+  };
+}
+
+/** 8 hex characters (32 random bits), unique within the room. */
+function newSpectatorId(taken: Spectator[]): string {
+  for (;;) {
+    const id = randomBytes(4).toString('hex');
+    if (!taken.some((s) => s.id === id)) return id;
+  }
+}
+
+function newSpectator(
+  taken: Spectator[],
+  nickname: string,
+  avatar: string,
+  socketId: string | null,
+): Spectator {
+  return {
+    id: newSpectatorId(taken),
+    nickname: parseNickname(nickname),
+    avatar: parseAvatar(avatar),
+    token: newToken(),
+    socketId,
+    connected: true,
+    disconnectedAt: null,
   };
 }
 
@@ -114,20 +164,32 @@ export function createRoom(input: CreateRoomInput, now: number, rng: Rng = Math.
   return settle(null, { ...room, match: createMatch(input.config) }, now, rng);
 }
 
-/** Takes the first free seat. Only in the lobby: once a match exists the room counts as full. */
+/**
+ * In the lobby (no match yet) takes the first free seat, else `room_full`. Once a match exists
+ * (running or finished) the joiner becomes a spectator, up to MAX_SPECTATORS; seats, match and
+ * timers stay untouched.
+ */
 export function joinRoom(
   room: Room,
   nickname: string,
   avatar: string,
   now: number,
   socketId: string | null = null,
-): { room: Room; seat: SeatId } {
+): { room: Room; who: Who } {
   if (isAbandoned(room, now)) fail('room_not_found');
-  if (room.match) fail('room_full');
+  if (room.match) {
+    const spectators = spectatorsOf(room);
+    if (spectators.length >= MAX_SPECTATORS) fail('room_full');
+    const spectator = newSpectator(spectators, nickname, avatar, socketId);
+    return {
+      room: { ...room, spectators: [...spectators, spectator] },
+      who: { role: 'spectator', id: spectator.id },
+    };
+  }
   const seat = seatsOf(room.config).find((s) => !room.players[s]);
   if (!seat) fail('room_full');
   const players = { ...room.players, [seat]: newPlayer(seat, nickname, avatar, socketId) };
-  return { room: { ...room, players }, seat };
+  return { room: { ...room, players }, who: { role: 'player', seat } };
 }
 
 /**
@@ -232,6 +294,53 @@ export function seatOfSocket(room: Room, socketId: string): SeatId | null {
   return player?.seat ?? null;
 }
 
+/** The player seat or spectator bound to `socketId`, or null. */
+export function whoOfSocket(room: Room, socketId: string): Who | null {
+  const seat = seatOfSocket(room, socketId);
+  if (seat) return { role: 'player', seat };
+  const spectator = spectatorsOf(room).find((s) => s.socketId === socketId);
+  return spectator ? { role: 'spectator', id: spectator.id } : null;
+}
+
+/**
+ * Replaces (or with `null` removes) spectator `id` and only re-derives the wake-up `deadline`.
+ * Unknown ids leave the room as it is.
+ */
+function updateSpectator(room: Room, id: string, fn: (s: Spectator) => Spectator | null): Room {
+  const current = spectatorsOf(room);
+  const spectator = current.find((s) => s.id === id);
+  if (!spectator) return room;
+  const changed = fn(spectator);
+  const spectators = changed
+    ? current.map((s) => (s === spectator ? changed : s))
+    : current.filter((s) => s !== spectator);
+  return rescheduleWakeUp({ ...room, spectators });
+}
+
+export function markSpectatorDisconnected(room: Room, id: string, now: number): Room {
+  return updateSpectator(room, id, (s) => ({
+    ...s,
+    connected: false,
+    disconnectedAt: now,
+    socketId: null,
+  }));
+}
+
+export function markSpectatorConnected(
+  room: Room,
+  id: string,
+  // Kept for symmetry with `markConnected`; a spectator's return does not depend on the time.
+  _now: number,
+  socketId: string | null,
+): Room {
+  return updateSpectator(room, id, (s) => ({ ...s, connected: true, disconnectedAt: null, socketId }));
+}
+
+/** A spectator leaves for good; their slot is free again. */
+export function leaveSpectator(room: Room, id: string): Room {
+  return updateSpectator(room, id, () => null);
+}
+
 export function markDisconnected(room: Room, seat: SeatId, now: number): Room {
   const player = room.players[seat];
   if (!player || player.isBot) return room;
@@ -264,36 +373,51 @@ function sameToken(a: string, b: string): boolean {
 }
 
 /**
- * Restores the seat that owns `token` and binds it to `socketId`. `previousSocketId` is the
- * connection that held the seat until now (to be dropped from the room), if any.
+ * Restores the seat or spectator that owns `token` and binds it to `socketId`.
+ * `previousSocketId` is the connection that held it until now (to be dropped from the room), if
+ * any. Past its grace period (or once the ticker dropped it) a token is `bad_token`.
  */
 export function rejoinRoom(
   room: Room,
   token: string,
   now: number,
   socketId: string,
-): { room: Room; seat: SeatId; previousSocketId: string | null } {
+): { room: Room; who: Who; previousSocketId: string | null } {
   const player = humans(room).find((p) => p.token !== '' && sameToken(p.token, token));
-  if (!player || isForfeited(room, player.seat)) fail('bad_token');
-  const end = graceEnd(room, player);
+  if (player) {
+    if (isForfeited(room, player.seat)) fail('bad_token');
+    const end = graceEnd(room, player);
+    if (end !== null && now >= end) fail('bad_token');
+    const previous = player.connected && player.socketId !== socketId ? player.socketId : null;
+    return {
+      room: markConnected(room, player.seat, now, socketId),
+      who: { role: 'player', seat: player.seat },
+      previousSocketId: previous,
+    };
+  }
+  const spectator = spectatorsOf(room).find((s) => s.token !== '' && sameToken(s.token, token));
+  if (!spectator) fail('bad_token');
+  const end = spectatorGraceEnd(spectator);
   if (end !== null && now >= end) fail('bad_token');
-  const previous = player.connected && player.socketId !== socketId ? player.socketId : null;
+  // Nobody may come back into an abandoned room: the ticker is about to delete it.
+  if (isAbandoned(room, now)) fail('room_not_found');
+  const previous = spectator.connected && spectator.socketId !== socketId ? spectator.socketId : null;
   return {
-    room: markConnected(room, player.seat, now, socketId),
-    seat: player.seat,
+    room: markSpectatorConnected(room, spectator.id, now, socketId),
+    who: { role: 'spectator', id: spectator.id },
     previousSocketId: previous,
   };
 }
 
 /**
- * Runs whatever is due: grace expiries (forfeit / free the seat), the phase timeout, bot catch-up.
- * Returns the identical room when `deadline` is null or in the future, so a replica that lost
- * the race to another one's tick changes nothing.
+ * Runs whatever is due: grace expiries (forfeit / free the seat; drop the spectator), the phase
+ * timeout, bot catch-up. Returns the identical room when `deadline` is null or in the future, so
+ * a replica that lost the race to another one's tick changes nothing.
  */
 export function tick(room: Room, now: number, rng: Rng = Math.random): Room {
   if (room.deadline === null || room.deadline > now) return room;
   const prev = room.match;
-  let next = room;
+  let next = dropExpiredSpectators(room, now);
   for (const player of humans(room)) {
     const end = graceEnd(room, player);
     if (end !== null && end <= now) next = leave(next, player.seat);
@@ -310,6 +434,16 @@ export function tick(room: Room, now: number, rng: Rng = Math.random): Room {
     }
   }
   return settle(prev, next, now, rng);
+}
+
+/** Removes spectators whose reconnect grace ran out. Their only effect on the ticker. */
+function dropExpiredSpectators(room: Room, now: number): Room {
+  const current = spectatorsOf(room);
+  const spectators = current.filter((s) => {
+    const end = spectatorGraceEnd(s);
+    return end === null || end > now;
+  });
+  return spectators.length === current.length ? room : { ...room, spectators };
 }
 
 /**
