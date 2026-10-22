@@ -1,0 +1,11 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <circle class="yellow" cx="32" cy="32" r="29"/>
+  <path class="white" d="M17 22 L12 6 L26 14 Z"/><path class="white" d="M47 22 L52 6 L38 14 Z"/>
+  <path class="blue" d="M32 11 C47 11 55 21 54 35 C53 49 44 57 32 57 C20 57 11 49 10 35 C9 21 17 11 32 11 Z"/>
+  <circle class="white" cx="32" cy="29" r="13"/>
+  <circle class="line" style="stroke:none" cx="33" cy="30" r="6"/>
+  <circle class="white" style="stroke:none" cx="35.2" cy="27.6" r="2"/>
+  <path class="n" style="stroke-width:4" d="M17 16 Q32 8 47 16"/>
+  <path class="line" d="M19 46 Q32 58 45 46 Q32 49 19 46 Z" style="stroke-width:3"/>
+  <rect class="white" x="29" y="47" width="6" height="6" rx="1.2" style="stroke-width:2.5"/>
+</svg>
