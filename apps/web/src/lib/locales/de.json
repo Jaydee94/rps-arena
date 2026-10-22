@@ -93,6 +93,12 @@
   "result.leave": "Zum Start",
   "result.final_score": "Endstand {mine} : {theirs}",
 
+  "burst.pow": "POW!",
+  "burst.bam": "BAM!",
+  "burst.zap": "ZAP!",
+  "burst.win": "SIEG!",
+  "burst.lose": "AUA!",
+
   "errors.room_not_found": "Diesen Raum gibt es nicht (mehr).",
   "errors.room_full": "Der Raum ist leider voll.",
   "errors.invalid_input": "Das hat nicht geklappt – bitte prüfe deine Eingaben.",

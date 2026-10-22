@@ -115,6 +115,12 @@ export function connect(): void {
   });
 }
 
+/** Dev-only hook for lib/demo.ts: feeds mock state without a server. Unused (tree-shaken) in production. */
+export function setDemoState(view: RoomView | null, connection: ConnectionStatus = 'connected'): void {
+  roomStore.set(view);
+  statusStore.set(connection);
+}
+
 export function clearError(): void {
   lastErrorStore.set(null);
 }
