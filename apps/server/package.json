@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "rm -rf dist && esbuild src/main.ts --bundle --platform=node --target=node24 --format=esm --packages=external --alias:@rps/shared=../../packages/shared/src/index.ts --outfile=dist/main.js --log-level=warning",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "start": "node dist/main.js"
   },
   "dependencies": {
     "@rps/shared": "*",
@@ -16,6 +17,7 @@
     "socket.io": "4.8.4"
   },
   "devDependencies": {
+    "esbuild": "0.28.2",
     "socket.io-client": "4.8.4",
     "tsx": "4.23.15"
   }
