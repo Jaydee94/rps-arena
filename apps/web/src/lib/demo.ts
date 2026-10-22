@@ -5,6 +5,7 @@
  *
  * Extra query params: mode=<mode id>, outcome=win|lose|draw, picked=1, phase=announce, left=<seconds>, bot=1.
  */
+import { REVEAL_MS } from '@rps/shared';
 import type { PublicMatch, PublicPlayer, RoomConfig, RoomView, SeatId } from '@rps/shared';
 import { setDemoState } from './connection';
 
@@ -97,7 +98,7 @@ function build(name: string, params: Params): RoomView | null {
             : [{ seats: ['a0', 'b0'], result }],
         },
       });
-      view.deadline = Date.now() + 4000;
+      view.deadline = Date.now() + REVEAL_MS;
       return view;
     }
     case 'result': {

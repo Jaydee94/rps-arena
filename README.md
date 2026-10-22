@@ -94,7 +94,7 @@ unentschieden. Einen Bot gibt es in diesem Modus nicht.
 | --- | --- | --- |
 | `PICK_TIMEOUT_MS` | 20 s | Zeit für die Wahl einer Geste. Wer nicht wählt, verliert sein Duell. Wählt niemand, ist die Runde unentschieden. |
 | `ANNOUNCE_TIMEOUT_MS` | 8 s | Zeit für die Ansage im Bluff-Modus. Wer schweigt, sagt nichts an. |
-| `REVEAL_MS` | 4 s | So lange bleibt das Rundenergebnis stehen. Sind alle verbundenen Spielenden "weiter", geht es früher los. |
+| `REVEAL_MS` | 5,5 s | So lange bleibt das Rundenergebnis stehen. Der Client zeigt zuerst einen kurzen Countdown (Schnick, Schnack, Schnuck, ca. 1,3 s), das Ergebnis bleibt also für den Rest sichtbar. Sind alle verbundenen Spielenden "weiter", geht es früher los. |
 | `RECONNECT_GRACE_MS` | 30 s | So lange kann eine getrennte Person zurückkehren. Danach verliert sie ihr Duell in dieser und allen weiteren Runden (Aufgabe). |
 | `IDLE_ROUNDS_LIMIT` | 3 | Siehe unten. |
 | `ROOM_TTL_S` | 1800 s | Inaktive Räume verschwinden nach 30 Minuten aus Redis. |

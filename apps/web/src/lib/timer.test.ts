@@ -19,7 +19,7 @@ describe('timer', () => {
   it('has a duration per timed phase', () => {
     expect(phaseDuration('pick')).toBe(20_000);
     expect(phaseDuration('announce')).toBe(8_000);
-    expect(phaseDuration('reveal')).toBe(4_000);
+    expect(phaseDuration('reveal')).toBe(5_500);
     expect(phaseDuration('finished')).toBe(0);
   });
 
