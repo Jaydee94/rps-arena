@@ -68,6 +68,31 @@ describe('Countdown', () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
+  it.each(['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock'])('does not skip on %s', async (key) => {
+    const onDone = vi.fn();
+    render(Countdown, { onDone });
+    await fireEvent.keyDown(window, { key });
+    expect(onDone).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1260);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not skip on the auto-repeat of a held key', async () => {
+    const onDone = vi.fn();
+    render(Countdown, { onDone });
+    await fireEvent.keyDown(window, { key: 'Enter', repeat: true });
+    expect(onDone).not.toHaveBeenCalled();
+    await fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['Enter', ' ', 'a', 'Escape'])('skips on a normal key (%j)', async (key) => {
+    const onDone = vi.fn();
+    render(Countdown, { onDone });
+    await fireEvent.keyDown(window, { key });
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
   it('does not call onDone after unmount', async () => {
     const onDone = vi.fn();
     const { unmount } = render(Countdown, { onDone });
