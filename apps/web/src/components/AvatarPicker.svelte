@@ -12,8 +12,10 @@
   let grid: HTMLDivElement | undefined = $state();
   let mounted = false;
 
-  // Keeps the chosen tile visible inside the scroll container (no animation: scroll-behavior stays auto).
-  // Keyboard focus already scrolls natively; this covers clicks on half-visible tiles and the initial value.
+  // Keeps the chosen tile visible inside the grid by setting the grid's own scrollTop (no animation:
+  // scroll-behavior stays auto). Element.scrollIntoView is avoided on purpose: it walks every scrollable
+  // ancestor and may scroll the page. Keyboard focus already scrolls natively; this covers clicks on
+  // half-visible tiles and the initial value.
   $effect(() => {
     const current = value;
     if (!grid) return;
@@ -22,13 +24,17 @@
     const first = !mounted;
     mounted = true;
     if (!tile) return;
-    // On mount only correct a tile that is outside the grid; never move the page for a visible one.
-    if (first) {
-      const outer = grid.getBoundingClientRect();
-      const inner = tile.getBoundingClientRect();
-      if (inner.top >= outer.top && inner.bottom <= outer.bottom) return;
-    }
-    tile.scrollIntoView?.({ block: 'nearest' });
+    const outer = grid.getBoundingClientRect();
+    const inner = tile.getBoundingClientRect();
+    const style = getComputedStyle(grid);
+    // On mount only correct a tile that is outside the grid, and then without the scroll-padding.
+    const padTop = first ? 0 : parseFloat(style.scrollPaddingTop) || 0;
+    const padBottom = first ? 0 : parseFloat(style.scrollPaddingBottom) || 0;
+    // The tile's box in the grid's scrolled content coordinates.
+    const top = inner.top - outer.top + grid.scrollTop;
+    const bottom = top + inner.height;
+    if (top < grid.scrollTop + padTop) grid.scrollTop = Math.max(0, top - padTop);
+    else if (bottom > grid.scrollTop + grid.clientHeight - padBottom) grid.scrollTop = bottom - grid.clientHeight + padBottom;
   });
 </script>
 
