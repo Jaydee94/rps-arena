@@ -36,7 +36,7 @@ describe('ui.css building blocks', () => {
   });
 
   it('gives a panel with a ribbon extra top padding and offers a sky ribbon', () => {
-    expect(rule('.panel:has(> .ribbon)')).toContain('padding-top: var(--space-6)');
+    expect(rule('.panel:has(> .ribbon)')).toContain('padding-top: calc(var(--space-6) + var(--space-2))');
     expect(rule('.ribbon--sky')).toContain('var(--sky)');
   });
 
@@ -44,7 +44,7 @@ describe('ui.css building blocks', () => {
     const segment = rule('.segmented .segment');
     expect(segment).toContain('min-width: 56px');
     expect(segment).toContain('min-height: 44px');
-    expect(rule('.segmented .segment:has(input:checked)')).toContain('var(--red)');
+    expect(rule('.segmented .segment:has(input:checked)')).toContain('var(--yellow)');
     expect(rule('.segmented .segment:has(input:checked)::after')).toContain('✓');
   });
 

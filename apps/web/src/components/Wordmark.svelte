@@ -15,7 +15,7 @@
 
 <!-- First word in a yellow outlined slab, the rest on a red tilted banner. The title stays real text. -->
 <h1 class="wordmark" class:large>
-  <span class="rps">{first}</span>{' '}<span class="arena">{rest}</span>
+  <span class="rps wm-rps">{first}</span>{' '}<span class="arena wm-arena">{rest}</span>
 </h1>
 
 <style>

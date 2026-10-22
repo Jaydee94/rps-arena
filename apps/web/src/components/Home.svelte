@@ -1,10 +1,17 @@
 <script lang="ts">
-  import { AVATARS, NICKNAME_MAX_LENGTH, normalizeCode } from '@rps/shared';
+  import { AVATARS, CODE_LENGTH, NICKNAME_MAX_LENGTH, normalizeCode } from '@rps/shared';
   import { joinRoom } from '../lib/connection';
   import { t } from '../lib/i18n';
   import AvatarPicker from './AvatarPicker.svelte';
   import CreatePanel from './CreatePanel.svelte';
   import GestureIcon from './GestureIcon.svelte';
+
+  // The three classic gestures as stickers; the tilt sits on a wrapper so `bob` can run on the inner element.
+  const STICKERS = [
+    { id: 'rock', tilt: '-9deg' },
+    { id: 'paper', tilt: '3deg' },
+    { id: 'scissors', tilt: '11deg' },
+  ] as const;
 
   // /?room=CODE prefills the code and focuses the join form. Read once; tokens never go into URLs.
   const invited = new URLSearchParams(location.search).get('room');
@@ -20,25 +27,60 @@
 
   const hasName = $derived(nickname.trim() !== '');
 
+  // Room codes have no spaces: drop them (and uppercase) while typing so they never eat the length limit.
+  const cleanCode = (raw: string) => raw.replace(/\s+/g, '').toUpperCase();
+
+  function onCodeInput(event: Event & { currentTarget: HTMLInputElement }) {
+    const input = event.currentTarget;
+    const raw = input.value;
+    const clean = cleanCode(raw);
+    if (clean !== raw) {
+      // Keep the caret where the user is typing instead of jumping to the end.
+      const caret = cleanCode(raw.slice(0, input.selectionStart ?? raw.length)).length;
+      input.value = clean;
+      input.setSelectionRange(caret, caret);
+    }
+    code = clean;
+  }
+
+  // maxlength would cut a pasted " AB3 DE" before the input handler can clean it, so insert it cleaned.
+  function onCodePaste(event: ClipboardEvent & { currentTarget: HTMLInputElement }) {
+    if (!event.clipboardData) return;
+    event.preventDefault();
+    const input = event.currentTarget;
+    const pasted = cleanCode(event.clipboardData.getData('text'));
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? start;
+    const next = (input.value.slice(0, start) + pasted + input.value.slice(end)).slice(0, CODE_LENGTH);
+    const caret = Math.min(start + pasted.length, next.length);
+    input.value = next;
+    input.setSelectionRange(caret, caret);
+    code = next;
+  }
+
   function join() {
     joinRoom({ code: normalizeCode(code), nickname: nickname.trim(), avatar });
   }
 </script>
 
 <div class="home">
-  <header class="hero">
+  <section class="panel hero" style:--i="0">
+    <p class="hero-caption">{t('home.caption')}</p>
     <div class="stickers" aria-hidden="true">
-      <span class="s1"><GestureIcon id="rock" size={72} /></span>
-      <span class="s2"><GestureIcon id="paper" size={72} /></span>
-      <span class="s3"><GestureIcon id="scissors" size={72} /></span>
+      {#each STICKERS as sticker, i (sticker.id)}
+        <span class="sticker-tilt" style:--tilt={sticker.tilt}>
+          <span class="hero-sticker" style:--i={i}><GestureIcon id={sticker.id} size={86} /></span>
+        </span>
+      {/each}
     </div>
-    <div class="bubble">
+    <div class="hero-bubble">
       <h2>{t('home.title')}</h2>
       <p>{t('home.tagline')}</p>
     </div>
-  </header>
+  </section>
 
-  <section class="card identity">
+  <section class="panel identity" aria-labelledby="who-heading" style:--i="1">
+    <h2 id="who-heading" class="ribbon">{t('home.who_heading')}</h2>
     <label class="field">
       <span>{t('home.nickname')}</span>
       <input
@@ -53,89 +95,156 @@
     {#if !hasName}<p class="hint">{t('home.need_nickname')}</p>{/if}
   </section>
 
-  <CreatePanel {nickname} {avatar} />
+  <CreatePanel {nickname} {avatar} index={2} />
 
-  <form class="panel join" onsubmit={(event) => { event.preventDefault(); join(); }}>
+  <form class="panel join" style:--i="3" onsubmit={(event) => { event.preventDefault(); join(); }}>
     <h2 class="ribbon ribbon--sky">{t('home.join_heading')}</h2>
-    <label class="field">
-      <span>{t('home.code')}</span>
-      <input type="text" bind:value={code} bind:this={codeInput} placeholder={t('home.code_placeholder')} autocomplete="off" autocapitalize="characters" />
-    </label>
-    <button type="submit" class="btn btn-blue" disabled={!hasName || normalizeCode(code) === ''}>
-      {t('home.join')}
-    </button>
+    <div class="join-row">
+      <label class="field">
+        <span>{t('home.code')}</span>
+        <input
+          type="text"
+          class="code"
+          value={code}
+          oninput={onCodeInput}
+          onpaste={onCodePaste}
+          bind:this={codeInput}
+          maxlength={CODE_LENGTH}
+          placeholder={t('home.code_placeholder')}
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false"
+        />
+      </label>
+      <button
+        type="submit"
+        class="btn btn-blue"
+        aria-label={t('home.join')}
+        disabled={!hasName || normalizeCode(code) === ''}
+      >
+        {t('home.join_short')}
+      </button>
+    </div>
   </form>
 </div>
 
 <style>
   .home {
     display: grid;
-    gap: var(--space-5);
+    gap: var(--gutter);
     max-width: 48rem;
     margin: 0 auto;
     width: 100%;
   }
 
+  .home > :global(*) {
+    min-width: 0;
+  }
+
+  /* ---- Hero panel: blue ground with big pink halftone dots ---- */
   .hero {
     display: grid;
-    gap: var(--space-5);
-    justify-items: start;
+    align-items: end;
+    min-height: 15.75rem;
+    /* Room at the top for the caption box. */
+    padding: 5rem var(--space-4) var(--space-4);
+    background-color: var(--blue);
+    background-image: radial-gradient(circle at center, var(--dot-panel) 30%, transparent 33%);
+    background-size: var(--dot-panel-size) var(--dot-panel-size);
   }
 
-  /* The three classic gestures, fanned out like stickers on a comic cover. */
+  /* The caption is absolutely positioned against the panel's padding box, so it stays out of the grid area. */
+  .hero > :not(.hero-caption) {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
+
+  /* Yellow caption box that sticks out over the panel edge. */
+  .hero-caption {
+    position: absolute;
+    top: var(--space-4);
+    left: -6px;
+    max-width: calc(100% - 3rem);
+    margin: 0;
+    padding: var(--space-1) var(--space-3);
+    border: var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--yellow);
+    color: var(--on-bright);
+    box-shadow: var(--shadow-sm);
+    font-family: var(--font-display);
+    font-size: var(--text-md);
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    rotate: -2deg;
+  }
+
   .stickers {
     display: flex;
-    padding-left: var(--space-2);
+    align-self: end;
+    justify-self: start;
+    padding-top: var(--space-3);
   }
 
-  .stickers span {
+  .sticker-tilt {
+    display: block;
+    rotate: var(--tilt);
+  }
+
+  .sticker-tilt + .sticker-tilt {
+    margin-left: -10px;
+  }
+
+  .hero-sticker {
     display: block;
   }
 
-  .stickers .s1 { rotate: -9deg; translate: 0 0.4rem; }
-  .stickers .s2 { rotate: 3deg; margin-left: -0.6rem; translate: 0 -0.5rem; z-index: 1; }
-  .stickers .s3 { rotate: 11deg; margin-left: -0.6rem; translate: 0 0.5rem; }
-
-  /* Speech bubble with a tail pointing at the stickers. */
-  .bubble {
+  /* Speech bubble with a tail pointing down at the stickers. */
+  .hero-bubble {
     position: relative;
+    z-index: 1;
+    align-self: start;
+    justify-self: end;
     display: grid;
     gap: var(--space-1);
-    padding: var(--space-4) var(--space-5);
+    width: min(170px, 100%);
+    padding: var(--space-3);
     border: var(--border);
     border-radius: var(--radius-lg);
     background: var(--sticker);
     color: var(--on-bright);
-    box-shadow: var(--shadow);
-    rotate: var(--tilt-2);
+    box-shadow: var(--shadow-sm);
+    overflow-wrap: anywhere;
+    rotate: 2deg;
+    transform-origin: 12% 100%;
   }
 
-  .bubble::before {
+  .hero-bubble::after {
     content: '';
     position: absolute;
-    top: -0.85rem;
-    left: 3.2rem;
-    width: 1.5rem;
-    height: 1.5rem;
-    border-top: var(--border);
-    border-left: var(--border);
+    bottom: -0.8rem;
+    left: 12%;
+    width: 1.4rem;
+    height: 1.4rem;
+    border-right: var(--border);
+    border-bottom: var(--border);
     background: var(--sticker);
     rotate: 45deg;
   }
 
-  h2 {
-    font-size: var(--text-xl);
+  .hero-bubble h2 {
+    font-size: 27px;
+    text-shadow: 2px 2px 0 var(--yellow);
   }
 
-  .bubble h2 {
-    font-size: var(--text-2xl);
-    text-shadow: 3px 3px 0 var(--yellow);
-  }
-
-  .bubble p {
+  .hero-bubble p {
+    font-size: var(--text-sm);
     font-weight: 700;
+    line-height: 1.3;
   }
 
+  /* ---- Identity and join panels ---- */
   .identity,
   .join {
     display: grid;
@@ -146,7 +255,27 @@
     font-weight: 700;
   }
 
-  .join .btn {
-    justify-self: start;
+  .join-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: var(--space-3);
+  }
+
+  .join-row .field {
+    min-width: 0;
+  }
+
+  .field input.code {
+    width: 100%;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+  }
+
+  .join-row .btn {
+    min-height: 3rem;
   }
 </style>
