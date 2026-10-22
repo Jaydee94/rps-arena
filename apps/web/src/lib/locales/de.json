@@ -149,5 +149,9 @@
   "camera.privacy": "Dein Kamerabild bleibt auf deinem Gerät und wird nicht übertragen.",
   "camera.denied": "Kamerazugriff verweigert. Erlaube ihn in den Browser-Einstellungen.",
   "camera.no_device": "Keine Kamera gefunden.",
-  "camera.load_failed": "Die Gestenerkennung konnte nicht geladen werden."
+  "camera.load_failed": "Die Gestenerkennung konnte nicht geladen werden.",
+  "camera.badge": "Experimentell",
+  "camera.hold": "Halte Stein, Papier oder Schere kurz in die Kamera.",
+  "camera.loading": "Lade Gestenerkennung …",
+  "camera.pose_none": "Keine Geste erkannt"
 }
