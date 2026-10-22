@@ -7,10 +7,27 @@
   box-shadow: var(--shadow);
 }
 
-/* A yellow label stuck on the top left edge of a card, like a comic caption box. */
+/* A screen section drawn like a comic panel: squarer than a card, with a hard offset shadow. */
+.panel {
+  position: relative;
+  padding: var(--space-4);
+  border: var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow-panel);
+}
+
+/* Room for the hanging ribbon. */
+.panel:has(> .ribbon) {
+  padding-top: var(--space-6);
+}
+
+/* A yellow caption box hung on the top left corner of a panel, out of the flow. */
 .ribbon {
-  justify-self: start;
-  margin: calc(var(--space-4) * -1 - var(--outline)) 0 var(--space-1) calc(var(--space-4) * -1 - var(--outline));
+  position: absolute;
+  left: -8px;
+  top: -18px;
+  margin: 0;
   padding: var(--space-1) var(--space-4);
   border: var(--border);
   border-radius: var(--radius-sm) var(--radius-sm) var(--radius-sm) 0;
@@ -20,6 +37,10 @@
   font-size: var(--text-lg);
   text-shadow: none;
   rotate: -1.5deg;
+}
+
+.ribbon--sky {
+  background: var(--sky);
 }
 
 .btn {
@@ -158,6 +179,130 @@ fieldset.group > legend {
 .chip:has(input:disabled) {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* Pill-shaped radio group: label.segment > input[type=radio] + text. */
+.segmented {
+  display: inline-flex;
+  overflow: hidden;
+  border: var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--sticker);
+  color: var(--on-bright);
+}
+
+.segmented .segment {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 56px;
+  min-height: 44px;
+  padding-inline: var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  cursor: pointer;
+}
+
+.segmented .segment + .segment {
+  border-left: var(--outline) solid var(--edge);
+}
+
+.segmented .segment input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.segmented .segment:has(input:checked) {
+  background: var(--red);
+  color: var(--white);
+}
+
+/* Not only color: the chosen segment also gets a check mark. */
+.segmented .segment:has(input:checked)::after {
+  content: '✓';
+}
+
+.segmented .segment:has(input:focus-visible) {
+  outline: var(--outline) solid var(--focus);
+  outline-offset: -6px;
+}
+
+.segmented .segment:has(input:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* A checkbox drawn as a toggle switch: the native input stays in the DOM and covers the track. */
+.switch {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  box-sizing: border-box;
+  width: 58px;
+  height: 34px;
+  border: var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--grey);
+  cursor: pointer;
+}
+
+.switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* The knob: sits left when off, right when on. */
+.switch::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  border: calc(var(--outline) / 2) solid var(--edge);
+  border-radius: 50%;
+  background: var(--sticker);
+  translate: 0 -50%;
+}
+
+.switch:has(input:checked) {
+  background: var(--teal);
+}
+
+.switch:has(input:checked)::before {
+  left: auto;
+  right: 2px;
+}
+
+.switch:has(input:focus-visible) {
+  outline: var(--outline) solid var(--focus);
+  outline-offset: 3px;
+}
+
+.switch:has(input:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Dashed frame around an optional setting, like a cut-out coupon. */
+.dashed-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--outline) dashed var(--edge);
+  border-radius: var(--radius-sm);
 }
 
 .sr-only {

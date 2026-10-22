@@ -1,7 +1,7 @@
 <script lang="ts">
   import { prefersReducedMotion } from '../lib/motion';
 
-  type Variant = 'pow' | 'bam' | 'zap' | 'win' | 'lose';
+  type Variant = 'pow' | 'bam' | 'zap' | 'win' | 'lose' | 'zack';
 
   interface Props {
     text: string;
@@ -51,6 +51,7 @@
   .burst--zap { --burst-fill: var(--blue); --burst-text: var(--on-blue); --burst-tilt: -4deg; }
   .burst--win { --burst-fill: var(--teal); --burst-tilt: -6deg; }
   .burst--lose { --burst-fill: var(--pink); --burst-tilt: 5deg; }
+  .burst--zack { --burst-fill: var(--pink); --burst-text: var(--white); --burst-tilt: -6deg; }
 
   svg {
     position: absolute;
@@ -83,5 +84,11 @@
     text-align: center;
     text-wrap: balance;
     overflow-wrap: anywhere;
+  }
+
+  /* ZACK: white lettering needs an outline to read on pink. */
+  .burst--zack .text {
+    -webkit-text-stroke: var(--outline) var(--line);
+    paint-order: stroke fill;
   }
 </style>

@@ -38,6 +38,12 @@ describe('ComicBurst', () => {
     expect(screen.getByText('ZAP!')).toBeInTheDocument();
   });
 
+  it('renders the zack variant', () => {
+    mockMotion(false);
+    render(ComicBurst, { text: 'ZACK!', variant: 'zack' });
+    expect(screen.getByText('ZACK!').closest('.burst')).toHaveClass('burst--zack');
+  });
+
   it('draws a jagged star behind the text', () => {
     mockMotion(false);
     const { container } = render(ComicBurst, { text: 'WIN!', variant: 'win' });
