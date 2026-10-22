@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ERROR_CODES, getGestureSet, type GestureSetId } from '@rps/shared';
+import {
+  CODE_ALPHABET,
+  CODE_LENGTH,
+  ERROR_CODES,
+  getGestureSet,
+  type GestureSetId,
+} from '@rps/shared';
 import de from './locales/de.json';
 import en from './locales/en.json';
 
@@ -146,5 +152,44 @@ describe('i18n', () => {
       expect(de).toHaveProperty([`camera.${key}`]);
       expect(en).toHaveProperty([`camera.${key}`]);
     }
+  });
+
+  it('has the comic panel and countdown texts in both locales', () => {
+    const expected: Record<string, [string, string]> = {
+      'home.caption': ['Ohne Account. Link teilen, losspielen.', 'No account. Share a link, start playing.'],
+      'home.who_heading': ['Wer bist du?', 'Who are you?'],
+      'home.join_short': ['Rein!', 'Go!'],
+      'home.create': ['Raum erstellen!', 'Create room!'],
+      'countdown.1': ['SCHNICK!', 'ROCK!'],
+      'countdown.2': ['SCHNACK!', 'PAPER!'],
+      'countdown.3': ['SCHNUCK!', 'SCISSORS!'],
+      'board.rule': ['{winner} schlägt {loser}', '{winner} beats {loser}'],
+      'burst.zack': ['ZACK!', 'ZAP!'],
+    };
+    for (const [key, [deText, enText]] of Object.entries(expected)) {
+      expect(de, key).toHaveProperty([key], deText);
+      expect(en, key).toHaveProperty([key], enText);
+    }
+  });
+
+  it('uses a code placeholder with CODE_LENGTH characters from CODE_ALPHABET', () => {
+    for (const [dict, prefix] of [
+      [de, 'z. B. '],
+      [en, 'e.g. '],
+    ] as const) {
+      const placeholder = dict['home.code_placeholder'];
+      expect(placeholder.startsWith(prefix)).toBe(true);
+      const code = placeholder.slice(prefix.length);
+      expect(code).toHaveLength(CODE_LENGTH);
+      for (const ch of code) expect(CODE_ALPHABET).toContain(ch);
+    }
+  });
+
+  it('interpolates board.rule with winner and loser', async () => {
+    const { t, setLocale } = await load();
+    setLocale('de');
+    expect(t('board.rule', { winner: 'Stein', loser: 'Schere' })).toBe('Stein schlägt Schere');
+    setLocale('en');
+    expect(t('board.rule', { winner: 'Rock', loser: 'Scissors' })).toBe('Rock beats Scissors');
   });
 });
