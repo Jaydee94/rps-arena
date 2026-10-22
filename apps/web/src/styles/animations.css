@@ -316,6 +316,33 @@
     animation: zack 420ms var(--ease-pop) both;
   }
 
+  /* One pop only: the star inside does not pop again. */
+  .zack-star .burst--animated {
+    animation: none;
+  }
+
+  /* The chosen tile slams down and settles on its own lean (--tilt), not on 0deg. */
+  .gesture.selected {
+    animation: stamp-tile 420ms var(--ease-pop) both;
+  }
+
+  @keyframes stamp-tile {
+    0% {
+      scale: 1.9;
+      rotate: -14deg;
+      opacity: 0.2;
+    }
+    55% {
+      scale: 0.9;
+      rotate: 3deg;
+      opacity: 1;
+    }
+    100% {
+      scale: 1;
+      rotate: var(--tilt, 0deg);
+    }
+  }
+
   @keyframes tile-bob {
     0%,
     100% {

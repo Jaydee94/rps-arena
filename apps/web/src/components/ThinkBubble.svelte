@@ -91,8 +91,13 @@
     height: 0.6rem;
   }
 
+  /* The wrapper alone carries the tilt and the pop (see the motion stylesheet). */
   .zack-star {
     --burst-size: 6.5rem;
     display: inline-block;
+  }
+
+  .zack-star :global(.burst) {
+    --burst-tilt: 0deg;
   }
 </style>

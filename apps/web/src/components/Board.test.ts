@@ -264,8 +264,31 @@ describe('Board', () => {
       render(Board);
       const mine = screen.getByRole('region', { name: 'Du' });
       expect(mine).toHaveTextContent('Spieler-a0');
-      expect(within(mine).getByRole('status')).toHaveTextContent('Wähle deine Geste!');
+      expect(screen.getByRole('status')).toHaveTextContent('Wähle deine Geste!');
       expect(opponentPanel()).toHaveTextContent('Spieler-b0');
+    });
+
+    it('keeps one status node, and its focus, from the pick to the reveal', async () => {
+      feed(makeRoom());
+      render(Board);
+      const status = screen.getByRole('status');
+      status.focus();
+      expect(status).toHaveFocus();
+
+      feed(
+        makeRoom({
+          match: {
+            phase: 'reveal',
+            score: { a: 1, b: 0 },
+            lastRound: { picks: { a0: 'rock', b0: 'scissors' }, duels: [{ seats: ['a0', 'b0'], result: 'a' }], winner: 'a' },
+          },
+        }),
+      );
+      await tick();
+
+      expect(screen.getByRole('status')).toBe(status);
+      expect(status).toHaveTextContent('Runde gewonnen!');
+      expect(status).toHaveFocus();
     });
 
     it('shows team dots instead of avatars in the 2v2 scoreboard', () => {

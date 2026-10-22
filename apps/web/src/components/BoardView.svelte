@@ -100,14 +100,11 @@
   });
 </script>
 
-{#snippet status()}
-  <p class="status bubble-status" role="status" tabindex="-1" bind:this={statusEl}>{prompt}</p>
-{/snippet}
-
-<main class="board">
+<main class="board" class:picking={match.phase !== 'reveal'}>
   <Scoreboard {left} {right} round={match.round} bestOf={match.config.bestOf} {modeName} />
   <TimerBar deadline={room.deadline} phase={match.phase} />
-  {#if match.phase === 'reveal'}{@render status()}{/if}
+  <!-- One persistent live region at one fixed position; where it shows is decided by CSS only. -->
+  <p class="status bubble-status" role="status" tabindex="-1" bind:this={statusEl}>{prompt}</p>
 
   {#if match.phase === 'reveal'}
     {#each duels as duel (duel.mine)}
@@ -124,16 +121,13 @@
     {/each}
     <button type="button" class="btn btn-primary" onclick={() => next()}>{t('board.next')}</button>
   {:else}
-    <div class="pick-row">
-      <section class="who you" aria-label={label(you)}>
-        {@render status()}
-        <span class="nametag">{nick(you)}</span>
-      </section>
-      <section class="who them" aria-label={label(opponent)}>
-        <ThinkBubble notes={opponentNotes()} locked={opponentLocked} />
-        <span class="nametag">{nick(opponent)}</span>
-      </section>
-    </div>
+    <section class="who you" aria-label={label(you)}>
+      <span class="nametag">{nick(you)}</span>
+    </section>
+    <section class="who them" aria-label={label(opponent)}>
+      <ThinkBubble notes={opponentNotes()} locked={opponentLocked} />
+      <span class="nametag">{nick(opponent)}</span>
+    </section>
     {#if match.phase === 'announce'}
       <AnnouncePanel done={announced} {onannounce} />
     {:else}
@@ -146,6 +140,7 @@
 <style>
   .board {
     display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
     gap: var(--space-4);
     max-width: 48rem;
     margin: 0 auto;
@@ -171,12 +166,30 @@
     text-shadow: 2px 2px 0 var(--yellow);
   }
 
-  /* Pick phase: your status bubble on the left, the opponent's thought bubble on the right. */
-  .pick-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-    align-items: start;
-    gap: var(--space-4);
+  .board > * {
+    grid-column: 1 / -1;
+  }
+
+  /*
+   * Pick phase, placed by CSS only: your status bubble above your nametag on the left, the opponent's
+   * thought bubble and nametag on the right (rows: 1 scoreboard, 2 timer, 3 status, 4 nametag, 5 pad).
+   */
+  .picking > .status {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: stretch;
+    padding-inline: var(--space-3);
+    text-align: start;
+  }
+
+  .picking > .you {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
+  .picking > .them {
+    grid-column: 2;
+    grid-row: 3 / span 2;
   }
 
   .who {
@@ -184,12 +197,6 @@
     align-content: start;
     gap: var(--space-2);
     min-width: 0;
-  }
-
-  .who .status {
-    justify-self: stretch;
-    padding-inline: var(--space-3);
-    text-align: start;
   }
 
   .nametag {

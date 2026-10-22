@@ -171,7 +171,7 @@
   }
 
   .vs-star {
-    --burst-size: 4.25rem;
+    --burst-size: 3.5rem;
     display: inline-block;
   }
 

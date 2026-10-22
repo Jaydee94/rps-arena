@@ -66,10 +66,14 @@
   .tone-5 { background-color: var(--sky); }
   .tone-6 { background-color: var(--red); }
 
-  /* A slight lean around the pad; the middle tile sits a bit higher. Rotation stays on the button. */
-  .gesture:nth-child(3n + 1) { rotate: -1.5deg; }
-  .gesture:nth-child(3n + 2) { rotate: 1deg; top: -8px; }
-  .gesture:nth-child(3n) { rotate: -0.8deg; }
+  /* A slight lean around the pad; the second tile (the middle of the first row) sits a bit higher. Rotation stays on the button. */
+  .gesture {
+    rotate: var(--tilt, 0deg);
+  }
+  .gesture:nth-child(3n + 1) { --tilt: -1.5deg; }
+  .gesture:nth-child(3n + 2) { --tilt: 1deg; }
+  .gesture:nth-child(3n) { --tilt: -0.8deg; }
+  .gesture:nth-child(2) { top: -8px; }
 
   .gesture.large {
     width: calc((100% - 2 * var(--pad-gap, var(--space-3))) / 3);
@@ -81,6 +85,7 @@
     display: grid;
     justify-items: center;
     width: 100%;
+    padding-top: 6px; /* room for the resting bob so the sticker never reaches the border */
   }
 
   /* The sticker may shrink on narrow screens instead of overflowing the tile. */
