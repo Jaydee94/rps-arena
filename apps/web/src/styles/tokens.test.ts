@@ -25,7 +25,7 @@ const dark = blockBody(tokens, '@media (prefers-color-scheme: dark)');
 /** Declared value of a custom property inside a block body. */
 function declared(body: string, name: string): string | undefined {
   const match = body.match(new RegExp(`${name}:\\s*([^;]+);`));
-  return match?.[1].trim();
+  return match?.[1]?.trim();
 }
 
 describe('comic panel tokens', () => {
