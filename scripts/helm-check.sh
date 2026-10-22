@@ -126,11 +126,21 @@ assert_eq "maxmemory-policy override" "true" "$MEM" "$REDIS_ARGS | test(\"(^| )-
 
 echo "== external redis credentials stay out of the output =="
 SECRET_URL="redis://user:s3cret@redis.example.internal:6379"
-# NOTES.txt is part of every `helm install/upgrade` output (and so of CI logs).
+# NOTES.txt is part of every `helm install/upgrade` output (and so of CI logs). Neither `helm template`
+# (Helm 3) nor `helm install --dry-run[=client]` (Helm 3 still contacts the cluster, so it fails in CI)
+# can show it without a cluster, so render it as an ordinary template of a throwaway copy of the chart.
+NOTES_CHART="$(mktemp -d)"
+trap 'rm -rf "$NOTES_CHART"' EXIT
+cp -R "$CHART" "$NOTES_CHART/rps-arena"
+{
+  printf '{{- define "rps-notes" -}}\n'
+  cat "$CHART/templates/NOTES.txt"
+  printf '\n{{- end }}\nnotes: |\n{{ include "rps-notes" . | indent 2 }}\n'
+} > "$NOTES_CHART/rps-arena/templates/notes-as-template.yaml"
+rm "$NOTES_CHART/rps-arena/templates/NOTES.txt"
 notes_of() {
-  local out
-  out="$(helm install rps "$CHART" --dry-run=client "$@" 2>&1)" || fail "helm install --dry-run failed ($*): $out"
-  printf '%s\n' "${out#*NOTES:}"
+  helm template rps "$NOTES_CHART/rps-arena" --show-only templates/notes-as-template.yaml "$@" \
+    || fail "rendering NOTES.txt failed ($*)"
 }
 NOTES_URL="$(notes_of --set redis.enabled=false --set "redis.externalUrl=$SECRET_URL")"
 case "$NOTES_URL" in
@@ -141,8 +151,7 @@ case "$NOTES_URL" in
   *"external"*) pass "NOTES.txt still says that an external Redis is used" ;;
   *) fail "NOTES.txt does not mention the external Redis: $NOTES_URL" ;;
 esac
-SECRET_OUT="$(helm install rps "$CHART" --dry-run=client --set redis.enabled=false --set redis.existingSecret=rps-redis 2>&1)" \
-  || fail "helm install --dry-run with redis.existingSecret failed: $SECRET_OUT"
+SECRET_OUT="$(notes_of --set redis.enabled=false --set redis.existingSecret=rps-redis)"
 case "$SECRET_OUT" in
   *rps-redis*) pass "NOTES.txt names the Secret (not its content)" ;;
   *) fail "NOTES.txt does not mention the Secret" ;;
