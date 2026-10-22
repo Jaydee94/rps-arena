@@ -1,0 +1,59 @@
+image:
+  repository: ghcr.io/jaydee94/rps-arena
+  # Defaults to .Chart.AppVersion
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# Multiple replicas work without sticky sessions (state lives in Redis).
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+# Extra environment variables for the app container (name: value map).
+env: {}
+
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  path: /
+  pathType: Prefix
+  # Defaults keep long-lived WebSocket connections open (ingress-nginx).
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  tls:
+    enabled: false
+    # Defaults to "<fullname>-tls"
+    secretName: ""
+    # When set (and tls.enabled), adds the cert-manager.io/cluster-issuer annotation.
+    clusterIssuer: ""
+
+redis:
+  # Deploy a simple in-chart Redis. When false, redis.externalUrl is required.
+  enabled: true
+  image: redis:7-alpine
+  externalUrl: ""
+  persistence:
+    enabled: false
+    size: 1Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
