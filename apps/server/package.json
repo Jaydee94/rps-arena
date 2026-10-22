@@ -14,7 +14,8 @@
     "@rps/shared": "*",
     "@socket.io/redis-adapter": "8.3.0",
     "ioredis": "6.0.0",
-    "socket.io": "4.8.4"
+    "socket.io": "4.8.4",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

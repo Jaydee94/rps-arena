@@ -8,6 +8,11 @@ export const ANNOUNCE_TIMEOUT_MS = 8_000;
 export const REVEAL_MS = 4_000;
 /** How long a disconnected player may rejoin before forfeiting. */
 export const RECONNECT_GRACE_MS = 30_000;
+/**
+ * A match ends as abandoned (finished, no winner) after this many consecutive rounds that timed
+ * out without any human pick or announce, so idle or ghost rooms stop ticking and expire.
+ */
+export const IDLE_ROUNDS_LIMIT = 3;
 /** Lifetime of an idle room, in seconds. */
 export const ROOM_TTL_S = 1800;
 

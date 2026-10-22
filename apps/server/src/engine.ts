@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   AVATARS,
+  IDLE_ROUNDS_LIMIT,
   ProtocolError,
   activeSeats,
   advance,
@@ -58,6 +59,12 @@ function newPlayer(seat: SeatId, nickname: string, avatar: string, socketId: str
   };
 }
 
+/** A human picked or announced: the room is in use, the idle-round counter starts over. */
+function humanActed(room: Room, seat: SeatId): Room {
+  if (room.players[seat]?.isBot !== false) return room;
+  return { ...room, idleRounds: 0, roundActed: true };
+}
+
 function requireMatch(room: Room): MatchState {
   if (!room.match) fail('wrong_phase');
   return room.match;
@@ -89,6 +96,8 @@ export function createRoom(input: CreateRoomInput, now: number, rng: Rng = Math.
     botLevel: input.vsBot ?? null,
     history: [],
     nextReady: [],
+    idleRounds: 0,
+    roundActed: false,
   };
   if (!input.vsBot) return room;
   room.players[BOT_SEAT] = {
@@ -152,7 +161,8 @@ export function applyPick(
   rng: Rng = Math.random,
 ): Room {
   const match = requireMatch(room);
-  return settle(match, { ...room, match: pick(match, seat, payload.gesture) }, now, rng);
+  const next = { ...humanActed(room, seat), match: pick(match, seat, payload.gesture) };
+  return settle(match, next, now, rng);
 }
 
 export function applyAnnounce(
@@ -163,7 +173,8 @@ export function applyAnnounce(
   rng: Rng = Math.random,
 ): Room {
   const match = requireMatch(room);
-  return settle(match, { ...room, match: announce(match, seat, payload.emote) }, now, rng);
+  const next = { ...humanActed(room, seat), match: announce(match, seat, payload.emote) };
+  return settle(match, next, now, rng);
 }
 
 /** Skip vote during the reveal; advances once every connected, active human voted. */
@@ -186,7 +197,13 @@ export function rematch(room: Room, by: SeatId, now: number, rng: Rng = Math.ran
     if (!match.forfeited.includes(seat)) players[seat] = player;
   }
   const full = seatsOf(room.config).every((s) => players[s]);
-  const next = { ...room, players, match: full ? createMatch(room.config) : null };
+  const next = {
+    ...room,
+    players,
+    match: full ? createMatch(room.config) : null,
+    idleRounds: 0,
+    roundActed: false,
+  };
   return settle(match, withHost(next), now, rng);
 }
 
@@ -288,9 +305,23 @@ export function tick(room: Room, now: number, rng: Rng = Math.random): Room {
     } else {
       next = botStep(next, rng, match.phase);
       next = { ...next, match: timeoutPhase(next.match!) };
+      if (match.phase === 'pick') next = countIdleRound(next);
     }
   }
   return settle(prev, next, now, rng);
+}
+
+/**
+ * Abandonment rule: a round that timed out without any human pick or announce counts as idle.
+ * After IDLE_ROUNDS_LIMIT idle rounds in a row the match ends with no winner, so rooms whose
+ * players went AFK or whose sockets died with a crashed replica stop ticking (and stop renewing
+ * their TTL) instead of drawing forever.
+ */
+function countIdleRound(room: Room): Room {
+  if (room.roundActed) return room;
+  const idleRounds = (room.idleRounds ?? 0) + 1;
+  if (idleRounds < IDLE_ROUNDS_LIMIT || !room.match) return { ...room, idleRounds };
+  return { ...room, idleRounds, match: { ...room.match, phase: 'finished', winner: null } };
 }
 
 export { HUMAN_SEAT, BOT_SEAT };

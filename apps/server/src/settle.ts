@@ -127,18 +127,22 @@ function drawGuard(room: Room): Room {
 
 /** Recomputes `phaseDeadline` (on a phase change) and the wake-up `deadline`. */
 function schedule(prev: MatchState | null, room: Room, now: number): Room {
-  let { phaseDeadline, nextReady } = room;
+  let { phaseDeadline, nextReady, roundActed } = room;
   const key = phaseKey(room.match);
   if (key !== phaseKey(prev)) {
     phaseDeadline = key && room.match ? now + PHASE_MS[room.match.phase as keyof typeof PHASE_MS] : null;
     nextReady = [];
+    // A new round (or a new match) starts without any human action yet.
+    if (key && (!prev || prev.phase === 'finished' || prev.round !== room.match?.round)) {
+      roundActed = false;
+    }
   }
   const wakeUps = humans(room)
     .map((p) => graceEnd(room, p))
     .filter((t): t is number => t !== null);
   if (phaseDeadline !== null) wakeUps.push(phaseDeadline);
   const deadline = wakeUps.length > 0 ? Math.min(...wakeUps) : null;
-  return { ...room, phaseDeadline, nextReady, deadline };
+  return { ...room, phaseDeadline, nextReady, roundActed, deadline };
 }
 
 /**
