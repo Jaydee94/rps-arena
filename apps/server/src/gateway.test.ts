@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { io as connect } from 'socket.io-client';
 import type { Socket as ClientSocket } from 'socket.io-client';
 import { CODE_ALPHABET, RECONNECT_GRACE_MS } from '@rps/shared';
-import type { RoomConfig, RoomJoined, RoomView } from '@rps/shared';
+import type { PlayerView as RoomView, RoomConfig, RoomJoined } from '@rps/shared';
 import { createGateway } from './gateway';
 import type { GatewayOptions } from './gateway';
 import { createIoServer } from './io';
