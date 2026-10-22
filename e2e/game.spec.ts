@@ -1,6 +1,9 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Page } from '@playwright/test';
+import type { RoomView } from '@rps/shared';
 import {
-  continueButton,
+  advanceRound,
+  captureReveal,
+  eventFrames,
   createRoom,
   gesture,
   joinRoom,
@@ -34,9 +37,9 @@ async function startDuel(a: Player, b: Player): Promise<string> {
   return code;
 }
 
-test('classic duel: two players play a best-of-3 to the result screen', async ({ browser }) => {
-  const a = await newPlayer(browser);
-  const b = await newPlayer(browser);
+async function playClassicDuel(browser: Browser, cpuThrottle?: number): Promise<void> {
+  const a = await newPlayer(browser, { cpuThrottle });
+  const b = await newPlayer(browser, { cpuThrottle });
 
   await startDuel(a, b);
   await expect(score(a.page)).toHaveText('0 : 0');
@@ -48,21 +51,19 @@ test('classic duel: two players play a best-of-3 to the result screen', async ({
     await gesture(a.page, 'Rock').click();
     await gesture(b.page, 'Scissors').click();
 
-    await expect(a.page.getByText('You win the round!')).toBeVisible();
-    await expect(b.page.getByText('You lose the round!')).toBeVisible();
-    await expect(score(a.page)).toHaveText(expected[0]);
-    await expect(score(b.page)).toHaveText(expected[1]);
-    await expect(region(a.page, 'You')).toContainText('Rock');
-    await expect(region(a.page, 'Opponent')).toContainText('Scissors');
-    await expect(region(b.page, 'You')).toContainText('Scissors');
-    await expect(region(b.page, 'Opponent')).toContainText('Rock');
+    // One atomic capture per player; the reveal is gone after 4 s, so nothing below polls the live page.
+    const [seenByA, seenByB] = await Promise.all([captureReveal(a.page), captureReveal(b.page)]);
+    expect(seenByA.status).toBe('You win the round!');
+    expect(seenByB.status).toBe('You lose the round!');
+    expect(seenByA.score).toBe(expected[0]);
+    expect(seenByB.score).toBe(expected[1]);
+    expect(seenByA.cards['You']).toMatchObject({ gestures: ['rock'], text: expect.stringContaining('Rock') });
+    expect(seenByA.cards['Opponent']).toMatchObject({ gestures: ['scissors'], text: expect.stringContaining('Scissors') });
+    expect(seenByB.cards['You']).toMatchObject({ gestures: ['scissors'], text: expect.stringContaining('Scissors') });
+    expect(seenByB.cards['Opponent']).toMatchObject({ gestures: ['rock'], text: expect.stringContaining('Rock') });
 
-    await continueButton(a.page).click();
-    await continueButton(b.page).click();
-    if (round === 1) {
-      await expect(a.page.getByText('Pick your gesture!')).toBeVisible();
-      await expect(b.page.getByText('Pick your gesture!')).toBeVisible();
-    }
+    // Both advance together: the next round starts once everybody pressed Continue (or after the reveal time).
+    await Promise.all([a, b].map((p) => advanceRound(p.page, { expect: round === 1 ? 'pick' : 'result' })));
   }
 
   await expect(a.page.getByRole('heading', { level: 2, name: 'You won the match!' })).toBeVisible();
@@ -72,6 +73,15 @@ test('classic duel: two players play a best-of-3 to the result screen', async ({
 
   await a.context.close();
   await b.context.close();
+}
+
+test('classic duel: two players play a best-of-3 to the result screen', async ({ browser }) => {
+  await playClassicDuel(browser);
+});
+
+// Slow clients (CDP CPU throttling, 6x) must not race the 4 s reveal.
+test('classic duel on throttled CPUs @throttled', async ({ browser }) => {
+  await playClassicDuel(browser, 6);
 });
 
 test('secrecy: a locked pick never reaches the opponent before the reveal', async ({ browser }) => {
@@ -87,16 +97,24 @@ test('secrecy: a locked pick never reaches the opponent before the reveal', asyn
   await expect(region(b.page, 'Opponent')).not.toContainText('Rock');
   await expect(region(b.page, 'Opponent').locator('[data-gesture]')).toHaveCount(0);
 
-  // And neither does the wire: the lock-in update has arrived, yet no frame mentions the gesture.
-  const locked = b.frames.filter((f) => f.event === 'room:state' && JSON.stringify(f.payload).includes('"lockedSeats":["a0"]'));
-  expect(locked.length).toBeGreaterThan(0);
-  expect(b.frames.length).toBeGreaterThan(0);
+  // And neither does the wire. The barrier: B has received the update that says A is locked in.
+  await expect
+    .poll(() =>
+      eventFrames(b.frames).some(
+        (f) => f.event === 'room:state' && (f.payload as RoomView).match?.lockedSeats.includes('a0') === true,
+      ),
+    )
+    .toBe(true);
+  // Every frame since page creation (all packet types) is in the raw list, not just the decoded events.
+  expect(b.frames.some((f) => f.raw.startsWith('0'))).toBe(true); // engine.io open packet
+  expect(b.frames.length).toBeGreaterThanOrEqual(eventFrames(b.frames).length);
+  expect(eventFrames(b.frames).length).toBeGreaterThan(0);
   for (const frame of b.frames) expect(frame.raw.toLowerCase()).not.toContain('rock');
 
   // After B has picked too, the reveal frames carry both gestures.
   await gesture(b.page, 'Scissors').click();
-  await expect(b.page.getByText('You lose the round!')).toBeVisible();
-  const reveal = b.frames.filter((f) => f.event === 'room:state' && f.raw.includes('"lastRound":{'));
+  expect((await captureReveal(b.page)).status).toBe('You lose the round!');
+  const reveal = eventFrames(b.frames).filter((f) => f.event === 'room:state' && f.raw.includes('"lastRound":{'));
   expect(reveal.length).toBeGreaterThan(0);
   const last = reveal[reveal.length - 1]!;
   expect(last.raw).toContain('"a0":"rock"');
@@ -135,8 +153,11 @@ test('wheel of 15: the board offers 15 gestures and picking works', async ({ bro
   await expect(pad.getByRole('radio')).toHaveCount(15);
 
   await pad.getByRole('radio').first().click();
-  await expect(continueButton(p.page)).toBeVisible();
-  await expect(p.page.getByText(/^(You win the round!|You lose the round!|It's a draw!)$/)).toBeVisible();
+  const reveal = await captureReveal(p.page);
+  expect(reveal.status).toMatch(/^(You win the round!|You lose the round!|It's a draw!)$/);
+  expect(reveal.cards['You']?.gestures).toHaveLength(1);
+  expect(reveal.cards['Opponent']?.gestures).toHaveLength(1);
+  await advanceRound(p.page, { expect: 'pick' });
 
   await p.context.close();
 });
@@ -184,8 +205,10 @@ test('reconnect: a reload puts the player back into the same room and seat', asy
   // Same seat: B's pick still decides the round against A's pick.
   await gesture(a.page, 'Rock').click();
   await gesture(b.page, 'Paper').click();
-  await expect(b.page.getByText('You win the round!')).toBeVisible();
-  await expect(a.page.getByText('You lose the round!')).toBeVisible();
+  const [seenByA, seenByB] = await Promise.all([captureReveal(a.page), captureReveal(b.page)]);
+  expect(seenByB.status).toBe('You win the round!');
+  expect(seenByA.status).toBe('You lose the round!');
+  await Promise.all([a, b].map((p) => advanceRound(p.page, { expect: 'pick' })));
 
   // The host can reload too and still sits across from B.
   await a.page.reload();
@@ -233,7 +256,7 @@ test('language switch keeps the typed input', async ({ browser }) => {
 });
 
 test('mobile viewport: no horizontal scroll, the board is usable', async ({ browser }) => {
-  const p = await newPlayer(browser, { width: 390, height: 844 });
+  const p = await newPlayer(browser, { viewport: { width: 390, height: 844 } });
   await openHome(p.page);
 
   const overflow = () => p.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -254,7 +277,8 @@ test('mobile viewport: no horizontal scroll, the board is usable', async ({ brow
   }
 
   await gesture(p.page, 'Paper').click();
-  await expect(continueButton(p.page)).toBeVisible();
+  expect((await captureReveal(p.page)).cards['You']?.gestures).toEqual(['paper']);
+  await advanceRound(p.page, { expect: 'pick' });
 
   await p.context.close();
 });
