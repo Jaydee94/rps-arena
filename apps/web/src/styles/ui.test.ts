@@ -36,7 +36,7 @@ describe('ui.css building blocks', () => {
   });
 
   it('gives a panel with a ribbon extra top padding and offers a sky ribbon', () => {
-    expect(rule('.panel:has(> .ribbon)')).toContain('padding-top: var(--space-6)');
+    expect(rule('.panel:has(> .ribbon)')).toContain('padding-top: calc(var(--space-6) + var(--space-2))');
     expect(rule('.ribbon--sky')).toContain('var(--sky)');
   });
 

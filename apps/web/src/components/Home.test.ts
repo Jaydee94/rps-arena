@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import Home from './Home.svelte';
 import { setLocale } from '../lib/i18n';
@@ -91,5 +91,67 @@ describe('Home', () => {
     const code = screen.getByLabelText('Raum-Code');
     expect(code).toHaveValue('AB3DE');
     expect(code).toHaveFocus();
+  });
+
+  describe('comic panel layout', () => {
+    it('shows the caption in the hero and keeps the title as the level 2 heading', () => {
+      render(Home);
+      expect(screen.getByText('Ohne Account. Link teilen, losspielen.')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 2, name: /Schere, Stein, Papier/ })).toBeInTheDocument();
+    });
+
+    it('orders the panels: who are you, new game, join with code', () => {
+      render(Home);
+      const who = screen.getByText('Wer bist du?');
+      const create = screen.getByText('Neues Spiel');
+      const join = screen.getByText('Mit Code beitreten');
+      expect(who.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(create.compareDocumentPosition(join) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('shows the short join label but keeps the full accessible name', () => {
+      render(Home);
+      expect(screen.getByRole('button', { name: 'Raum beitreten' })).toHaveTextContent('Rein!');
+    });
+
+    it('limits the code field to 5 characters and gives an example', () => {
+      render(Home);
+      const code = screen.getByLabelText('Raum-Code');
+      expect(code).toHaveAttribute('maxlength', '5');
+      expect(code).toHaveAttribute('placeholder', 'z. B. K7QXM');
+    });
+
+    it('keeps best-of a radio group of three', () => {
+      render(Home);
+      const group = screen.getByRole('group', { name: 'Spielformat' });
+      expect(within(group).getAllByRole('radio')).toHaveLength(3);
+      expect(screen.getByRole('radio', { name: 'Best of 5' })).toBeInTheDocument();
+    });
+
+    it('describes only the chosen mode and moves the description with the choice', async () => {
+      render(Home);
+      const radios = screen.getAllByRole('radio', { name: /Klassisch|Echse|Rad der|Bluff|Team 2/ });
+      expect(radios).toHaveLength(7);
+      const described = radios.filter((r) => r.hasAttribute('aria-describedby'));
+      expect(described).toHaveLength(1);
+      expect(described[0]).toBeChecked();
+      expect(described[0]).toHaveAccessibleDescription(/\S/);
+      await userEvent.setup().click(screen.getByRole('radio', { name: 'Bluff' }));
+      const after = screen.getAllByRole('radio', { name: /Klassisch|Echse|Rad der|Bluff|Team 2/ });
+      expect(after.filter((r) => r.hasAttribute('aria-describedby'))).toStrictEqual([
+        screen.getByRole('radio', { name: 'Bluff' }),
+      ]);
+    });
+
+    it('offers 8 avatars', () => {
+      render(Home);
+      const group = screen.getByRole('group', { name: 'Dein Avatar' });
+      expect(within(group).getAllByRole('radio')).toHaveLength(8);
+    });
+
+    it('keeps the bot option a checkbox', () => {
+      render(Home);
+      expect(screen.getByRole('checkbox', { name: 'Gegen Bot spielen' })).toBeInTheDocument();
+    });
   });
 });

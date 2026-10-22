@@ -17,9 +17,9 @@
   box-shadow: var(--shadow-panel);
 }
 
-/* Room for the hanging ribbon. */
+/* Room for the hanging ribbon: it reaches about 27px into the panel (tilt and shadow included). */
 .panel:has(> .ribbon) {
-  padding-top: var(--space-6);
+  padding-top: calc(var(--space-6) + var(--space-2));
 }
 
 /* A yellow caption box hung on the top left corner of a panel, out of the flow. */
@@ -222,9 +222,16 @@ fieldset.group > legend {
   color: var(--white);
 }
 
-/* Not only color: the chosen segment also gets a check mark. */
+/* Not only color: the chosen segment also gets a check mark. It is positioned out of the flow,
+   so choosing never changes the width of the group. */
 .segmented .segment:has(input:checked)::after {
   content: '✓';
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  font-size: 0.7em;
+  line-height: 1;
+  translate: 0 -50%;
 }
 
 .segmented .segment:has(input:focus-visible) {

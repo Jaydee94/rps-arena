@@ -7,6 +7,7 @@
   /* ---- Screen transitions: each screen pops in from below ---- */
   .screen {
     animation: screen-in var(--dur) var(--ease-pop) both;
+    animation-delay: calc(var(--i, 0) * 110ms);
   }
 
   @keyframes screen-in {
@@ -278,6 +279,62 @@
    */
 
   /* ==== START screen (wordmark, hero, avatar badge, CTA) ==== */
+
+  /* Start screen panels pop in one after the other. */
+  .home > .panel {
+    animation: screen-in var(--dur) var(--ease-pop) both;
+    animation-delay: calc(var(--i, 0) * 110ms);
+  }
+
+  .wm-rps {
+    animation: wm-drop 620ms var(--ease-pop) 150ms backwards;
+  }
+
+  .wm-arena {
+    animation: wm-swing 700ms var(--ease-pop) 380ms backwards;
+  }
+
+  .hero-caption {
+    animation: caption-slide 520ms var(--ease-pop) 650ms backwards;
+  }
+
+  /* Pop in, then bob forever. The tilt sits on the wrapper, so these only touch scale and translate. */
+  .hero-sticker {
+    animation:
+      sticker-pop 480ms var(--ease-pop) calc(var(--i, 0) * 200ms) backwards,
+      bob 2.4s ease-in-out calc(var(--i, 0) * 200ms + 480ms) infinite;
+  }
+
+  .hero-bubble {
+    animation:
+      bubble-pop 560ms var(--ease-pop) 700ms backwards,
+      breathe 3.2s ease-in-out 1260ms infinite;
+  }
+
+  .home > .hero {
+    animation:
+      screen-in var(--dur) var(--ease-pop) both,
+      dots-drift 5s linear infinite;
+  }
+
+  .check-badge {
+    animation: zack 380ms var(--ease-pop) backwards;
+  }
+
+  .cta:not(:disabled) {
+    animation: cta-wiggle 3s ease-in-out 2s 5;
+  }
+
+  @keyframes wm-drop { 0% { translate: 0 -140%; rotate: -25deg; opacity: 0 } 60% { translate: 0 8%; rotate: 4deg; opacity: 1 } }
+  @keyframes wm-swing { 0% { translate: 160% 0; rotate: 30deg; opacity: 0 } 65% { translate: -6% 0; rotate: -4deg; opacity: 1 } }
+  @keyframes caption-slide { from { translate: -115% 0 } }
+  @keyframes sticker-pop { 0% { scale: 0; opacity: 0 } 70% { scale: 1.08; opacity: 1 } }
+  @keyframes bob { 50% { translate: 0 -8px } }
+  @keyframes bubble-pop { 0% { scale: 0; opacity: 0 } 70% { scale: 1.06; opacity: 1 } }
+  @keyframes breathe { 50% { scale: 1.03 } }
+  @keyframes dots-drift { to { background-position: 32px 32px } }
+  @keyframes zack { 0% { scale: 0; rotate: 40deg } 70% { scale: 1.2; rotate: -8deg } 100% { scale: 1; rotate: -6deg } }
+  @keyframes cta-wiggle { 0%, 84%, 100% { rotate: 0deg } 88% { rotate: -3deg } 92% { rotate: 3deg } 96% { rotate: -2deg } }
 
   /* ==== PICK screen (tiles, timer, think bubble, VS star) ==== */
 
