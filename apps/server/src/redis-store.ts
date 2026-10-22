@@ -22,6 +22,15 @@ end
 return 0`;
 
 /**
+ * Unconditional, atomic removal of the room and its index entry. A script (not MULTI/EXEC) so it
+ * can never abort and, unlike EXEC, never touches the connection's WATCH state.
+ */
+const DELETE_SCRIPT = `
+redis.call('DEL', KEYS[1])
+redis.call('ZREM', KEYS[2], ARGV[1])
+return 1`;
+
+/**
  * Due codes whose room key is gone (expired or deleted elsewhere) are removed from the index
  * inside the same script, so a concurrent create of the same code cannot lose its entry.
  * (Assumes a single Redis, not Cluster: room keys are derived from ARGV.)
@@ -40,7 +49,8 @@ return due`;
 /**
  * `WATCH` state belongs to the connection, not to a call. Two `update` loops interleaving on one
  * ioredis connection would share (and `UNWATCH`/`EXEC` away) each other's watches, which silently
- * breaks the optimistic lock. So all `update` loops on one connection run one after another,
+ * breaks the optimistic lock. So all `update` loops (and `delete`, which must not land between a
+ * running update's WATCH and EXEC) on one connection run one after another,
  * tracked per connection (not per store) so two stores sharing a connection stay safe too.
  * Other processes and other connections are covered by WATCH/MULTI/EXEC itself.
  */
@@ -150,8 +160,14 @@ export class RedisRoomStore implements RoomStore {
     );
   }
 
-  async delete(code: string): Promise<void> {
-    await this.redis.multi().del(this.roomKey(code)).zrem(this.deadlineKey, code).exec();
+  /**
+   * Queued behind running `update` loops on the same connection: it must not interleave with a
+   * WATCH..EXEC there, or the update would commit unwatched and resurrect the deleted room.
+   */
+  delete(code: string): Promise<void> {
+    return runExclusive(this.redis, async () => {
+      await this.redis.eval(DELETE_SCRIPT, 2, this.roomKey(code), this.deadlineKey, code);
+    });
   }
 
   async dueRooms(now: number): Promise<string[]> {

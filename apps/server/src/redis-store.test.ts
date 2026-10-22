@@ -174,6 +174,77 @@ describe.skipIf(!REDIS_URL)('RedisRoomStore', () => {
       expect(MAX_UPDATE_ATTEMPTS).toBeGreaterThanOrEqual(10);
     });
 
+    describe('delete racing an update on one connection', () => {
+      /**
+       * Makes the first `redis.get` of the connection (the update's read, issued while its WATCH
+       * is held) pause until `release()` is called. `reached` resolves once the update is parked
+       * there. With `dirtyWith`, a foreign connection also writes the watched key at that point.
+       */
+      const parkFirstGet = (redis: Redis, dirtyWith?: { rival: Redis; json: string }) => {
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => (release = resolve));
+        let reached!: () => void;
+        const parked = new Promise<void>((resolve) => (reached = resolve));
+        const realGet = redis.get.bind(redis) as (key: string) => Promise<string | null>;
+        let first = true;
+        Object.assign(redis, {
+          get: async (key: string) => {
+            const value = await realGet(key);
+            if (!first) return value;
+            first = false;
+            if (dirtyWith) await dirtyWith.rival.set(key, dirtyWith.json);
+            reached();
+            await gate;
+            return value;
+          },
+        });
+        return { release, parked };
+      };
+
+      const expectGone = async (store: RedisRoomStore, redis: Redis, prefix: string) => {
+        expect(await store.get('AAAA')).toBeNull();
+        expect(await redis.exists(`${prefix}room:AAAA`)).toBe(0);
+        expect(await redis.zscore(`${prefix}deadlines`, 'AAAA')).toBeNull();
+      };
+
+      it('a delete issued while an update holds its WATCH stays deleted', async () => {
+        const redis = connect();
+        const prefix = nextPrefix();
+        const store = new RedisRoomStore(redis, { keyPrefix: prefix });
+        await store.create(makeRoom('AAAA', 10));
+        const { release, parked } = parkFirstGet(redis);
+
+        const updating = store.update('AAAA', (r) => ({ ...r, deadline: 20 }));
+        await parked;
+        const deleting = store.delete('AAAA');
+        await sleep(50); // an unserialized delete would run (and clear the watch) right now
+        release();
+        await Promise.all([updating, deleting]);
+
+        await expectGone(store, redis, prefix);
+      });
+
+      it('a delete still deletes when a foreign write dirties the key the update watches', async () => {
+        const redis = connect();
+        const prefix = nextPrefix();
+        const store = new RedisRoomStore(redis, { keyPrefix: prefix });
+        await store.create(makeRoom('AAAA', 10));
+        const { release, parked } = parkFirstGet(redis, {
+          rival: connect(),
+          json: JSON.stringify(makeRoom('AAAA', 10)),
+        });
+
+        const updating = store.update('AAAA', (r) => ({ ...r, deadline: 20 }));
+        await parked;
+        const deleting = store.delete('AAAA');
+        await sleep(50);
+        release();
+        await Promise.all([updating, deleting]);
+
+        await expectGone(store, redis, prefix);
+      });
+    });
+
     it('dueRooms removes ghost entries whose room key is gone', async () => {
       const redis = connect();
       const prefix = nextPrefix();
