@@ -1180,3 +1180,53 @@ describe('(h) idempotent ticks and untouched duel rooms', () => {
     expect(room.deadline).toBeNull();
   });
 });
+
+describe('knockout byes and tie-breaks through the engine', () => {
+  it.each([6, 7])('never projects a bye participant of a %i-player knockout in round 1', (n) => {
+    let room = started(n);
+    const state = tour(room).state!;
+    const byes = state.pairings.filter((p) => p.round === 1 && (p.a === null || p.b === null));
+    expect(byes).toHaveLength(8 - n);
+    const byeIds = byes.map((p) => p.a ?? p.b);
+    room = skipTournamentWait(room, hostOf(room), T0 + 1, fixed(0.3));
+    const round1: string[][] = [];
+    let now = T0 + 2;
+    while (tour(room).phase !== 'finished') {
+      if (currentPairing(room).round === 1) round1.push([participantId(room, 'a0'), participantId(room, 'b0')]);
+      room = playMatch(room, now);
+      now += 1_000;
+      if (tour(room).phase === 'intermission') room = skipTournamentWait(room, hostOf(room), now, fixed(0.3));
+    }
+    expect(round1).toHaveLength((n - (8 - n)) / 2);
+    for (const ids of round1) for (const id of byeIds) expect(ids).not.toContain(id);
+  });
+
+  it('a real round-robin tie-break plays best of 1 while the room stays best of 3', () => {
+    let room = started(4, 'roundrobin');
+    const [A, B, C, D] = tour(room).participants.map((p) => p.id);
+    // A beats B, B beats C, C beats A, everyone beats D; in the tie-break A wins
+    const beats: Record<string, string[]> = { [A!]: [B!, D!], [B!]: [C!, D!], [C!]: [A!, D!], [D!]: [] };
+    const winnerSeat = (r: Room): 'a0' | 'b0' => {
+      const p = currentPairing(r);
+      if (p.tiebreak) return p.a === A ? 'a0' : p.b === A ? 'b0' : 'a0';
+      return beats[p.a!]!.includes(p.b!) ? 'a0' : 'b0';
+    };
+    room = skipTournamentWait(room, hostOf(room), T0 + 1, fixed(0.3));
+    let now = T0 + 2;
+    let tiebreaks = 0;
+    while (tour(room).phase !== 'finished') {
+      if (currentPairing(room).tiebreak) {
+        tiebreaks++;
+        expect(room.match!.config.bestOf).toBe(1);
+        expect(room.config.bestOf).toBe(3);
+      } else {
+        expect(room.match!.config.bestOf).toBe(3);
+      }
+      room = playMatch(room, now, winnerSeat(room));
+      now += 1_000;
+      if (tour(room).phase === 'intermission') room = skipTournamentWait(room, hostOf(room), now, fixed(0.3));
+    }
+    expect(tiebreaks).toBeGreaterThan(0);
+    expect(podiumOf(room)[0]).toEqual({ rank: 1, ids: [A] });
+  });
+});
