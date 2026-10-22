@@ -11,3 +11,16 @@ export function shouldCountDown(prev: RoomView | null, next: RoomView | null): b
   if (!before || !after) return false;
   return before.phase !== 'reveal' && after.phase === 'reveal' && !prefersReducedMotion() && countdownMs() > 0;
 }
+
+const endListeners = new Set<() => void>();
+
+/** Subscribes to the end of the reveal countdown (natural or skipped). Returns the unsubscribe. */
+export function onCountdownEnded(listener: () => void): () => void {
+  endListeners.add(listener);
+  return () => endListeners.delete(listener);
+}
+
+/** Signals that the reveal countdown on screen has ended, whether by its last beat or a skip. */
+export function emitCountdownEnded(): void {
+  for (const listener of [...endListeners]) listener();
+}

@@ -109,6 +109,10 @@
   "board.duel_draw": "Duell unentschieden",
   "board.rule": "{winner} schlägt {loser}",
 
+  "rules.title": "Regeln",
+  "rules.beats": "{gesture} schlägt {list}",
+  "rules.hint": "schlägt: {list}",
+
   "countdown.1": "SCHNICK!",
   "countdown.2": "SCHNACK!",
   "countdown.3": "SCHNUCK!",

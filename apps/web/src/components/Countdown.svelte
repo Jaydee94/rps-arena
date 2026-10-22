@@ -13,6 +13,9 @@
   let beat = $state(0);
   const WORDS = [1, 2, 3] as const;
 
+  // Keys that do not skip: moving focus and modifiers pressed on their own.
+  const NON_SKIP_KEYS = new Set(['Tab', 'Shift', 'Control', 'Alt', 'AltGraph', 'Meta', 'CapsLock']);
+
   onMount(() => {
     let finished = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -20,8 +23,13 @@
     const stop = () => {
       clearTimeout(timer);
       window.removeEventListener('pointerdown', finish);
-      window.removeEventListener('keydown', finish);
+      window.removeEventListener('keydown', onKey);
     };
+    // A held key's auto-repeat, Tab and lone modifiers do not count as a skip.
+    function onKey(event: KeyboardEvent) {
+      if (event.repeat || NON_SKIP_KEYS.has(event.key)) return;
+      finish();
+    }
     // Whatever ends the countdown first (last beat, tap, key, switched off) wins; onDone runs once.
     function finish() {
       if (finished) return;
@@ -37,7 +45,7 @@
     }
 
     window.addEventListener('pointerdown', finish);
-    window.addEventListener('keydown', finish);
+    window.addEventListener('keydown', onKey);
     const tick = () => {
       if (beat < COUNTDOWN_BEATS - 1) {
         beat += 1;

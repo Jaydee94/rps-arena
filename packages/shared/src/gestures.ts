@@ -93,3 +93,16 @@ export function duel(set: GestureSet, a: string, b: string): 'a' | 'b' | 'draw' 
   if (distance === 0) return 'draw';
   return distance <= (n - 1) / 2 ? 'a' : 'b';
 }
+
+/**
+ * The gestures `gesture` beats, in circle order: the next (n-1)/2 gestures, wrapping around.
+ * Same rule as `duel`. Throws on a gesture outside the set.
+ */
+export function gestureBeats(set: Pick<GestureSet, 'gestures'> & { id?: string }, gesture: string): string[] {
+  const n = set.gestures.length;
+  const i = set.gestures.indexOf(gesture);
+  if (i < 0) throw new Error(`Unknown gesture "${gesture}" for set ${set.id ?? 'custom'}`);
+  const beaten: string[] = [];
+  for (let step = 1; step <= (n - 1) / 2; step++) beaten.push(set.gestures[(i + step) % n] as string);
+  return beaten;
+}

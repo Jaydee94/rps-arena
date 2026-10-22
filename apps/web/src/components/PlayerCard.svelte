@@ -58,6 +58,14 @@
     justify-items: start;
   }
 
+  /*
+   * In 2v2 the duel result chip hangs top right (--chip-w is set by the duel panel in RevealPanel): the own
+   * side stops short of it, so a long name wraps inside the tag instead of running under the chip.
+   */
+  .mine.compact {
+    max-width: calc(100% - 2 * var(--space-4) - var(--chip-w, 0px) - var(--space-2));
+  }
+
   .theirs {
     right: var(--space-4);
     bottom: var(--space-4);
@@ -98,7 +106,7 @@
     rotate: -10deg;
   }
 
-  /* Gespiegelt: the opponent's hand points back at the own one. */
+  /* Mirrored: the opponent's hand points back at the own one. */
   .theirs .tilt {
     rotate: 14deg;
     scale: -1 1;

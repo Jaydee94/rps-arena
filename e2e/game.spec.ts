@@ -162,6 +162,73 @@ test('wheel of 15: the board offers 15 gestures and picking works', async ({ bro
   await p.context.close();
 });
 
+/** Bot room (Easy) with one player who sees the reveal countdown; resolves once the pad is up. */
+async function startBotRoomWithMotion(browser: Browser): Promise<Player> {
+  const p = await newPlayer(browser, { reducedMotion: 'no-preference' });
+  await openHome(p.page);
+  await createRoom(p.page, { nickname: 'Ann', bot: 'Easy' });
+  await expect(p.page.getByText('Pick your gesture!')).toBeVisible();
+  await expect(score(p.page)).toHaveText('0 : 0');
+  return p;
+}
+
+// The config runs everything else with reduced motion; this one opts back in.
+test('reveal countdown: with motion the reveal appears after the countdown', async ({ browser }) => {
+  const p = await startBotRoomWithMotion(browser);
+  const countdown = p.page.getByTestId('countdown');
+
+  await gesture(p.page, 'Rock').click();
+  // The duels are not there yet, and the new score is not given away before the clash. Read in one
+  // step: the countdown is short, so this must not be separate polls. A missed countdown fails here, clearly.
+  const during = await p.page.waitForFunction(
+    () =>
+      document.querySelector('[data-testid="countdown"]')
+        ? {
+            duels: document.querySelectorAll('[data-testid="duel"]').length,
+            score: (document.querySelector('[role="group"][aria-label="Score"]')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+          }
+        : null,
+    undefined,
+    { timeout: 5_000 },
+  );
+  const seen = (await during.jsonValue()) as { duels: number; score: string };
+  expect(seen.duels).toBe(0);
+  // The Scoreboard holds back the new score until the clash.
+  expect(seen.score).toBe('0 : 0');
+
+  const reveal = await captureReveal(p.page);
+  expect(reveal.status).toMatch(/^(You win the round!|You lose the round!|It's a draw!)$/);
+  await expect(countdown).toHaveCount(0);
+  // A decided round counts after the clash; a draw leaves the score where it was.
+  expect(reveal.score).toBe(reveal.status === 'You win the round!' ? '1 : 0' : reveal.status === 'You lose the round!' ? '0 : 1' : '0 : 0');
+
+  await p.context.close();
+});
+
+test('reveal countdown: a key press skips it', async ({ browser }) => {
+  const p = await startBotRoomWithMotion(browser);
+  const countdown = p.page.getByTestId('countdown');
+
+  await gesture(p.page, 'Rock').click();
+  // Find the countdown and press the key in one step in the page, so no slow poll can miss the window.
+  await p.page.waitForFunction(
+    () => {
+      if (!document.querySelector('[data-testid="countdown"]')) return false;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      return true;
+    },
+    undefined,
+    { timeout: 5_000 },
+  );
+
+  // Far less than the countdown lasts (three beats), so this is the skip, not the countdown running out.
+  await expect(countdown).toHaveCount(0, { timeout: 500 });
+  await expect(p.page.getByTestId('duel')).toBeVisible();
+  expect((await captureReveal(p.page)).status).toMatch(/^(You win the round!|You lose the round!|It's a draw!)$/);
+
+  await p.context.close();
+});
+
 test('errors: unknown code and full room are reported, the app stays usable', async ({ browser }) => {
   const a = await newPlayer(browser);
   await openHome(a.page);

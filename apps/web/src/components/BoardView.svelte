@@ -2,7 +2,7 @@
   import { gestureSetFor, type PublicMatch, type PlayerView, type SeatId } from '@rps/shared';
   import { announce, next, pick } from '../lib/connection';
   import { duelViews, outcomeFor, type DuelView, type Side } from '../lib/board';
-  import { shouldCountDown } from '../lib/countdown';
+  import { emitCountdownEnded, shouldCountDown } from '../lib/countdown';
   import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
   import { opponentSeat, teamOf } from '../lib/seats';
@@ -11,6 +11,7 @@
   import Countdown from './Countdown.svelte';
   import GesturePad from './GesturePad.svelte';
   import RevealPanel from './RevealPanel.svelte';
+  import RulesPanel from './RulesPanel.svelte';
   import Scoreboard from './Scoreboard.svelte';
   import SpectatorBadge from './SpectatorBadge.svelte';
   import ThinkBubble from './ThinkBubble.svelte';
@@ -60,10 +61,12 @@
     }
     prevRoom = current;
   });
-  // May run while the Countdown is still mounting (beat 0 calls it at once); only flips state.
+  // May run while the Countdown is still mounting (beat 0 calls it at once); flips state and
+  // releases the reveal sounds that wait for the countdown (lib/sfx-bridge.ts).
   const endCountdown = () => {
     countingDown = false;
     heldScore = null;
+    emitCountdownEnded();
   };
   const shownScore = $derived(countingDown && heldScore ? heldScore : match.score);
   const revealing = $derived(match.phase === 'reveal' && !countingDown);
@@ -166,6 +169,7 @@
     {:else}
       <GesturePad gestures={gestureSetFor(room.config.mode).gestures} {picked} {onpick} />
     {/if}
+    <RulesPanel mode={room.config.mode} />
   {/if}
   {#if ['classic', 'team2v2'].includes(room.config.mode) && gestureSetFor(room.config.mode).id === 'classic'}<CameraToggle gestures={gestureSetFor(room.config.mode).gestures} {onpick} disabled={picked !== null || match.phase !== 'pick'} />{/if}
   <SpectatorBadge spectators={room.spectators} />
