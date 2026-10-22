@@ -214,7 +214,7 @@ test('reveal countdown: a key press skips it', async ({ browser }) => {
   await p.page.waitForFunction(
     () => {
       if (!document.querySelector('[data-testid="countdown"]')) return false;
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift' }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
       return true;
     },
     undefined,
