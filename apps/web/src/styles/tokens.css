@@ -55,6 +55,16 @@
   --shadow-lg: 10px 10px 0 var(--cast);
   --print-slip: 3px 3px 0 var(--pink); /* misregistered second ink under display type */
 
+  /* Panels: squarer than cards, like drawn comic frames */
+  --radius-panel: 6px;
+  --shadow-panel: 6px 6px 0 var(--cast);
+  --gutter: var(--space-5); /* gap between panels */
+
+  /* Halftone grids */
+  --dot-panel: rgb(255 79 163 / 55%); /* big pink dots in the hero panel */
+  --dot-panel-size: 16px;
+  --dot-on-tile: rgb(255 255 255 / 38%); /* light dots on coloured gesture tiles */
+
   /* Comic tilt applied to stickers and cards */
   --tilt-1: -1.5deg;
   --tilt-2: 1.2deg;
@@ -87,6 +97,9 @@
   --dur-fast: 140ms;
   --dur: 280ms;
   --dur-slow: 600ms;
+  --dur-beat: 420ms; /* one beat of the countdown */
+  --dur-slam: 520ms;
+  --impact-at: 440ms; /* moment of impact after the reveal starts */
 
   /* Layers */
   --z-base: 0;
@@ -106,6 +119,7 @@
     --surface: #2c2a4a;
     --dot: rgb(244 239 226 / 8%);
     --dot-big: rgb(255 79 163 / 22%);
+    --dot-panel: rgb(255 111 181 / 40%);
 
     --red: #ff5a4f;
     --blue: #4d8dff;
