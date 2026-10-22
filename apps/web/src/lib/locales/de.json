@@ -142,6 +142,8 @@
   "audio.mute": "Ton aus",
   "audio.unmute": "Ton an",
   "audio.music": "Musik",
+  "audio.on": "An",
+  "audio.off": "Aus",
   "audio.effects": "Effekte",
 
   "camera.title": "Gestensteuerung per Kamera",
