@@ -42,16 +42,15 @@
     rotate: 0deg;
   }
 
+  /* Tiles keep their lean (set on the button); they lift on hover and squash on press. */
   .gesture:hover:not(:disabled) {
-    translate: 0 -4px;
-    rotate: -3deg;
-    scale: 1.06;
+    translate: 0 -5px;
+    scale: 1.04;
   }
 
   .gesture:active:not(:disabled) {
-    translate: 3px 3px;
-    rotate: 0deg;
-    scale: 1.1 0.86;
+    translate: 0 2px;
+    scale: 1.08 0.86;
   }
 
   /* ---- Locked-in stamp: the chosen gesture slams down onto the pad ---- */
@@ -228,7 +227,7 @@
     }
   }
 
-  /* ---- Timer: the bar shifts color in the last seconds and pulses at the end ---- */
+  /* ---- Timer: the bar shifts color in the last seconds and pulses at the end; the track shakes (PICK section) ---- */
   .timer .bar {
     transition:
       width 250ms linear,
@@ -280,6 +279,101 @@
   /* ==== START screen (wordmark, hero, avatar badge, CTA) ==== */
 
   /* ==== PICK screen (tiles, timer, think bubble, VS star) ==== */
+
+  /* Resting tiles bob, each one a third of a cycle behind the last. The inner element moves; the button keeps tilt and hover. */
+  .tile-art {
+    animation: tile-bob 2.4s ease-in-out infinite;
+    animation-delay: calc(var(--i) * -0.8s);
+  }
+
+  .gesture:disabled .tile-art {
+    animation: none;
+  }
+
+  /* Timer: stripes run along the bar, the whole track shakes in the last seconds. */
+  .timer .bar::after {
+    animation: timer-stripes 600ms linear infinite;
+  }
+
+  .timer .track.urgent {
+    animation: track-shake 300ms linear infinite;
+  }
+
+  /* Opponent thinking: the two tail circles blink one after the other. */
+  .think-dot {
+    animation: think-dots 1s ease-in-out infinite;
+  }
+
+  .think-dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .vs-star {
+    animation: vs-pulse 1.4s ease-in-out infinite;
+  }
+
+  .zack-star {
+    animation: zack 420ms var(--ease-pop) both;
+  }
+
+  @keyframes tile-bob {
+    0%,
+    100% {
+      translate: 0 -2px;
+    }
+    50% {
+      translate: 0 -10px;
+    }
+  }
+
+  @keyframes timer-stripes {
+    to {
+      background-position: 22.63px 0;
+    }
+  }
+
+  @keyframes track-shake {
+    25% {
+      translate: 1.5px 0;
+    }
+    75% {
+      translate: -1.5px 0;
+    }
+  }
+
+  @keyframes think-dots {
+    0%,
+    100% {
+      opacity: 0.3;
+      translate: 0 0;
+    }
+    50% {
+      opacity: 1;
+      translate: 0 -4px;
+    }
+  }
+
+  @keyframes vs-pulse {
+    50% {
+      scale: 1.15;
+      rotate: 12deg;
+    }
+  }
+
+  @keyframes zack {
+    0% {
+      scale: 0;
+      rotate: 40deg;
+    }
+    70% {
+      scale: 1.2;
+      rotate: -8deg;
+    }
+    100% {
+      scale: 1;
+      rotate: -6deg;
+    }
+  }
 
   /* ==== COUNTDOWN ==== */
 
