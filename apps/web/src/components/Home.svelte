@@ -63,7 +63,7 @@
   }
 </script>
 
-<div class="home">
+<main class="home">
   <section class="panel hero" style:--i="0">
     <p class="hero-caption">{t('home.caption')}</p>
     <div class="stickers" aria-hidden="true">
@@ -126,11 +126,12 @@
       </button>
     </div>
   </form>
-</div>
+</main>
 
 <style>
   .home {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--gutter);
     max-width: 48rem;
     margin: 0 auto;
@@ -144,10 +145,14 @@
   /* ---- Hero panel: blue ground with big pink halftone dots ---- */
   .hero {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-items: end;
+    gap: var(--space-5);
     min-height: 15.75rem;
     /* Room at the top for the caption box. */
     padding: 5rem var(--space-4) var(--space-4);
+    /* The sticker row and the bubble need about 27rem side by side; below that they stack (see @container). */
+    container: hero / inline-size;
     background-color: var(--blue);
     background-image: radial-gradient(circle at center, var(--dot-panel) 30%, transparent 33%);
     background-size: var(--dot-panel-size) var(--dot-panel-size);
@@ -155,8 +160,23 @@
 
   /* The caption is absolutely positioned against the panel's padding box, so it stays out of the grid area. */
   .hero > :not(.hero-caption) {
-    grid-area: 1 / 1;
     min-width: 0;
+  }
+
+  /* Narrow: the speech bubble sits above the stickers (its tail points down at them), never over them. */
+  .hero-bubble {
+    grid-row: 1;
+  }
+
+  .stickers {
+    grid-row: 2;
+  }
+
+  /* Wide enough for 3 stickers of 86px (238px with the overlap) beside the 170px bubble. */
+  @container hero (width >= 27rem) {
+    .hero > :not(.hero-caption) {
+      grid-area: 1 / 1;
+    }
   }
 
   /* Yellow caption box that sticks out over the panel edge. */
@@ -255,11 +275,22 @@
     font-weight: 700;
   }
 
+  /* The panel is the container: when the field is too narrow for the example code, the button drops below it. */
+  .join {
+    container: join / inline-size;
+  }
+
   .join-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
+  }
+
+  @container join (width >= 18rem) {
+    .join-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+    }
   }
 
   .join-row .field {
@@ -273,6 +304,11 @@
     font-size: 1.25rem;
     font-weight: 700;
     letter-spacing: 0.3em;
+  }
+
+  /* The example code is a hint, not a 5-character code: no wide tracking, so it is not cut off. */
+  .field input.code::placeholder {
+    letter-spacing: 0.05em;
   }
 
   .join-row .btn {
