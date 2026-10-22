@@ -77,7 +77,7 @@ interface Run {
 }
 
 let counter = 0;
-function run(args: string[], env: { image?: string; chart?: string } = {}): Run {
+function run(args: string[], env: { image?: string; chart?: string; assumeMissing?: string } = {}): Run {
   const log = join(sandbox, `calls-${counter++}.log`);
   writeFileSync(log, '');
   const result = spawnSync('bash', [script, ...args], {
@@ -89,6 +89,7 @@ function run(args: string[], env: { image?: string; chart?: string } = {}): Run 
       FAKE_LOG: log,
       FAKE_IMAGE: env.image ?? 'missing',
       FAKE_CHART: env.chart ?? 'missing',
+      ...(env.assumeMissing === undefined ? {} : { PUBLISH_ASSUME_MISSING: env.assumeMissing }),
     },
   });
   return {
@@ -187,6 +188,78 @@ describe('publish.sh --dry-run', () => {
 
   it('accepts the flag before the version', () => {
     expect(run(['--dry-run', '1.0.0']).status).toBe(0);
+  });
+});
+
+const DENIED = 'response status code 403: denied: requested access to the resource is denied';
+
+describe('publish.sh --assume-missing (first publish; GHCR answers 403 for packages that do not exist yet)', () => {
+  it('aborts on an authorization answer without the flag, building and pushing nothing', () => {
+    for (const env of [{ image: DENIED }, { image: 'exists', chart: DENIED }]) {
+      const r = run(['1.0.0'], env);
+      expect(r.status).toBe(3);
+      expect(called(r, 'buildx build')).toHaveLength(0);
+      expect(called(r, 'helm push')).toHaveLength(0);
+    }
+  });
+
+  it.each([
+    ['the flag', ['1.0.0', '--assume-missing'], undefined],
+    ['the env variable', ['1.0.0'], '1'],
+  ])('treats an image authorization answer as missing with %s, and warns', (_name, args, assumeMissing) => {
+    const r = run(args, { image: DENIED, chart: 'exists', ...(assumeMissing ? { assumeMissing } : {}) });
+    expect(r.status).toBe(0);
+    expect(r.output).toContain(`WARNING: assuming image ${IMAGE}:1.0.0 does not exist (authorization answer`);
+    expect(called(r, 'buildx build')).toHaveLength(1);
+    expect(called(r, 'buildx build')[0]).toContain('--push');
+  });
+
+  it('treats a chart authorization answer as missing with the flag, and warns', () => {
+    const r = run(['1.0.0', '--assume-missing'], { image: 'exists', chart: '401 Unauthorized' });
+    expect(r.status).toBe(0);
+    expect(r.output).toContain('WARNING: assuming chart oci://ghcr.io/jaydee94/charts/rps-arena:1.0.0 does not exist (authorization answer');
+    expect(called(r, 'helm push')).toHaveLength(1);
+  });
+
+  it('handles both at once on a first publish', () => {
+    const r = run(['1.0.0', '--assume-missing'], { image: DENIED, chart: DENIED });
+    expect(r.status).toBe(0);
+    expect(called(r, 'buildx build')).toHaveLength(1);
+    expect(called(r, 'helm push')).toHaveLength(1);
+  });
+
+  it.each(['dial tcp: connection refused', 'context deadline exceeded', 'response status code 503: Service Unavailable'])(
+    'still aborts on %j even with the flag',
+    (message) => {
+      const image = run(['1.0.0', '--assume-missing'], { image: message });
+      expect(image.status).toBe(3);
+      expect(called(image, 'buildx build')).toHaveLength(0);
+      const chart = run(['1.0.0', '--assume-missing'], { image: 'exists', chart: message });
+      expect(chart.status).toBe(3);
+      expect(called(chart, 'helm push')).toHaveLength(0);
+    },
+  );
+
+  it('changes nothing for exists and not-found answers (no warning)', () => {
+    const exists = run(['1.0.0', '--assume-missing'], { image: 'exists', chart: 'exists' });
+    expect(exists.status).toBe(0);
+    expect(called(exists, 'buildx build')).toHaveLength(0);
+    expect(called(exists, 'helm push')).toHaveLength(0);
+    expect(exists.output).not.toContain('WARNING');
+    const missing = run(['1.0.0', '--assume-missing'], { image: 'missing', chart: 'missing' });
+    expect(missing.status).toBe(0);
+    expect(called(missing, 'buildx build')).toHaveLength(1);
+    expect(called(missing, 'helm push')).toHaveLength(1);
+    expect(missing.output).not.toContain('WARNING');
+  });
+
+  it('has no effect in a dry run: the registry is not contacted', () => {
+    const r = run(['0.0.0-test', '--dry-run', '--assume-missing'], { image: DENIED, chart: DENIED, assumeMissing: '1' });
+    expect(r.status).toBe(0);
+    expect(called(r, 'imagetools')).toHaveLength(0);
+    expect(called(r, 'oci://')).toHaveLength(0);
+    expect(called(r, 'helm push')).toHaveLength(0);
+    expect(r.output).not.toContain('WARNING');
   });
 });
 

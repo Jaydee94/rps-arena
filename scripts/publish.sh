@@ -2,11 +2,13 @@
 # Publishes one release: the multi-arch container image and the Helm chart (both to GHCR).
 # Called by semantic-release (@semantic-release/exec publishCmd) with the next version.
 #
-#   scripts/publish.sh <version> [--dry-run]
+#   scripts/publish.sh <version> [--dry-run] [--assume-missing]
 #
 #   <version>   semver without a leading "v", e.g. 1.2.3 or 1.3.0-rc.1 (no build metadata)
 #   --dry-run   build the image for the host platform only (--load, nothing is pushed) and
 #               package the chart into a temporary directory; nothing leaves the machine.
+#               The registry is not contacted at all.
+#   --assume-missing  (or env PUBLISH_ASSUME_MISSING=1) first-time publishing escape hatch, see below.
 #
 # A real run needs a prior `docker login ghcr.io` (docker/login-action in CI), a buildx
 # builder that can build multi-platform images (docker/setup-buildx-action + QEMU in CI) and helm.
@@ -23,6 +25,15 @@
 #   both, when the registry answers with its error code text: MANIFEST_UNKNOWN / NAME_UNKNOWN, or "404".
 # A skipped image also leaves the "latest" tag untouched. --dry-run never contacts the registry.
 #
+# First publish: GHCR answers 403 "denied" for a package that does not exist yet, which is
+# indistinguishable from a real permission problem, so by default it aborts as "unknown". With
+# --assume-missing (or PUBLISH_ASSUME_MISSING=1) an inconclusive answer that is specifically an
+# authorization answer, i.e. its output matches AUTH_RE below, is treated as "not found" for both
+# the image and the chart check, with a loud WARNING line, and publishing proceeds. Network errors,
+# timeouts, 5xx and everything else still abort, and exists / not-found answers are unaffected.
+# The flag has no effect with --dry-run. Use it only for the very first publish of the packages.
+#   AUTH_RE (case-insensitive): denied | unauthorized | status code 401/403 | 401/403 Unauthorized/Forbidden
+#
 # Recovery: semantic-release creates the git tag and the GitHub Release BEFORE calling this script.
 # If this script fails, the tag exists and re-running the "release" workflow will NOT call it again
 # (nothing new to release). Re-publish the artifacts of that tag with the "release" workflow's manual
@@ -37,10 +48,12 @@ PLATFORMS="linux/amd64,linux/arm64"
 # Semver 2.0.0 core plus an optional prerelease; build metadata ("+...") is not a valid image tag.
 # Registry answers that mean "this tag/version definitely does not exist" (case-insensitive ERE).
 NOT_FOUND_RE=': not found|MANIFEST_UNKNOWN|NAME_UNKNOWN|manifest unknown|name unknown|status code 404|404 Not Found'
+# Authorization-type answers that --assume-missing accepts as "package does not exist yet".
+AUTH_RE='denied|unauthorized|status code 40[13]|40[13] (Forbidden|Unauthorized)'
 SEMVER_RE='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
 
 usage() {
-  echo "usage: $0 <version> [--dry-run]" >&2
+  echo "usage: $0 <version> [--dry-run] [--assume-missing]" >&2
 }
 
 die() {
@@ -50,9 +63,12 @@ die() {
 
 version=""
 dry_run=false
+assume_missing=false
+[ "${PUBLISH_ASSUME_MISSING:-}" != 1 ] || assume_missing=true
 for arg in "$@"; do
   case "$arg" in
     --dry-run) dry_run=true ;;
+    --assume-missing) assume_missing=true ;;
     -h | --help) usage; exit 0 ;;
     -*) usage; die "unknown option '$arg'" ;;
     *)
@@ -83,6 +99,11 @@ exists_in_registry() {
     return 0
   fi
   if grep -Eiq "$NOT_FOUND_RE" <<<"$out"; then
+    return 1
+  fi
+  if [ "$assume_missing" = true ] && grep -Eiq "$AUTH_RE" <<<"$out"; then
+    echo "WARNING: assuming ${what} does not exist (authorization answer, --assume-missing is set):" >&2
+    head -n 2 <<<"$out" | sed 's/^/    /' >&2
     return 1
   fi
   echo "error: could not determine whether ${what} exists (exit code ${rc}); aborting before anything is built or pushed:" >&2

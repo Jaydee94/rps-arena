@@ -16,6 +16,11 @@ on:
         description: 'Existing release version without v prefix, e.g. 1.2.3'
         required: true
         type: string
+      first_publish:
+        description: 'Set to true only for the very first publish of this package on GHCR (GHCR answers 403 for packages that do not exist yet)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -97,3 +102,6 @@ jobs:
           # Passed through the environment, never interpolated into the script; publish.sh
           # validates that it is a semantic version.
           VERSION: ${{ inputs.version }}
+          # Only this manual job can set it. The push-triggered release job (semantic-release ->
+          # publish.sh) never sets PUBLISH_ASSUME_MISSING, so an ambiguous registry answer there aborts.
+          PUBLISH_ASSUME_MISSING: ${{ inputs.first_publish && '1' || '' }}
