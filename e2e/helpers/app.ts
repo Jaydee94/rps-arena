@@ -47,12 +47,21 @@ function decode(raw: string): ReceivedFrame {
 /**
  * Opens a fresh browser context and records the websocket frames from the very first page load.
  * `cpuThrottle` (CDP `Emulation.setCPUThrottlingRate`) makes the page slow, to prove the tests do not race the reveal.
+ * `reducedMotion` overrides the config default ('reduce', which skips the reveal countdown); pass 'no-preference' to see it.
  */
 export async function newPlayer(
   browser: Browser,
-  options: { viewport?: { width: number; height: number }; cpuThrottle?: number } = {},
+  options: {
+    viewport?: { width: number; height: number };
+    cpuThrottle?: number;
+    reducedMotion?: 'reduce' | 'no-preference';
+  } = {},
 ): Promise<Player> {
-  const context = await browser.newContext({ locale: 'en-US', ...(options.viewport ? { viewport: options.viewport } : {}) });
+  const context = await browser.newContext({
+    locale: 'en-US',
+    ...(options.viewport ? { viewport: options.viewport } : {}),
+    ...(options.reducedMotion ? { reducedMotion: options.reducedMotion } : {}),
+  });
   const page = await context.newPage();
   const frames: ReceivedFrame[] = [];
   page.on('websocket', (ws) => {
@@ -104,7 +113,8 @@ export async function lobbyCode(page: Page): Promise<string> {
 export const gesture = (page: Page, name: string) => page.getByRole('radio', { name, exact: true });
 export const continueButton = (page: Page) => page.getByRole('button', { name: 'Continue' });
 export const playAgainButton = (page: Page) => page.getByRole('button', { name: 'Play again' });
-export const score = (page: Page) => page.getByRole('group', { name: 'Score' });
+// The group also holds the decorative "VS" star (aria-hidden); the score itself is its readable text.
+export const score = (page: Page) => page.getByRole('group', { name: 'Score' }).locator(':scope > :not([aria-hidden="true"])');
 
 export async function startMatch(host: Page): Promise<void> {
   await host.getByRole('button', { name: "Let's go!" }).click();
@@ -135,7 +145,13 @@ export async function captureReveal(page: Page): Promise<RevealSnapshot> {
     }
     return {
       status: clean(document.querySelector('[role="status"]')?.textContent),
-      score: clean(document.querySelector('[role="group"][aria-label="Score"]')?.textContent),
+      // Only the readable part: the "VS" star inside the group is decorative (aria-hidden).
+      score: clean(
+        [...(document.querySelector('[role="group"][aria-label="Score"]')?.children ?? [])]
+          .filter((child) => child.getAttribute('aria-hidden') !== 'true')
+          .map((child) => child.textContent)
+          .join(' '),
+      ),
       cards,
     };
   });
