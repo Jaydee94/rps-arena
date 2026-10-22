@@ -58,6 +58,7 @@ function build(name: string, params: Params): RoomView | null {
     players,
     spectators: [],
     match: null,
+    tournament: null,
     deadline: null,
   };
 
@@ -79,6 +80,7 @@ function build(name: string, params: Params): RoomView | null {
           { id: 'spec-2', nickname: 'Watcher Wim', avatar: 'frog', connected: true },
         ],
         match: baseMatch(config, { lockedSeats: ['b0'] }),
+        tournament: null,
         deadline: Date.now() + left * 1000,
       };
     case 'lobby':

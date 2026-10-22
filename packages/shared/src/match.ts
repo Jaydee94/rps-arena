@@ -7,7 +7,8 @@ export type Team = 'a' | 'b';
 
 export interface RoomConfig {
   mode: ModeId;
-  bestOf: 3 | 5 | 7;
+  /** 1 is internal (tournament tie-break matches); `room:create` only accepts 3, 5 or 7. */
+  bestOf: 1 | 3 | 5 | 7;
 }
 
 export interface RoundResult {

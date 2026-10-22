@@ -247,6 +247,10 @@ export function createGateway(
         });
         await bind(room, who);
       },
+      'tournament:skip': async () => {
+        // TODO(Stage 2 Task 4): skip the draw or intermission; until then there is no tournament to skip.
+        throw new ProtocolError('wrong_phase');
+      },
       'room:rejoin': async (p) => {
         if (socket.data.code !== p.code) await release();
         const { room, result } = await updateWith(p.code, (current) => {
