@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "svelte-check --tsconfig ./tsconfig.json"
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "7.3.1",
