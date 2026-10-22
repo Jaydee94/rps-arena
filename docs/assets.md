@@ -32,3 +32,17 @@ glyphs) and are declared in `apps/web/src/styles/fonts.css`. The license texts s
 The OFL permits bundling and redistribution with software as long as the license text travels with the fonts and
 the fonts are not sold on their own. The font stacks in `tokens.css` keep system fallbacks (Impact, Comic Sans MS,
 Trebuchet MS) for the moment before the WOFF2 files have loaded (`font-display: swap`).
+
+## Audio (synthesized)
+
+There are no sound files. The comic sound effects and the optional music loop are generated at runtime with the
+Web Audio API (`apps/web/src/lib/audio.ts`), so no third-party audio license applies. Sound only starts after a
+user gesture; SFX and music can be muted separately.
+
+## Camera model (not part of the repository)
+
+The experimental camera control uses the official MediaPipe `gesture_recognizer.task` model published by Google and
+the WASM files of the npm package `@mediapipe/tasks-vision` (license `Apache-2.0` according to `package-lock.json`).
+Neither is committed: `scripts/fetch-model.mjs` downloads the model at build time (SHA-256 verified) and copies the
+WASM files, so both end up in the built web app and in the container image, and the server serves them from its
+own origin. The license terms of the model are those published by the MediaPipe project; they are not restated here.
