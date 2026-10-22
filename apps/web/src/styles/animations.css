@@ -271,4 +271,19 @@
       opacity: 0;
     }
   }
+
+  /*
+   * Sections for the comic panel design (docs/superpowers/plans/2026-10-22-comic-panel-design.md).
+   * Each task adds its rules and keyframes inside its own section only.
+   */
+
+  /* ==== START screen (wordmark, hero, avatar badge, CTA) ==== */
+
+  /* ==== PICK screen (tiles, timer, think bubble, VS star) ==== */
+
+  /* ==== COUNTDOWN ==== */
+
+  /* ==== REVEAL (slam, speed lines, flash, burst, loser) ==== */
+
+  /* ==== RESULT and LOBBY ==== */
 }
