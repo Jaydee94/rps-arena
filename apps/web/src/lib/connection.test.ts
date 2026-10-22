@@ -46,6 +46,7 @@ const VIEW = {
   players: {},
   spectators: [],
   match: null,
+  tournament: null,
   deadline: null,
 } satisfies PlayerView;
 
@@ -59,6 +60,7 @@ const SPECTATOR_VIEW = {
   players: {},
   spectators: [],
   match: null,
+  tournament: null,
   deadline: null,
 } satisfies SpectatorView;
 

@@ -158,6 +158,7 @@ describe('viewFor', () => {
       },
       spectators: [],
       match: null,
+      tournament: null,
       deadline: 1234,
     });
   });
@@ -289,6 +290,7 @@ describe('spectatorViewFor', () => {
         { id: 's2', nickname: 'Sue', avatar: 'cat', connected: false },
       ],
       match: null,
+      tournament: null,
       deadline: 1234,
     });
     expect('you' in spectatorViewFor(room)).toBe(false);

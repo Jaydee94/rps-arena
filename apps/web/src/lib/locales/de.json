@@ -141,6 +141,7 @@
   "errors.invalid_gesture": "Diese Geste gibt es in diesem Modus nicht.",
   "errors.already_picked": "Du hast schon gewählt.",
   "errors.not_host": "Nur die Gastgeberin oder der Gastgeber darf das.",
+  "errors.not_enough_players": "Es braucht mindestens 4 Mitspielende für ein Turnier.",
   "errors.bad_token": "Deine Sitzung ist abgelaufen. Tritt dem Raum neu bei.",
   "errors.rate_limited": "Zu viele Aktionen auf einmal. Bitte kurz warten.",
   "errors.internal": "Interner Fehler. Bitte versuche es erneut.",

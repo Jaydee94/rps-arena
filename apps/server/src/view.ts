@@ -72,6 +72,7 @@ export function viewFor(room: Room, seat: SeatId): PlayerView {
     players: publicPlayers(room),
     spectators: spectatorsOf(room).map(publicSpectator),
     match: room.match ? publicMatch(room.match, seat) : null,
+    tournament: null, // filled by Stage 2 Task 4
     // The phase timer, not the internal wake-up time (which may be a reconnect-grace expiry).
     deadline: room.phaseDeadline,
   };
@@ -93,6 +94,7 @@ export function spectatorViewFor(room: Room): SpectatorView {
     players: publicPlayers(room),
     spectators: spectatorsOf(room).map(publicSpectator),
     match: room.match ? publicMatch(room.match, null) : null,
+    tournament: null, // filled by Stage 2 Task 4
     deadline: room.phaseDeadline,
   };
 }

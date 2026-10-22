@@ -495,6 +495,7 @@ const PLAYER_VIEW_KEYS = [
   'players',
   'role',
   'spectators',
+  'tournament',
   'you',
 ];
 

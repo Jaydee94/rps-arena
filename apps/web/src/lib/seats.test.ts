@@ -18,6 +18,7 @@ function view(mode: PlayerView['config']['mode'], seats: SeatId[], you: SeatId =
     players: Object.fromEntries(seats.map((s) => [s, player(s)])),
     spectators: [],
     match: null,
+    tournament: null,
     deadline: null,
   };
 }

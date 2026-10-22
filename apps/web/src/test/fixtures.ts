@@ -51,6 +51,7 @@ export function makeRoom(overrides: Overrides<RoomView> = {}): PlayerView {
     spectators: [],
     match: match === null ? null : makeMatch({ config, ...match }),
     deadline: null,
+    tournament: null,
     ...rest,
     role: 'player',
   };
@@ -72,6 +73,7 @@ export function makeSpectatorRoom(overrides: Overrides<SpectatorView> = {}): Spe
     spectators: [],
     match: match === null ? null : makeMatch({ config, ...match }),
     deadline: null,
+    tournament: null,
     ...rest,
   };
 }
