@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
+import { AVATARS } from '@rps/shared';
 import Home from './Home.svelte';
 import { setLocale } from '../lib/i18n';
 import { actions, resetConnectionMock } from '../test/connection-mock';
@@ -143,10 +144,10 @@ describe('Home', () => {
       ]);
     });
 
-    it('offers 8 avatars', () => {
+    it('offers every avatar', () => {
       render(Home);
       const group = screen.getByRole('group', { name: 'Dein Avatar' });
-      expect(within(group).getAllByRole('radio')).toHaveLength(8);
+      expect(within(group).getAllByRole('radio')).toHaveLength(AVATARS.length);
     });
 
     it('keeps the bot option a checkbox', () => {
