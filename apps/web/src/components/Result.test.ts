@@ -37,12 +37,23 @@ describe('Result', () => {
   });
 
   describe.each([
-    ['de', 'Spiel beendet (niemand hat gespielt)', 'Endstand 1 : 1', 'Es gab zu lange keine Züge, deshalb wurde das Spiel beendet.'],
-    ['en', 'Match ended (nobody was playing)', 'Final score 1 : 1', 'Nobody made a move for too long, so the match was ended.'],
-  ] as const)('without a winner (%s)', (locale, headline, score, hint) => {
+    ['de', 'Spiel vorzeitig beendet', 'Endstand 1 : 1', 'Endstand 2 : 0', 'Endstand 0 : 2', 'Das Spiel wurde beendet, weil mehrere Runden lang keine Züge gemacht wurden.', 'Nochmal spielen', 'Zum Start'],
+    ['en', 'Match ended early', 'Final score 1 : 1', 'Final score 2 : 0', 'Final score 0 : 2', 'The match was ended because no moves were made for several rounds.', 'Play again', 'Back to start'],
+  ] as const)('without a winner (%s)', (locale, headline, score, scoreLead, scoreTrail, hint, rematch, leave) => {
     beforeEach(() => {
       setLocale(locale);
       roomStore.set(makeRoom({ you: 'b0', match: { phase: 'finished', winner: null, score: { a: 1, b: 1 } } }));
+    });
+
+    it.each([
+      ['a', 'b0', scoreTrail],
+      ['a', 'a0', scoreLead],
+    ] as const)('keeps the neutral headline and shows a non-zero score (%s scored, viewer %s)', (_scorer, you, expected) => {
+      roomStore.set(makeRoom({ you, match: { phase: 'finished', winner: null, score: { a: 2, b: 0 } } }));
+      render(Result);
+      expect(screen.getByRole('heading', { name: headline })).toBeInTheDocument();
+      expect(screen.getByText(expected)).toBeInTheDocument();
+      expect(screen.queryByText(/niemand|nobody/i)).toBeNull();
     });
 
     it('shows a neutral headline, no win/lose text and the final score', () => {
@@ -64,7 +75,7 @@ describe('Result', () => {
 
     it('keeps the rematch and leave actions', () => {
       render(Result);
-      expect(screen.getAllByRole('button')).toHaveLength(2);
+      expect(screen.getAllByRole('button').map((b) => b.textContent?.trim())).toEqual([rematch, leave]);
     });
   });
 
