@@ -107,6 +107,8 @@
   "errors.already_picked": "You've already picked.",
   "errors.not_host": "Only the host can do that.",
   "errors.bad_token": "Your session has expired. Please join the room again.",
+  "errors.rate_limited": "Too many actions at once. Please wait a moment.",
+  "errors.internal": "Internal error. Please try again.",
   "errors.dismiss": "Dismiss",
 
   "mode.classic.name": "Classic",
