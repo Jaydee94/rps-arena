@@ -87,6 +87,11 @@ assert_eq "PORT env is 8080" "8080" "$DEFAULT" "$CONTAINER | .env[] | select(.na
 assert_eq "redis deployment exists" "1" "$DEFAULT" 'select(.kind == "Deployment" and .metadata.name == "rps-rps-arena-redis") | [.] | length'
 assert_eq "redis service exists" "1" "$DEFAULT" 'select(.kind == "Service" and .metadata.name == "rps-rps-arena-redis") | [.] | length'
 assert_eq "redis image pinned" "redis:7-alpine" "$DEFAULT" 'select(.kind == "Deployment" and .metadata.name == "rps-rps-arena-redis") | .spec.template.spec.containers[0].image'
+REDIS_DEPLOY='select(.kind == "Deployment" and .metadata.name == "rps-rps-arena-redis")'
+REDIS_ARGS="$REDIS_DEPLOY | .spec.template.spec.containers[0].args | join(\" \")"
+assert_eq "redis memory is bounded (maxmemory 100mb)" "true" "$DEFAULT" "$REDIS_ARGS | test(\"(^| )--maxmemory 100mb( |$)\")"
+assert_eq "redis evicts only keys with a TTL (volatile-lru)" "true" "$DEFAULT" "$REDIS_ARGS | test(\"(^| )--maxmemory-policy volatile-lru( |$)\")"
+assert_eq "redis memory limit stays above maxmemory (128Mi > 100mb)" "128Mi" "$DEFAULT" "$REDIS_DEPLOY | .spec.template.spec.containers[0].resources.limits.memory"
 assert_eq "REDIS_URL points to internal redis service" "redis://rps-rps-arena-redis:6379" "$DEFAULT" "$CONTAINER | .env[] | select(.name == \"REDIS_URL\") | .value"
 assert_eq "app service exists" "1" "$DEFAULT" 'select(.kind == "Service" and .metadata.name == "rps-rps-arena") | [.] | length'
 assert_eq "no ingress by default" "0" "$DEFAULT" '[select(.kind == "Ingress")] | length'
@@ -113,6 +118,11 @@ case "$MISSING" in
   *"redis.externalUrl"*"redis.existingSecret"*) pass "missing externalUrl fails with a clear message" ;;
   *) fail "error message does not mention redis.externalUrl and redis.existingSecret: $MISSING" ;;
 esac
+
+echo "== redis memory settings are configurable =="
+MEM="$(render --set redis.maxmemory=64mb --set redis.maxmemoryPolicy=allkeys-lru)"
+assert_eq "maxmemory override" "true" "$MEM" "$REDIS_ARGS | test(\"(^| )--maxmemory 64mb( |$)\")"
+assert_eq "maxmemory-policy override" "true" "$MEM" "$REDIS_ARGS | test(\"(^| )--maxmemory-policy allkeys-lru( |$)\")"
 
 echo "== external redis credentials stay out of the output =="
 SECRET_URL="redis://user:s3cret@redis.example.internal:6379"

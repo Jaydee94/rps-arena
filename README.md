@@ -408,7 +408,16 @@ Das Image setzt `NODE_ENV=production` und `PORT=8080`. Der Server fährt bei `SI
 
 Redis ist Pflicht (außer im Dev-Modus) und der einzige Zustand. Jeder Raum ist ein Schlüssel mit einer
 Inaktivitäts-TTL von 30 Minuten (`ROOM_TTL_S`). Es werden keine Spielverläufe, Accounts oder Ranglisten
-gespeichert.
+gespeichert. Der Bot merkt sich höchstens die letzten 50 Runden eines Raums (auch über Rematches hinweg), ein
+Raum wächst im Redis also nicht mit der Spieldauer.
+
+Der mitgelieferte Redis hat begrenzten Speicher: `--maxmemory 100mb` mit der Richtlinie `volatile-lru`
+(`redis.maxmemory`, `redis.maxmemoryPolicy`, das Container-Limit von 128Mi liegt darüber). Ist die Grenze
+erreicht, verdrängt Redis die am längsten ungenutzten *Räume* (nur diese tragen eine TTL), statt vom Kernel
+beendet zu werden und alle Räume zu verlieren. Der kleine Fristen-Index `rps:deadlines` hat keine TTL und wird nie
+verdrängt. Beim Anheben von `redis.maxmemory` das Container-Limit `redis.resources.limits.memory` mit anheben.
+Für einen externen Redis gilt dieselbe Empfehlung (`maxmemory` plus `volatile-lru`), das Chart kann sie dort nicht
+setzen.
 
 ### Sicherheits-Header
 

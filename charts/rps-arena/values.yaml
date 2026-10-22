@@ -45,6 +45,14 @@ redis:
   # Deploy a simple in-chart Redis. When false, redis.externalUrl is required.
   enabled: true
   image: redis:7-alpine
+  # Memory bound of the in-chart Redis (--maxmemory), so a growing data set evicts old rooms
+  # instead of getting the container OOM-killed (which would wipe every room). Keep
+  # redis.resources.limits.memory comfortably above it (fragmentation, buffers, and the copy-on-write
+  # fork of a background save when persistence is enabled).
+  maxmemory: 100mb
+  # volatile-lru evicts only keys that carry a TTL: every room has one, while the small deadline
+  # index has none and is never evicted.
+  maxmemoryPolicy: volatile-lru
   # URL of an external Redis (used when redis.enabled=false). It lands as plain text in the
   # Deployment and in `helm get values`, so do not put a password in it: use existingSecret.
   externalUrl: ""
