@@ -18,6 +18,8 @@ export const RECONNECT_GRACE_MS = 30_000;
 export const IDLE_ROUNDS_LIMIT = 3;
 /** Lifetime of an idle room, in seconds. */
 export const ROOM_TTL_S = 1800;
+/** Maximum number of spectators in one room; further joins get `room_full`. */
+export const MAX_SPECTATORS = 16;
 
 /** Emotes a player may announce in bluff mode: the gestures of the bluff set (lizard-spock). */
 export const BLUFF_EMOTES: readonly string[] = getGestureSet('lizard-spock').gestures;

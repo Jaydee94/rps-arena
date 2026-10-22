@@ -15,6 +15,8 @@ export const ERROR_CODES = [
   'already_picked',
   'not_host',
   'bad_token',
+  /** A spectator sent a game or host event; only players may do that. */
+  'not_player',
   /** Too many events from one connection in a short time; the event was dropped. */
   'rate_limited',
   /** Unexpected server-side failure (e.g. no free room code); retrying may help. */
@@ -147,24 +149,56 @@ export interface PublicMatch {
   forfeited: SeatId[];
 }
 
-export interface RoomView {
+export interface PublicSpectator {
+  id: string;
+  nickname: string;
+  avatar: string;
+  connected: boolean;
+}
+
+/** The room as seen by a seated player. */
+export interface PlayerView {
+  role: 'player';
   code: string;
   config: RoomConfig;
   you: SeatId;
   hostSeat: SeatId;
+  isHost: boolean;
   players: Partial<Record<SeatId, PublicPlayer>>;
+  spectators: PublicSpectator[];
   match: PublicMatch | null;
   deadline: number | null;
 }
 
 /**
+ * The room as seen by a spectator; identical for all spectators. `match.yourPick` is always
+ * `null`. In stage 1 `isHost` is always `false` and `me` always `null`.
+ */
+export interface SpectatorView {
+  role: 'spectator';
+  code: string;
+  config: RoomConfig;
+  hostSeat: SeatId;
+  isHost: boolean;
+  me: { id: string } | null;
+  players: Partial<Record<SeatId, PublicPlayer>>;
+  spectators: PublicSpectator[];
+  match: PublicMatch | null;
+  deadline: number | null;
+}
+
+export type RoomView = PlayerView | SpectatorView;
+
+/**
  * Sent only to the socket that just created, joined or rejoined a room. The token is the secret
- * session credential for `room:rejoin`; it never appears in `room:state`.
+ * session credential for `room:rejoin`; it never appears in `room:state`. `seat` is `null` for
+ * spectators.
  */
 export interface RoomJoined {
   code: string;
   token: string;
-  seat: SeatId;
+  role: 'player' | 'spectator';
+  seat: SeatId | null;
 }
 
 export type ServerEvents = {
