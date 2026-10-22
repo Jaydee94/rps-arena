@@ -34,6 +34,8 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 step() {
   STEP="$*"
@@ -48,6 +50,9 @@ fail() {
 command -v docker >/dev/null 2>&1 || fail "docker not found"
 command -v curl >/dev/null 2>&1 || fail "curl not found"
 command -v node >/dev/null 2>&1 || fail "node not found"
+# The smoke test runs on the host and needs the repo's dependencies.
+node --input-type=module -e "import('socket.io-client')" >/dev/null 2>&1 \
+  || fail "socket.io-client cannot be resolved on the host: run 'npm ci' first"
 
 step "compose config (default and each profile)"
 docker compose config -q
@@ -69,9 +74,11 @@ code="$(curl -sS -o /dev/null -w '%{http_code}' "$base/readyz")" || fail "GET $b
 export COMPOSE_TEST_CMD="${COMPOSE_TEST_CMD:-npm test} -- --reporter=verbose"
 step "tests service against redis (${COMPOSE_TEST_CMD})"
 test_log="$WORK_DIR/tests.log"
-# -T: no pseudo-TTY, so the output is plain and can be parsed.
-docker compose run --rm -T tests 2>&1 | tee "$test_log"
-[ "${PIPESTATUS[0]}" -eq 0 ] || fail "tests service exited non-zero"
+# -T: no pseudo-TTY, so the output is plain and can be parsed. --build: never reuse a stale image.
+# The pipeline may fail (set -e / pipefail), so its status is captured explicitly.
+tests_status=0
+docker compose run --build --rm -T tests 2>&1 | tee "$test_log" || tests_status="${PIPESTATUS[0]}"
+[ "$tests_status" -eq 0 ] || fail "tests service exited with status $tests_status"
 
 step "redis-backed tests ran (not skipped)"
 plain_log="$WORK_DIR/tests.plain.log"

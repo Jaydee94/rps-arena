@@ -13,6 +13,8 @@ import { io } from 'socket.io-client';
 const APP_URL = process.env.APP_URL ?? process.argv[2] ?? 'http://127.0.0.1:8080';
 const APP2_URL = process.env.APP2_URL ?? process.argv[3] ?? 'http://127.0.0.1:8081';
 const TIMEOUT_MS = 10_000;
+const REJOIN_ATTEMPTS = 3;
+const REJOIN_RETRY_MS = 300;
 // First entry of AVATARS in packages/shared/src/protocol.ts (that file is TypeScript source and
 // not importable from plain Node). Must not contain the secret gesture below.
 const AVATAR = 'fox';
@@ -31,9 +33,11 @@ function connectClient(name, url) {
     extraHeaders: { Origin: new URL(url).origin },
     reconnection: false,
   });
-  const client = { name, url, socket, states: [], joins: [], errors: [], connectError: null, waiters: new Set() };
+  const client = { name, url, socket, states: [], joins: [], errors: [], events: [], connectError: null, waiters: new Set() };
   clients.push(client);
   const wake = () => client.waiters.forEach((check) => check());
+  // Every event the server sends, whatever its name: the leak scan must not depend on event names.
+  socket.onAny((event, ...args) => client.events.push({ event, args }));
   socket.on('room:state', (view) => (client.states.push(view), wake()));
   socket.on('room:joined', (joined) => (client.joins.push(joined), wake()));
   socket.on('room:error', (error) => (client.errors.push(error), wake()));
@@ -43,14 +47,18 @@ function connectClient(name, url) {
   return client;
 }
 
-/** Resolves with the first value `find(client)` returns that is not undefined. Fails on timeout or any server error. */
-function waitFor(client, description, find) {
+/**
+ * Resolves with the first value `find(client)` returns that is not undefined. Fails on timeout or
+ * any server error, unless `onError` is given: then the first room:error resolves to `onError(error)`.
+ */
+function waitFor(client, description, find, onError) {
   return new Promise((resolve, reject) => {
     let timer;
     const check = () => {
       if (client.connectError) {
         return done(reject, new SmokeFailure(`${client.name}: cannot connect to ${client.url}: ${client.connectError.message}`));
       }
+      if (client.errors.length > 0 && onError) return done(resolve, onError(client.errors[0]));
       if (client.errors.length > 0) {
         const { code } = client.errors[0];
         return done(reject, new SmokeFailure(`${client.name}: server sent room:error "${code}" while waiting for ${description}`));
@@ -123,12 +131,13 @@ async function run() {
   await waitState(b, "B is told that A locked in (cross-replica broadcast)", (s) =>
     s.match?.lockedSeats?.includes(joinedA.seat),
   );
-  const leaked = b.states.filter((s) => JSON.stringify(s).includes(SECRET));
+  // Scan EVERYTHING B received so far (all events, not only room:state).
+  const leaked = b.events.filter((e) => JSON.stringify(e).includes(SECRET));
   assert(leaked.length === 0, `SECRET LEAK: B received A's gesture "${SECRET}" before picking: ${JSON.stringify(leaked[0])}`);
-  const tokenLeak = b.states.some((s) => JSON.stringify(s).includes(joinedA.token));
-  assert(!tokenLeak, "SECRET LEAK: B received A's session token in a room:state");
+  const tokenLeak = b.events.some((e) => JSON.stringify(e).includes(joinedA.token));
+  assert(!tokenLeak, "SECRET LEAK: B received A's session token");
   assert(b.states.every((s) => s.match?.yourPick == null), "B's view holds a pick although B has not picked");
-  step(`B received ${b.states.length} room:state messages before its own pick; none reveals A's gesture`);
+  step(`B received ${b.events.length} events (${b.states.length} room:state) before its own pick; none reveals A's gesture`);
 
   // B picks; both get the reveal with both gestures and the score.
   b.socket.emit('game:pick', { gesture: 'scissors' });
@@ -140,19 +149,42 @@ async function run() {
     waitState(a, 'reveal with both gestures (A)', isReveal),
     waitState(b, 'reveal with both gestures (B, cross-replica broadcast)', isReveal),
   ]);
+  // Seat ids start with their team letter ('a0' -> team 'a'); A is the one who picked rock.
+  const teamA = joinedA.seat[0];
+  const teamB = joinedB.seat[0];
   for (const [who, view] of [['A', revealA], ['B', revealB]]) {
-    assert(view.match.score.a === 1 && view.match.score.b === 0, `${who}: expected score a:1 b:0 after rock vs scissors, got ${JSON.stringify(view.match.score)}`);
+    const { score } = view.match;
+    assert(
+      score[teamA] === 1 && score[teamB] === 0,
+      `${who}: expected team ${teamA} (rock) 1 : team ${teamB} (scissors) 0, got ${JSON.stringify(score)}`,
+    );
   }
-  step('both received the reveal (rock beats scissors, score a:1 b:0)');
+  step(`both received the reveal (rock beats scissors, score ${teamA}:1 ${teamB}:0)`);
 
   // B drops and comes back through instance 1 with the token.
   b.socket.disconnect();
   const b2 = connectClient('B (rejoin)', APP_URL);
   await connected(b2);
-  b2.socket.emit('room:rejoin', { code: joinedB.code, token: joinedB.token });
-  const rejoined = await waitFor(b2, 'room:joined after room:rejoin', (c) => c.joins[0]);
+  // A rejoin can race with the server noticing the old socket's disconnect, so a transient
+  // room:error gets a bounded number of retries.
+  let rejoined;
+  for (let attempt = 1; attempt <= REJOIN_ATTEMPTS && !rejoined; attempt++) {
+    b2.errors.length = 0;
+    b2.socket.emit('room:rejoin', { code: joinedB.code, token: joinedB.token });
+    const outcome = await waitFor(b2, 'room:joined after room:rejoin', (c) => c.joins[0], (error) => ({ error }));
+    if (outcome.error) {
+      if (attempt === REJOIN_ATTEMPTS) {
+        throw new SmokeFailure(`B (rejoin): room:error "${outcome.error.code}" on all ${REJOIN_ATTEMPTS} rejoin attempts`);
+      }
+      step(`rejoin attempt ${attempt} got room:error "${outcome.error.code}", retrying`);
+      await new Promise((resolve) => setTimeout(resolve, REJOIN_RETRY_MS));
+    } else {
+      rejoined = outcome;
+    }
+  }
   assert(rejoined.seat === joinedB.seat, `rejoin returned seat ${rejoined.seat}, expected ${joinedB.seat}`);
   assert(rejoined.code === joinedB.code, `rejoin returned room ${rejoined.code}, expected ${joinedB.code}`);
+  assert(typeof rejoined.token === 'string' && rejoined.token.length > 0, 'rejoin returned an empty token');
   await waitState(b2, 'room:state for the restored seat', (s) => s.code === joinedB.code && s.you === joinedB.seat);
   step(`B rejoined via the other instance and got seat ${rejoined.seat} back`);
 }
