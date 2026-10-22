@@ -53,6 +53,7 @@ describe('Board reveal countdown', () => {
   it('counts down before the duels appear when the phase switches to reveal', async () => {
     feed(picking());
     render(Board);
+    const statusBefore = screen.getByRole('status');
     feed(revealed());
     await tick();
 
@@ -60,12 +61,17 @@ describe('Board reveal countdown', () => {
     expect(screen.queryByTestId('duel')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).not.toHaveTextContent('Runde gewonnen!');
     expect(screen.getByRole('status')).toHaveTextContent('Gewählt – warte auf die anderen …');
+    // The scoreboard keeps the old score: the result is not given away before the duels.
+    expect(screen.getByRole('group', { name: 'Spielstand' })).toHaveTextContent('0 : 0');
 
     vi.advanceTimersByTime(1260);
     await tick();
 
     expect(screen.getAllByTestId('duel')).toHaveLength(1);
-    expect(screen.getByRole('status')).toHaveTextContent('Runde gewonnen!');
+    const statusAfter = screen.getByRole('status');
+    expect(statusAfter).toBe(statusBefore);
+    expect(statusAfter).toHaveTextContent('Runde gewonnen!');
+    expect(screen.getByRole('group', { name: 'Spielstand' })).toHaveTextContent('1 : 0');
     expect(screen.queryByTestId('countdown')).not.toBeInTheDocument();
   });
 
@@ -129,11 +135,28 @@ describe('Board reveal countdown', () => {
     await tick();
     expect(screen.getByTestId('countdown')).toBeInTheDocument();
 
+    expect(screen.getByRole('group', { name: 'Spielstand' })).toHaveTextContent('0 : 0');
     await fireEvent.keyDown(window, { key: 'Enter' });
     await tick();
+    expect(screen.getByRole('group', { name: 'Spielstand' })).toHaveTextContent('1 : 0');
     expect(screen.queryByTestId('countdown')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('duel')).toHaveLength(1);
     expect(screen.getByRole('status')).toHaveTextContent('Runde gewonnen!');
+  });
+
+  it('keeps the pick-phase look of the status during the countdown and the reveal layout after it', async () => {
+    feed(picking());
+    const { container } = render(Board);
+    feed(revealed());
+    await tick();
+    const board = container.querySelector('main.board');
+    expect(board).not.toHaveClass('revealed');
+    expect(screen.getByRole('status')).not.toHaveClass('is-revealed');
+
+    vi.advanceTimersByTime(1260);
+    await tick();
+    expect(board).toHaveClass('revealed');
+    expect(screen.getByRole('status')).toHaveClass('is-revealed');
   });
 
   it('reveals at once under reduced motion', async () => {

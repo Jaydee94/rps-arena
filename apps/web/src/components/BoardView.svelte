@@ -47,17 +47,26 @@
    * the duels never flash up before the countdown.
    */
   let countingDown = $state(false);
+  // The score from before the reveal: the scoreboard must not give the result away during the countdown.
+  let heldScore = $state<PublicMatch['score'] | null>(null);
   let prevRoom: RoomView | null = null;
   $effect.pre(() => {
     const current = room;
-    if (shouldCountDown(prevRoom, current)) countingDown = true;
-    else if (current.match?.phase !== 'reveal') countingDown = false;
+    if (shouldCountDown(prevRoom, current)) {
+      countingDown = true;
+      heldScore = prevRoom?.match?.score ?? null;
+    } else if (current.match?.phase !== 'reveal') {
+      countingDown = false;
+      heldScore = null;
+    }
     prevRoom = current;
   });
   // May run while the Countdown is still mounting (beat 0 calls it at once); only flips state.
   const endCountdown = () => {
     countingDown = false;
+    heldScore = null;
   };
+  const shownScore = $derived(countingDown && heldScore ? heldScore : match.score);
   const revealing = $derived(match.phase === 'reveal' && !countingDown);
 
   const picked = $derived(match.yourPick ?? localPick);
@@ -83,8 +92,8 @@
 
   function side(team: 'a' | 'b', seat: SeatId): Side {
     return isTeamMode
-      ? { name: t(`lobby.team_${team}`), avatar: null, team, score: match.score[team] }
-      : { name: nick(seat), avatar: avatar(seat), team, score: match.score[team] };
+      ? { name: t(`lobby.team_${team}`), avatar: null, team, score: shownScore[team] }
+      : { name: nick(seat), avatar: avatar(seat), team, score: shownScore[team] };
   }
   const left = $derived(side(myTeam, you));
   const right = $derived(side(teamOf(opponent), opponent));
@@ -136,7 +145,7 @@
   });
 </script>
 
-<main class="board" class:picking={match.phase !== 'reveal'}>
+<main class="board" class:picking={match.phase !== 'reveal'} class:revealed={revealing}>
   <Scoreboard {left} {right} round={match.round} bestOf={match.config.bestOf} {modeName} />
   <TimerBar deadline={room.deadline} phase={match.phase} />
   <!-- One persistent live region at one fixed position; where it shows is decided by CSS only. -->
@@ -278,11 +287,11 @@
    * status bubble with "Weiter" beside it, then the rule line, the camera row last.
    */
   /* The button keeps its width; the bubble takes the rest of the row. */
-  .board:not(.picking) {
+  .board.revealed {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .board:not(.picking) > .status {
+  .board.revealed > .status {
     order: 2;
     grid-column: 1;
     align-self: center;
@@ -291,18 +300,18 @@
     font-size: clamp(1.25rem, 6vw, 1.625rem);
   }
 
-  .board:not(.picking) > .next {
+  .board.revealed > .next {
     order: 2;
     grid-column: 2;
     align-self: center;
     padding-inline: var(--space-4);
   }
 
-  .board:not(.picking) > .rule {
+  .board.revealed > .rule {
     order: 3;
   }
 
-  .board:not(.picking) > :global(.camera) {
+  .board.revealed > :global(.camera) {
     order: 4;
   }
 
@@ -316,6 +325,11 @@
     box-shadow: var(--shadow-panel);
     /* Flying stickers, rays and flash stay inside the panel: nothing may widen the page. */
     overflow: clip;
+    /*
+     * The z-index values 0-5 of the panel parts (halves, rays, flash, cards, burst, duel result) are a
+     * local stacking order inside this context, not page layers, so the --z-* tokens do not apply.
+     */
+    isolation: isolate;
   }
 
   .duel.team {
