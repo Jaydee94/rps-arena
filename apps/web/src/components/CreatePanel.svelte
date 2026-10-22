@@ -33,7 +33,7 @@
   }
 </script>
 
-<section class="card create" aria-labelledby="create-heading">
+<section class="panel create" aria-labelledby="create-heading">
   <h2 id="create-heading" class="ribbon">{t('home.create_heading')}</h2>
   <ModePicker bind:value={mode} />
 

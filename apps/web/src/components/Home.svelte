@@ -55,8 +55,8 @@
 
   <CreatePanel {nickname} {avatar} />
 
-  <form class="card join" onsubmit={(event) => { event.preventDefault(); join(); }}>
-    <h2 class="ribbon">{t('home.join_heading')}</h2>
+  <form class="panel join" onsubmit={(event) => { event.preventDefault(); join(); }}>
+    <h2 class="ribbon ribbon--sky">{t('home.join_heading')}</h2>
     <label class="field">
       <span>{t('home.code')}</span>
       <input type="text" bind:value={code} bind:this={codeInput} placeholder={t('home.code_placeholder')} autocomplete="off" autocapitalize="characters" />
