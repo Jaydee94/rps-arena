@@ -1,0 +1,7 @@
+apiVersion: v2
+name: rps-arena
+description: Comic rock-paper-scissors browser game (SPA + Socket.IO server) with optional Redis
+type: application
+# Placeholders: the release pipeline overrides both values.
+version: 0.0.0
+appVersion: 0.0.0

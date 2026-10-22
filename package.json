@@ -1,0 +1,40 @@
+{
+  "name": "rps-arena",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "lint": "eslint . && npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p e2e",
+    "test": "vitest run",
+    "build": "npm run build --workspaces --if-present",
+    "e2e": "npm run build && playwright test -c e2e/playwright.config.ts",
+    "compose:up": "docker compose up -d --build --wait redis app",
+    "compose:test": "docker compose run --build --rm tests",
+    "compose:smoke": "docker compose up -d --build --wait redis app && docker compose --profile replicas up -d --wait app2 && node scripts/compose-smoke.mjs",
+    "compose:check": "bash scripts/compose-check.sh",
+    "compose:down": "docker compose --profile test --profile replicas down -v --remove-orphans"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "@semantic-release/commit-analyzer": "13.0.1",
+    "@semantic-release/exec": "7.1.0",
+    "@semantic-release/github": "12.0.10",
+    "@semantic-release/release-notes-generator": "14.1.1",
+    "@types/node": "24.19.2",
+    "conventional-changelog-conventionalcommits": "9.3.1",
+    "eslint": "10.13.0",
+    "semantic-release": "25.0.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "vitest": "5.0.5"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

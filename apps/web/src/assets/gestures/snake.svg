@@ -1,0 +1,9 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <path class="line" style="stroke-width:17;fill:none" d="M10 54 C10 36 34 48 42 38 C50 28 44 20 34 22"/>
+  <path class="st-green" style="stroke-width:9;fill:none" d="M10 54 C10 36 34 48 42 38 C50 28 44 20 34 22"/>
+  <path class="st-yellow" style="stroke-width:3;fill:none;stroke-dasharray:1 9" d="M10 54 C10 36 34 48 42 38 C50 28 44 20 34 22"/>
+  <ellipse class="green" cx="29" cy="20" rx="13" ry="10"/>
+  <circle class="white" cx="26" cy="16" r="4"/><circle class="white" cx="35" cy="16" r="4"/>
+  <circle class="line" style="stroke:none" cx="26" cy="16.5" r="1.6"/><circle class="line" style="stroke:none" cx="35" cy="16.5" r="1.6"/>
+  <path class="n red" style="stroke-width:3" d="M29 30 V37 M29 37 L25 41 M29 37 L33 41"/>
+</svg>

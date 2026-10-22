@@ -1,0 +1,8 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <path class="grey" d="M8 4 L26 16 L38 16 L56 4 L58 32 L44 56 L32 60 L20 56 L6 32 Z"/>
+  <path class="pink" d="M12 12 L22 19 L14 28 Z"/><path class="pink" d="M52 12 L42 19 L50 28 Z"/>
+  <path class="white" d="M20 44 Q32 34 44 44 L38 56 L26 56 Z"/>
+  <path class="yellow" d="M16 28 L28 31 L26 37 L16 34 Z"/><path class="yellow" d="M48 28 L36 31 L38 37 L48 34 Z"/>
+  <circle class="line" style="stroke:none" cx="24" cy="33" r="2.2"/><circle class="line" style="stroke:none" cx="40" cy="33" r="2.2"/>
+  <path class="line" d="M27 43 L37 43 L32 50 Z"/>
+</svg>

@@ -1,0 +1,11 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <g class="n line" style="stroke-width:14">
+    <path d="M21 34 L14 12 M29 32 L24 7 M39 32 L47 8 M47 36 L57 20 M17 46 L6 35"/>
+  </g>
+  <g class="n st-skin" style="stroke-width:7">
+    <path d="M21 34 L14 12 M29 32 L24 7 M39 32 L47 8 M47 36 L57 20 M17 46 L6 35"/>
+  </g>
+  <path class="skin" d="M14 34 L52 34 L52 46 Q52 58 38 58 L28 58 Q14 58 14 46 Z"/>
+  <path class="blue" d="M12 54 L54 54 L56 63 L10 63 Z"/>
+  
+</svg>

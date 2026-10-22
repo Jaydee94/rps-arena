@@ -1,0 +1,8 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <g class="n"><path style="stroke-width:14" d="M6 22 H38 C50 22 50 8 40 8 C34 8 32 12 33 15"/>
+  <path style="stroke-width:14" d="M6 40 H44 C56 40 56 54 46 54 C40 54 38 50 39 47"/>
+  <path style="stroke-width:14" d="M14 31 H30"/></g>
+  <g class="n st-sky"><path style="stroke-width:6" d="M6 22 H38 C50 22 50 8 40 8 C34 8 32 12 33 15"/>
+  <path style="stroke-width:6" d="M6 40 H44 C56 40 56 54 46 54 C40 54 38 50 39 47"/>
+  <path style="stroke-width:6" d="M14 31 H30"/></g>
+</svg>

@@ -1,0 +1,6 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <path class="grey" d="M8 46 L6 32 L16 16 L34 8 L50 14 L58 32 L54 48 L42 56 L18 56 Z"/>
+  <path class="white" style="stroke:none" d="M18 22 L30 15 L38 16 L26 24 Z"/>
+  <path d="M36 18 L32 30 L40 36 L36 46"/>
+  <path d="M14 44 L22 40"/>
+</svg>

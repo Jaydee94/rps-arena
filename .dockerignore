@@ -1,0 +1,34 @@
+# VCS / tooling / local state
+.git
+.gitignore
+.github
+.superpowers
+.playwright-mcp
+.claude
+.vscode
+.idea
+.DS_Store
+
+# Build outputs and installed dependencies (recreated inside the image)
+node_modules
+**/node_modules
+dist
+**/dist
+coverage
+*.tsbuildinfo
+
+# Self-hosted web assets: apps/web `prebuild` (scripts/fetch-model.mjs) recreates them
+apps/web/public/models
+apps/web/public/mediapipe-wasm
+
+# Docs, deployment descriptors and tests are not needed to build the image
+docs
+charts
+*.md
+
+# Secrets and local environment
+.env
+.env.*
+*.log
+Dockerfile
+.dockerignore

@@ -1,0 +1,87 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--text);
+  background-color: var(--paper);
+  /* Ben-Day dots, small screen */
+  background-image: radial-gradient(circle at center, var(--dot) 1.5px, transparent 2px);
+  background-size: 14px 14px;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Big halftone that fades out from the top right corner, like an offset-print gradient. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(circle at center, var(--dot-big) 28%, transparent 30%);
+  background-size: 18px 18px;
+  mask-image: radial-gradient(ellipse 70% 50% at 100% 0%, var(--paper), transparent);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  text-shadow: var(--print-slip);
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: var(--outline) solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* All motion lives in its own stylesheet, behind prefers-reduced-motion: no-preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,170 @@
+/* Shared comic building blocks used by the screens (cards, buttons, fields, choice chips). */
+.card {
+  padding: var(--space-4);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+/* A yellow label stuck on the top left edge of a card, like a comic caption box. */
+.ribbon {
+  justify-self: start;
+  margin: calc(var(--space-4) * -1 - var(--outline)) 0 var(--space-1) calc(var(--space-4) * -1 - var(--outline));
+  padding: var(--space-1) var(--space-4);
+  border: var(--border);
+  border-radius: var(--radius-sm) var(--radius-sm) var(--radius-sm) 0;
+  background: var(--yellow);
+  color: var(--on-bright);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-lg);
+  text-shadow: none;
+  rotate: -1.5deg;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 3rem;
+  padding: var(--space-2) var(--space-5);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--sticker);
+  color: var(--on-bright);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  letter-spacing: 0.05em;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--paper-2);
+}
+
+.btn:active:not(:disabled) {
+  translate: 3px 3px;
+  box-shadow: none;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  min-height: 3.5rem;
+  padding-inline: var(--space-6);
+  background: var(--yellow);
+  font-size: var(--text-xl);
+  box-shadow: var(--shadow);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--orange);
+}
+
+.btn-blue {
+  background: var(--blue);
+  color: var(--on-blue);
+}
+
+.btn-blue:hover:not(:disabled) {
+  background: var(--blue);
+  filter: brightness(1.12);
+}
+
+.btn-small {
+  min-height: 2.5rem;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-md);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+  font-weight: 700;
+}
+
+.field input[type='text'] {
+  min-height: 3rem;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--sticker);
+  color: var(--on-bright);
+  box-shadow: inset 3px 3px 0 var(--dot);
+}
+
+.field input[type='text']::placeholder {
+  color: var(--on-bright);
+  opacity: 0.55;
+}
+
+fieldset.group {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+fieldset.group > legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+  font-weight: 700;
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: var(--space-1) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--sticker);
+  color: var(--on-bright);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.chip:has(input:checked) {
+  background: var(--yellow);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Not only color: the chosen chip also gets a check mark. */
+.chip:has(input:checked)::after {
+  content: '✓';
+}
+
+.chip:has(input:focus-visible) {
+  outline: var(--outline) solid var(--focus);
+  outline-offset: 3px;
+}
+
+.chip:has(input:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

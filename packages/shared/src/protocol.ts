@@ -1,0 +1,141 @@
+import { z } from 'zod';
+import { normalizeCode } from './codes';
+import { BLUFF_EMOTES } from './constants';
+import type { ModeId } from './gestures';
+import type { MatchState, RoomConfig, RoundResult, SeatId, Team } from './match';
+
+export type BotLevel = 'easy' | 'medium' | 'hard';
+
+export const ERROR_CODES = [
+  'room_not_found',
+  'room_full',
+  'invalid_input',
+  'wrong_phase',
+  'invalid_gesture',
+  'already_picked',
+  'not_host',
+  'bad_token',
+  /** Too many events from one connection in a short time; the event was dropped. */
+  'rate_limited',
+  /** Unexpected server-side failure (e.g. no free room code); retrying may help. */
+  'internal',
+] as const;
+export type ErrorCode = (typeof ERROR_CODES)[number];
+
+export class ProtocolError extends Error {
+  readonly code: ErrorCode;
+
+  constructor(code: ErrorCode) {
+    super(code);
+    this.name = 'ProtocolError';
+    this.code = code;
+  }
+}
+
+export const AVATARS: readonly string[] = ['fox', 'robot', 'cat', 'owl', 'panda', 'dino', 'alien', 'ghost'];
+
+export const NICKNAME_MAX_LENGTH = 16;
+
+// --- Schemas ---------------------------------------------------------------
+
+const MODE_IDS = ['classic', 'lizard-spock', 'wheel7', 'wheel9', 'wheel15', 'bluff', 'team2v2'] as const;
+// Compile-time guard: fails if a ModeId is missing from MODE_IDS.
+const _allModesListed: Exclude<ModeId, (typeof MODE_IDS)[number]> extends never ? true : never = true;
+void _allModesListed;
+
+const seatSchema = z.enum(['a0', 'a1', 'b0', 'b1']);
+
+const configSchema = z.object({
+  mode: z.enum(MODE_IDS),
+  bestOf: z.union([z.literal(3), z.literal(5), z.literal(7)]),
+});
+
+const nicknameSchema = z
+  .string()
+  .trim()
+  .refine((s) => s.length > 0, 'empty')
+  .refine((s) => [...s].length <= NICKNAME_MAX_LENGTH, 'too long')
+  .refine((s) => !/\p{Cc}/u.test(s), 'control characters');
+
+const avatarSchema = z.string().refine((s) => AVATARS.includes(s), 'unknown avatar');
+const codeSchema = z.string().transform(normalizeCode).pipe(z.string().min(1).max(16));
+const emoteSchema = z.string().refine((s) => BLUFF_EMOTES.includes(s), 'unknown emote');
+const botLevelSchema = z.enum(['easy', 'medium', 'hard']);
+const emptySchema = z.object({});
+
+export const ClientEvents = {
+  'room:create': z.object({
+    config: configSchema,
+    nickname: nicknameSchema,
+    avatar: avatarSchema,
+    vsBot: botLevelSchema.optional(),
+  }),
+  'room:join': z.object({ code: codeSchema, nickname: nicknameSchema, avatar: avatarSchema }),
+  'room:rejoin': z.object({ code: codeSchema, token: z.string().min(1).max(128) }),
+  'room:start': emptySchema,
+  'seat:move': z.object({ from: seatSchema, to: seatSchema }),
+  'game:announce': z.object({ emote: emoteSchema.nullable() }),
+  'game:pick': z.object({ gesture: z.string().min(1).max(32) }),
+  'game:next': emptySchema,
+  'room:rematch': emptySchema,
+} as const;
+
+export type ClientEventName = keyof typeof ClientEvents;
+export type ClientEventPayloads = { [K in ClientEventName]: z.infer<(typeof ClientEvents)[K]> };
+
+/** Trims and validates a nickname (1-16 characters, no control characters). */
+export function parseNickname(raw: string): string {
+  const result = nicknameSchema.safeParse(raw);
+  if (!result.success) throw new ProtocolError('invalid_input');
+  return result.data;
+}
+
+// --- Server -> client view types --------------------------------------------
+
+export interface PublicPlayer {
+  seat: SeatId;
+  nickname: string;
+  avatar: string;
+  connected: boolean;
+  disconnectedAt: number | null;
+  isBot: boolean;
+}
+
+export interface PublicMatch {
+  config: RoomConfig;
+  phase: MatchState['phase'];
+  round: number;
+  score: MatchState['score'];
+  announces: MatchState['announces'];
+  lockedSeats: SeatId[];
+  yourPick: string | null;
+  lastRound: RoundResult | null;
+  winner: Team | null;
+  forfeited: SeatId[];
+}
+
+export interface RoomView {
+  code: string;
+  config: RoomConfig;
+  you: SeatId;
+  hostSeat: SeatId;
+  players: Partial<Record<SeatId, PublicPlayer>>;
+  match: PublicMatch | null;
+  deadline: number | null;
+}
+
+/**
+ * Sent only to the socket that just created, joined or rejoined a room. The token is the secret
+ * session credential for `room:rejoin`; it never appears in `room:state`.
+ */
+export interface RoomJoined {
+  code: string;
+  token: string;
+  seat: SeatId;
+}
+
+export type ServerEvents = {
+  'room:joined': RoomJoined;
+  'room:state': RoomView;
+  'room:error': { code: ErrorCode; message: string };
+};

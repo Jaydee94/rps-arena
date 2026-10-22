@@ -1,0 +1,9 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <circle class="red" cx="19" cy="49" r="10"/>
+  <circle class="red" cx="45" cy="49" r="10"/>
+  <circle class="white" cx="19" cy="49" r="4"/>
+  <circle class="white" cx="45" cy="49" r="4"/>
+  <path class="grey" d="M9 6 L16 4 L38 37 L31 42 Z"/>
+  <path class="grey" d="M55 6 L48 4 L26 37 L33 42 Z"/>
+  <circle class="yellow" cx="32" cy="39" r="4"/>
+</svg>

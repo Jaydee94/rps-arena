@@ -1,0 +1,27 @@
+RPS Arena {{ .Chart.AppVersion }} has been deployed as "{{ include "rps-arena.fullname" . }}".
+
+{{- if .Values.ingress.enabled }}
+
+Open the game at: {{ if .Values.ingress.tls.enabled }}https{{ else }}http{{ end }}://{{ .Values.ingress.host }}{{ .Values.ingress.path }}
+{{- else }}
+
+Ingress is disabled. To reach the game locally, run:
+
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "rps-arena.fullname" . }} 8080:{{ .Values.service.port }}
+
+and open http://localhost:8080
+{{- end }}
+
+{{- if .Values.redis.enabled }}
+
+Redis: in-chart instance "{{ include "rps-arena.redisName" . }}" ({{ if .Values.redis.persistence.enabled }}persistent{{ else }}ephemeral, game state is lost when it restarts{{ end }}).
+{{- else }}
+
+{{- if include "rps-arena.redisFromSecret" . }}
+
+Redis: external, URL read from the Secret "{{ .Values.redis.existingSecret }}" (key "{{ .Values.redis.existingSecretKey | default "redis-url" }}").
+{{- else }}
+
+Redis: external (redis.externalUrl; the URL is not shown here because it may contain credentials, use redis.existingSecret for a password).
+{{- end }}
+{{- end }}

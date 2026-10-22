@@ -1,0 +1,75 @@
+image:
+  repository: ghcr.io/jaydee94/rps-arena
+  # Defaults to .Chart.AppVersion
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# Multiple replicas work without sticky sessions (state lives in Redis).
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+# Extra environment variables for the app container (name: value map).
+env: {}
+
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  path: /
+  pathType: Prefix
+  # Defaults keep long-lived WebSocket connections open (ingress-nginx).
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  tls:
+    enabled: false
+    # Defaults to "<fullname>-tls"
+    secretName: ""
+    # When set (and tls.enabled), adds the cert-manager.io/cluster-issuer annotation.
+    clusterIssuer: ""
+
+redis:
+  # Deploy a simple in-chart Redis. When false, redis.externalUrl is required.
+  enabled: true
+  image: redis:7-alpine
+  # Memory bound of the in-chart Redis (--maxmemory), so a growing data set evicts old rooms
+  # instead of getting the container OOM-killed (which would wipe every room). Keep
+  # redis.resources.limits.memory comfortably above it (fragmentation, buffers, and the copy-on-write
+  # fork of a background save when persistence is enabled).
+  maxmemory: 100mb
+  # volatile-lru evicts only keys that carry a TTL: every room has one, while the small deadline
+  # index has none and is never evicted.
+  maxmemoryPolicy: volatile-lru
+  # URL of an external Redis (used when redis.enabled=false). It lands as plain text in the
+  # Deployment and in `helm get values`, so do not put a password in it: use existingSecret.
+  externalUrl: ""
+  # Name of an existing Secret holding the external Redis URL (including a password, if any) under
+  # existingSecretKey. When set, REDIS_URL is read from it via secretKeyRef and externalUrl is not
+  # needed. Only used with redis.enabled=false. Create it yourself, e.g.:
+  #   kubectl create secret generic rps-redis --from-literal=redis-url='rediss://user:pass@host:6379'
+  existingSecret: ""
+  existingSecretKey: redis-url
+  persistence:
+    enabled: false
+    size: 1Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
