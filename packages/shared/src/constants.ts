@@ -23,3 +23,14 @@ export const MAX_SPECTATORS = 16;
 
 /** Emotes a player may announce in bluff mode: the gestures of the bluff set (lizard-spock). */
 export const BLUFF_EMOTES: readonly string[] = getGestureSet('lizard-spock').gestures;
+
+/** Fewest participants a tournament can start with. */
+export const TOURNAMENT_MIN_PLAYERS = 4;
+/** Most participants a tournament takes; further joiners become spectators. */
+export const TOURNAMENT_MAX_PLAYERS = 8;
+/** Length of the draw animation before the first tournament match. */
+export const DRAW_MS = 3_000;
+/** Pause with bracket/table between two tournament matches. */
+export const INTERMISSION_MS = 6_000;
+/** Tie-break round-robins for 1st place in round-robin before a coin flip decides. */
+export const TIEBREAK_MAX_ROUNDS = 2;
