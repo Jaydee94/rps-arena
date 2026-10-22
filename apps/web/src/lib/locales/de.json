@@ -141,6 +141,7 @@
   "errors.invalid_gesture": "Diese Geste gibt es in diesem Modus nicht.",
   "errors.already_picked": "Du hast schon gewählt.",
   "errors.not_host": "Nur die Gastgeberin oder der Gastgeber darf das.",
+  "errors.not_player": "Das dürfen nur Mitspielende. Du schaust gerade zu.",
   "errors.bad_token": "Deine Sitzung ist abgelaufen. Tritt dem Raum neu bei.",
   "errors.rate_limited": "Zu viele Aktionen auf einmal. Bitte kurz warten.",
   "errors.internal": "Interner Fehler. Bitte versuche es erneut.",
@@ -198,5 +199,15 @@
   "camera.badge": "Experimentell",
   "camera.hold": "Halte Stein, Papier oder Schere kurz in die Kamera.",
   "camera.loading": "Lade Gestenerkennung …",
-  "camera.pose_none": "Keine Geste erkannt"
+  "camera.pose_none": "Keine Geste erkannt",
+
+  "spectate.banner": "Du schaust zu",
+  "spectate.pick": "Die Spielenden wählen …",
+  "spectate.waiting_pick": "{name} überlegt …",
+  "spectate.locked": "{name} hat gewählt",
+  "spectate.round_won": "{name} gewinnt die Runde!",
+  "spectate.over": "Match beendet",
+  "spectate.finished": "{name} gewinnt das Match!",
+  "spectate.count": "{n} Zuschauer",
+  "spectate.count_one": "1 Zuschauer"
 }
