@@ -177,6 +177,13 @@ describe('connection', () => {
     });
   });
 
+  it('forgetSession removes the stored credentials so a reload does not rejoin', async () => {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code: 'WXYZ', token: 'tok' }));
+    const { forgetSession } = await load();
+    forgetSession();
+    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+  });
+
   it('keeps working when storage throws', async () => {
     const broken = {
       getItem: () => {

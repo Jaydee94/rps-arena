@@ -119,6 +119,11 @@ export function clearError(): void {
   lastErrorStore.set(null);
 }
 
+/** Drops the stored room credentials, so the next page load starts fresh instead of rejoining. */
+export function forgetSession(): void {
+  clearSession();
+}
+
 function send<K extends ClientEventName>(event: K, payload: ClientEventPayloads[K]): void {
   connect();
   pendingRejoin = false;
