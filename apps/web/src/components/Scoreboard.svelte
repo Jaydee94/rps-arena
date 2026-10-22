@@ -131,6 +131,15 @@
     order: 1;
   }
 
+  /* Keep the digits clear of the VS star on the seam. */
+  .own .points {
+    margin-inline-end: 1.75rem;
+  }
+
+  .theirs .points {
+    margin-inline-start: 1.75rem;
+  }
+
   .name {
     grid-column: 1 / -1;
     min-width: 0;

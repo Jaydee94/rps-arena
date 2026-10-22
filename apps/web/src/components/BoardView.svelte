@@ -166,7 +166,8 @@
     text-shadow: 2px 2px 0 var(--yellow);
   }
 
-  .board > * {
+  /* :global, so the root elements of the child components span the board too. */
+  .board > :global(*) {
     grid-column: 1 / -1;
   }
 
@@ -177,6 +178,7 @@
   .picking > .status {
     grid-column: 1;
     grid-row: 3;
+    align-self: end;
     justify-self: stretch;
     padding-inline: var(--space-3);
     text-align: start;
@@ -185,6 +187,7 @@
   .picking > .you {
     grid-column: 1;
     grid-row: 4;
+    align-self: start;
   }
 
   .picking > .them {

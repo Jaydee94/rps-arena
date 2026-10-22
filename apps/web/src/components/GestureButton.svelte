@@ -33,7 +33,7 @@
   {onfocus}
   onclick={() => onpick(gesture)}
 >
-  <span class="art tile-art" style:--i={tone}><GestureIcon id={gesture} size={large ? 92 : 52} /></span>
+  <span class="art tile-art" style:--i={tone}><GestureIcon id={gesture} size={large ? 92 : 60} /></span>
   <span class="label">{t(gestureKey(gesture))}</span>
 </button>
 
@@ -45,7 +45,8 @@
     justify-items: center;
     align-content: center;
     gap: var(--space-1);
-    width: 5.2rem;
+    width: calc((100% - 2 * var(--pad-gap, var(--space-3))) / 3);
+    max-width: 6.5rem;
     min-width: 0;
     min-height: 5.8rem;
     padding: var(--space-2) var(--space-1);
@@ -97,7 +98,7 @@
 
   .label {
     max-width: 100%;
-    padding: 0 var(--space-2);
+    padding: 0 var(--space-1);
     border: calc(var(--outline) / 2) solid var(--edge);
     border-radius: var(--radius-sm);
     background: var(--sticker);
@@ -109,8 +110,10 @@
     line-height: 1.2;
   }
 
+  /* Long names such as SCISSORS must fit the narrowest tile (about 104 px at 360 px). */
   .large .label {
-    font-size: var(--text-lg);
+    font-size: clamp(1rem, 4.8vw, var(--text-lg));
+    letter-spacing: 0.02em;
   }
 
   .gesture:disabled {
