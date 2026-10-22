@@ -16,6 +16,7 @@ RPS Arena kennt heute nur Duelle (1 gegen 1, 2 gegen 2). Jan möchte, dass eine 
 - Zwischen zwei Matches zeigt der Raum rund 6 Sekunden den Baum bzw. die Tabelle mit dem Ergebnis, dann startet das nächste Match **automatisch**. Der Host kann die Pause überspringen.
 - Der Host spielt als normaler Teilnehmer mit und hat zusätzlich die Start- und Einstellungsrechte.
 - Wer **nach dem Start** beitritt, kommt als **Zuschauer** in den Raum (sieht Baum/Tabelle und Matches, spielt nicht mit).
+- Die **Zuschauerrolle gilt für alle Räume**, nicht nur für Turniere: Auch wer einem laufenden normalen Duell (1v1, 2v2, Bot) per Einladungslink beitritt, kommt als Zuschauer hinein, statt „Raum voll“ zu bekommen (Jans Entscheidung).
 - Siegerehrung am Ende; danach „Nochmal“ (gleiche Teilnehmer, neue Auslosung) und „Zurück“.
 
 ## Spielregeln des Turniers
@@ -37,7 +38,7 @@ RPS Arena kennt heute nur Duelle (1 gegen 1, 2 gegen 2). Jan möchte, dass eine 
 
 - Ein einzelner Verbindungsabbruch, ein gelangweilter Zuschauer oder die Entscheidung des Hosts darf das Turnier **nicht** einfrieren.
 - Zuschauer dürfen **niemals** eine Geste vor dem Aufdecken sehen (weder in der Ansicht noch im Datenverkehr).
-- Die bestehenden Duelle (1v1, 2v2, Bot) dürfen sich für niemanden verändern oder langsamer werden.
+- Die bestehenden Duelle (1v1, 2v2, Bot) dürfen sich **für die Spielenden** nicht verändern oder langsamer werden. Die einzige gewollte Verhaltensänderung: Späte Beitritte werden Zuschauer statt „Raum voll“ (die bisherigen Tests dazu werden bewusst angepasst). Vor dem Start einer Partie bleibt ein volles Duell-Raum-Lobby weiterhin voll (Zuschauer gibt es erst, wenn die Partie läuft).
 
 ## Rahmenbedingungen aus dem Bestand (Recherche)
 
@@ -53,9 +54,17 @@ Das Paket `packages/shared` und der Server sind auf **ein** Match mit **festen v
 
 ## Vorgehen (Jan hat zugestimmt, in zwei Stufen zu bauen)
 
-**Stufe 1 – Fundament: Teilnehmer und Zuschauer im Raum.** Ohne Turnierlogik. Ergebnis: ein Raum kann mehr als zwei/vier Personen halten, jede Person hat eine eigene Kennung (Teilnehmer-ID statt festem Platz), es gibt eine Zuschauerrolle mit eigener, geheimhaltungssicherer Ansicht, und späte Beitritte während eines Matches sind als Zuschauer möglich. Bestehende Modi laufen unverändert weiter (Rückwärtskompatibilität des Verhaltens, nicht unbedingt der Datenform). Das ist der größte Eingriff und sollte für sich getestet und reviewt werden, bevor Stufe 2 darauf aufbaut.
+**Stufe 1 – Fundament: Teilnehmer und Zuschauer im Raum.** Ohne Turnierlogik. Ergebnis: ein Raum kann mehr als zwei/vier Personen halten, jede Person hat eine eigene Kennung (Teilnehmer-ID statt festem Platz), es gibt eine Zuschauerrolle mit eigener, geheimhaltungssicherer Ansicht, und späte Beitritte während eines laufenden Matches sind **in allen Raumarten** als Zuschauer möglich. Das Spielverhalten der bestehenden Modi bleibt für die Spielenden unverändert (Rückwärtskompatibilität des Verhaltens, nicht unbedingt der Datenform). Zuschauer zählen nie als Spieler: nicht für Leerlauf-Abbruch, Raum-Verlassen, Wiederverbinden-Frist oder „Alle haben ‚Weiter‘ gedrückt“. Das ist der größte Eingriff und sollte für sich getestet und reviewt werden, bevor Stufe 2 darauf aufbaut.
 
 **Stufe 2 – Turnier.** Eine Turnier-Schicht im Server, die Format, Setzung, Freilose, Tabelle, Stichmatch-Regeln und den Ablauf „Paarung → Match → Ergebnis → Pause → nächste Paarung“ besitzt und je Paarung die vorhandene Match-Logik laufen lässt. Dazu die Oberflächen: Turnier-Einstellungen in der Lobby, Auslosungsanimation, Baum- und Tabellenansicht, Zuschauer-Brett mit dem laufenden Match, Siegerehrung. Texte in DE und EN, Comic-Panel-Look, Bewegung nur in `animations.css` (siehe `2026-10-22-comic-panel-design-handoff.md`).
+
+## Entscheidungen des Autors (Jan hat sie nicht ausdrücklich getroffen, bitte prüfen)
+
+- **Match ohne Sieger** (beide untätig, Leerlauf-Abbruch, beide gleichzeitig getrennt): Im K.o.-Baum kommt weiter, wer mehr Runden gewonnen hat; bei Gleichstand entscheidet ein sichtbarer **Münzwurf** (zufällig, mit festem Zufall testbar). Bei Alle gegen alle gilt das Match als **für beide verloren** (kein Punkt).
+- **Wiederverbinden-Frist im Turnier:** Sie läuft pro Person ab dem Moment, in dem deren Match aufgerufen wird bzw. sie in einem laufenden Match wegbricht, nicht schon zwischen den Matches. Die Pause und das nächste Match warten nie auf eine abwesende Person: Ist sie beim Aufruf nicht verbunden, läuft die 30-Sekunden-Frist, danach Forfait. Ausgeschiedene und Zuschauer haben keine Frist.
+- **Host-Wechsel:** Verlässt der Host den Raum oder verliert per Forfait/Frist, geht die Host-Rolle an die nächste verbundene Person in der Reihenfolge des Beitritts (zuerst Spielende, dann Zuschauer). Damit hängen „Weiter“, „Nochmal“ und „Zurück“ nie an einer abwesenden Person.
+- **Alle gegen alle, Gleichstand:** Der direkte Vergleich wird nur unter den gleichstehenden Spielern als Mini-Tabelle gerechnet; teilweise aufgelöste Gruppen werden aufgeteilt, bevor ein Stichmatch greift. Ein **Stichmatch gibt es nur um Platz 1**; Gleichstände auf den Plätzen dahinter bleiben als geteilter Platz stehen. Die Siegerehrung zeigt das Treppchen bis Platz 3 (bei geteilten Plätzen entsprechend).
+- **„Nochmal“:** Der Raum geht zurück in die Lobby. Alle aktuell verbundenen Personen (frühere Zuschauer eingeschlossen) können mitspielen, die ersten 8 nach Beitrittsreihenfolge werden Spielende, weitere bleiben Zuschauer. Die Spielerzahl ist erst mit dem Start des neuen Turniers festgelegt, nicht mehr davor.
 
 ## Was der Baumeister entscheiden darf
 
@@ -66,5 +75,5 @@ Das Paket `packages/shared` und der Server sind auf **ein** Match mit **festen v
 
 ## Offen / nicht entschieden
 
-- Obergrenze für Zuschauer pro Raum.
+- Obergrenze für Zuschauer pro Raum (Richtwert siehe oben).
 - Ob die Turnier-Einstellung „Best of“ später für das Finale getrennt einstellbar sein soll (jetzt: Best of 3 für alle Matches).
