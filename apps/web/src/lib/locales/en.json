@@ -209,5 +209,8 @@
   "spectate.over": "Match finished",
   "spectate.finished": "{name} wins the match!",
   "spectate.count": "{n} spectators",
-  "spectate.count_one": "1 spectator"
+  "spectate.count_one": "1 spectator",
+  "spectate.waiting": "The players are getting ready again…",
+  "spectate.announced": "{name} announces: {gesture}",
+  "spectate.silent": "{name} announces nothing."
 }

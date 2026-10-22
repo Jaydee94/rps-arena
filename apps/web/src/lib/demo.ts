@@ -4,9 +4,9 @@
  * so it never reaches a production build.
  *
  * Extra query params: mode=<mode id>, outcome=win|lose|draw, picked=1, phase=announce, left=<seconds>, bot=1,
- * watchers=<n> (spectators in the lobby/board room), and for `spectate`: phase=pick|reveal|finished.
+ * watchers=<n> (spectators in the lobby/board room), and for `spectate`: phase=pick|announce|reveal|finished|lobby (no match).
  */
-import { REVEAL_MS, type PlayerView, type PublicMatch, type PublicPlayer, type PublicSpectator, type RoomConfig, type RoomView, type SeatId } from '@rps/shared';
+import { REVEAL_MS, type PlayerView, type PublicMatch, type PublicPlayer, type PublicSpectator, type RoomConfig, type RoomView, type RoundResult, type SeatId } from '@rps/shared';
 import { setDemoState } from './connection';
 
 type Params = URLSearchParams;
@@ -86,24 +86,19 @@ function build(name: string, params: Params): RoomView | null {
       if (outcome === 'lose') [picks.a0, picks.b0] = ['scissors', 'rock'];
       if (outcome === 'draw') picks.b0 = picks.a0 as string;
       const result = outcome === 'win' ? 'a' : outcome === 'lose' ? 'b' : 'draw';
-      const match =
-        phase === 'reveal'
-          ? baseMatch(config, {
-              phase: 'reveal',
-              lastRound: {
-                picks,
-                winner: result,
-                duels: team
-                  ? [
-                      { seats: ['a0', 'b0'], result },
-                      { seats: ['a1', 'b1'], result: 'draw' },
-                    ]
-                  : [{ seats: ['a0', 'b0'], result }],
-              },
-            })
-          : phase === 'finished'
-            ? baseMatch(config, { phase: 'finished', round: 5, score: { a: 1, b: 3 }, winner: 'b' })
-            : baseMatch(config, { lockedSeats: ['b0'] });
+      let match: PublicMatch | null = baseMatch(config, { lockedSeats: ['b0'] });
+      if (phase === 'lobby') match = null;
+      else if (phase === 'announce') match = baseMatch(config, { phase: 'announce', announces: { a0: 'spock', b0: null } });
+      else if (phase === 'finished') match = baseMatch(config, { phase: 'finished', round: 5, score: { a: 1, b: 3 }, winner: 'b' });
+      else if (phase === 'reveal') {
+        const duels: RoundResult['duels'] = team
+          ? [
+              { seats: ['a0', 'b0'], result },
+              { seats: ['a1', 'b1'], result: 'draw' },
+            ]
+          : [{ seats: ['a0', 'b0'], result }];
+        match = baseMatch(config, { phase: 'reveal', lastRound: { picks, winner: result, duels } });
+      }
       return {
         role: 'spectator',
         code: view.code,
@@ -114,7 +109,7 @@ function build(name: string, params: Params): RoomView | null {
         players,
         spectators: watchers(Number(params.get('watchers') ?? 2)),
         match,
-        deadline: match.phase === 'finished' ? null : Date.now() + (phase === 'reveal' ? REVEAL_MS : left * 1000),
+        deadline: !match || match.phase === 'finished' ? null : Date.now() + (phase === 'reveal' ? REVEAL_MS : left * 1000),
       };
     }
     case 'lobby':

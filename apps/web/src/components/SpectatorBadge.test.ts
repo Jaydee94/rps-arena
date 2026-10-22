@@ -27,6 +27,13 @@ describe('SpectatorBadge', () => {
     expect(badge.closest('[title]')).toHaveAttribute('title', 'Zoe, Wim');
   });
 
+  it('lists the names for screen readers too, not only as a tooltip', () => {
+    render(SpectatorBadge, { spectators: [ZOE, WIM] });
+    const list = screen.getByText('Zoe, Wim');
+    expect(list).toHaveClass('sr-only');
+    expect(list.closest('.spectator-badge')).not.toBeNull();
+  });
+
   it('uses the singular for one spectator', () => {
     render(SpectatorBadge, { spectators: [ZOE] });
     expect(screen.getByText('1 spectator')).toBeInTheDocument();

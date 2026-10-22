@@ -3,12 +3,14 @@
   import { forgetSession } from '../lib/connection';
   import { duelViews, type Side } from '../lib/board';
   import { shouldCountDown } from '../lib/countdown';
+  import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
   import { teamOf } from '../lib/seats';
   import Avatar from './Avatar.svelte';
   import Countdown from './Countdown.svelte';
   import RevealPanel from './RevealPanel.svelte';
   import Scoreboard from './Scoreboard.svelte';
+  import SpectateBanner from './SpectateBanner.svelte';
   import ThinkBubble from './ThinkBubble.svelte';
   import TimerBar from './TimerBar.svelte';
 
@@ -66,14 +68,27 @@
   // Team a on top, as on the scoreboard; there is no "you" to put first.
   const duels = $derived(revealing && match.lastRound ? duelViews(match.lastRound, 'a0') : []);
 
-  /** Pick-phase notes of a side: who is still thinking, who has locked in. Never a gesture. */
-  const notesOf = (team: Team) =>
-    seatsOf(team).map((seat) =>
-      t(match.lockedSeats.includes(seat) ? 'spectate.locked' : 'spectate.waiting_pick', { name: nick(seat) }),
-    );
+  /**
+   * Notes of a side: who is still thinking, who has locked in, and what a bluffer announced (public by
+   * design). Never a pick.
+   */
+  function notesOf(team: Team): string[] {
+    const notes: string[] = [];
+    for (const seat of seatsOf(team)) {
+      const name = nick(seat);
+      const said = match.announces[seat];
+      if (match.phase !== 'announce') {
+        notes.push(t(match.lockedSeats.includes(seat) ? 'spectate.locked' : 'spectate.waiting_pick', { name }));
+      }
+      if (said) notes.push(t('spectate.announced', { name, gesture: t(gestureKey(said)) }));
+      else if (said === null) notes.push(t('spectate.silent', { name }));
+      else if (match.phase === 'announce') notes.push(t('spectate.waiting_pick', { name }));
+    }
+    return notes;
+  }
   const lockedOf = (team: Team) => {
     const seats = seatsOf(team);
-    return seats.length > 0 && seats.every((seat) => match.lockedSeats.includes(seat));
+    return match.phase !== 'announce' && seats.length > 0 && seats.every((seat) => match.lockedSeats.includes(seat));
   };
 
   const prompt = $derived.by(() => {
@@ -96,7 +111,7 @@
 </script>
 
 <main class="spectate" data-testid="spectate">
-  <p class="banner">{t('spectate.banner')}</p>
+  <SpectateBanner />
   <Scoreboard {left} {right} round={match.round} bestOf={match.config.bestOf} {modeName} />
   <TimerBar deadline={room.deadline} phase={match.phase} />
   <!-- One persistent live region at one fixed position, whatever the phase. -->
@@ -141,26 +156,6 @@
   /* :global, so the root elements of the child components span the screen too. */
   .spectate > :global(*) {
     grid-column: 1 / -1;
-  }
-
-  /* The header band: who you are in this room. */
-  .banner {
-    justify-self: center;
-    max-width: 100%;
-    margin: 0;
-    padding: 0 var(--space-5);
-    border: var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--blue);
-    color: var(--on-blue);
-    box-shadow: var(--shadow-sm);
-    font-family: var(--font-display);
-    font-size: var(--text-lg);
-    letter-spacing: 0.04em;
-    line-height: 1.4;
-    overflow-wrap: anywhere;
-    text-align: center;
-    rotate: var(--tilt-1);
   }
 
   /* The sentence about the round is a speech bubble, as on the board. */

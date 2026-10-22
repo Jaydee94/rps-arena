@@ -1,11 +1,12 @@
 <script lang="ts">
   import { spectatorRoom } from '../lib/connection';
   import SpectateView from './SpectateView.svelte';
+  import SpectateWaiting from './SpectateWaiting.svelte';
 </script>
 
-<!-- The spectator's screen for every phase of a running or finished match; the lobby has no spectators. -->
+<!-- The spectator's screen: a running or finished match, or the waiting screen when the room has no match. -->
 {#if $spectatorRoom?.match}
   <SpectateView room={$spectatorRoom} match={$spectatorRoom.match} />
-{:else}
-  <main data-testid="spectate"></main>
+{:else if $spectatorRoom}
+  <SpectateWaiting room={$spectatorRoom} />
 {/if}

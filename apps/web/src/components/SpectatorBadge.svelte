@@ -12,13 +12,14 @@
   const names = $derived(spectators.map((spectator) => spectator.nickname).join(', '));
 </script>
 
-<!-- Read-only: how many people are watching; the names only as a tooltip. Nothing without spectators. -->
+<!-- Read-only: how many people are watching; the names as a tooltip and, for screen readers and touch, as visually hidden text. Nothing without spectators. -->
 {#if count > 0}
-  <p class="spectator-badge" title={names}>{count === 1 ? t('spectate.count_one') : t('spectate.count', { n: count })}</p>
+  <p class="spectator-badge" title={names}>{count === 1 ? t('spectate.count_one') : t('spectate.count', { n: count })} <span class="sr-only">{names}</span></p>
 {/if}
 
 <style>
   .spectator-badge {
+    position: relative;
     justify-self: start;
     max-width: 100%;
     margin: 0;

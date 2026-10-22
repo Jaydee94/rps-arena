@@ -133,6 +133,60 @@ describe('Spectate', () => {
     });
   });
 
+  describe('waiting (the room is back in the lobby)', () => {
+    it('shows the banner, a waiting status, the spectators and a way back', async () => {
+      const assign = vi.fn();
+      vi.stubGlobal('location', { ...window.location, assign });
+      feed(
+        makeSpectatorRoom({
+          match: null,
+          spectators: [{ id: 's1', nickname: 'Zoe', avatar: 'cat', connected: true }],
+        }),
+      );
+      render(Spectate);
+
+      expect(screen.getByText('You are watching')).toBeInTheDocument();
+      expect(screen.getAllByRole('status')).toHaveLength(1);
+      expect(screen.getByRole('status')).toHaveTextContent('The players are getting ready again…');
+      expect(screen.getByText('1 spectator')).toBeInTheDocument();
+      expect(screen.queryAllByRole('radio')).toHaveLength(0);
+      expect(screen.queryByTestId('duel')).not.toBeInTheDocument();
+
+      await userEvent.setup().click(screen.getByRole('button', { name: 'Back to start' }));
+      expect(actions.forgetSession).toHaveBeenCalledTimes(1);
+      expect(assign).toHaveBeenCalledWith('/');
+      vi.unstubAllGlobals();
+    });
+  });
+
+  describe('bluff announcements', () => {
+    const bluff = (phase: 'announce' | 'pick', announces = { a0: 'spock', b0: null } as Record<string, string | null>) =>
+      makeSpectatorRoom({ config: { mode: 'bluff', bestOf: 3 }, match: { phase, announces, lockedSeats: [] } });
+
+    it('shows each public announcement in the announce phase, never a pick', () => {
+      feed(bluff('announce'));
+      render(Spectate);
+      expect(screen.getByText('Spieler-a0 announces: Spock')).toBeInTheDocument();
+      expect(screen.getByText('Spieler-b0 announces nothing.')).toBeInTheDocument();
+      expect(screen.queryByText(/thinking/)).not.toBeInTheDocument();
+    });
+
+    it('shows who has not announced yet as thinking', () => {
+      feed(bluff('announce', { a0: 'spock' }));
+      render(Spectate);
+      expect(screen.getByText('Spieler-a0 announces: Spock')).toBeInTheDocument();
+      expect(screen.getByText('Spieler-b0 is thinking…')).toBeInTheDocument();
+    });
+
+    it('keeps the announcements next to the lock-in notes in the pick phase', () => {
+      feed(makeSpectatorRoom({ config: { mode: 'bluff', bestOf: 3 }, match: { phase: 'pick', announces: { a0: 'spock', b0: null }, lockedSeats: ['b0'] } }));
+      render(Spectate);
+      expect(screen.getByText('Spieler-a0 announces: Spock')).toBeInTheDocument();
+      expect(screen.getByText('Spieler-b0 has locked in')).toBeInTheDocument();
+      expect(screen.getByText('Spieler-a0 is thinking…')).toBeInTheDocument();
+    });
+  });
+
   describe('team mode', () => {
     it('names the teams on the scoreboard and in the result', () => {
       feed(
