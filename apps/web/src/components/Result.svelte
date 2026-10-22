@@ -18,16 +18,24 @@
   {@const match = $room.match}
   {@const myTeam = teamOf(view.you)}
   {@const theirTeam = myTeam === 'a' ? 'b' : 'a'}
+  {@const abandoned = match.winner === null}
   {@const won = match.winner === myTeam}
   {#if won}<Confetti />{/if}
-  <main class="result card" class:result-win={won} class:result-lose={!won}>
+  <main class="result card" class:result-win={won} class:result-lose={!won && !abandoned}>
     <div class="stage">
       <span class="avatar-hero"><Avatar id={view.players[view.you]?.avatar ?? ''} size={112} /></span>
-      <span class="burst-spot">
-        <ComicBurst text={t(won ? 'burst.win' : 'burst.lose')} variant={won ? 'win' : 'lose'} />
-      </span>
+      {#if !abandoned}
+        <span class="burst-spot">
+          <ComicBurst text={t(won ? 'burst.win' : 'burst.lose')} variant={won ? 'win' : 'lose'} />
+        </span>
+      {/if}
     </div>
-    <h2 class="headline">{t(won ? 'result.match_win' : 'result.match_lose')}</h2>
+    {#if abandoned}
+      <h2 class="headline">{t('result.abandoned.title')}</h2>
+      <p class="hint">{t('result.abandoned.hint')}</p>
+    {:else}
+      <h2 class="headline">{t(won ? 'result.match_win' : 'result.match_lose')}</h2>
+    {/if}
     {#if match.winner && view.config.mode === 'team2v2'}
       <p class="team">{t('result.team_win', { team: match.winner.toUpperCase() })}</p>
     {/if}
@@ -85,6 +93,11 @@
     font-size: var(--text-hero);
     text-shadow: var(--print-slip);
     text-wrap: balance;
+  }
+
+  .hint {
+    max-width: 24rem;
+    color: var(--ink-soft);
   }
 
   .team,

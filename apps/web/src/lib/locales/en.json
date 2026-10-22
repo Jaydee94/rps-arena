@@ -86,6 +86,8 @@
   "result.round_draw": "It's a draw!",
   "result.match_win": "You won the match!",
   "result.match_lose": "Not this time.",
+  "result.abandoned.title": "Match ended (nobody was playing)",
+  "result.abandoned.hint": "Nobody made a move for too long, so the match was ended.",
   "result.team_win": "Team {team} wins!",
   "result.forfeit": "{name} left the game.",
   "result.next": "Next round",

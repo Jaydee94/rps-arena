@@ -29,6 +29,45 @@ describe('Result', () => {
     expect(screen.getByText('Endstand 1 : 2')).toBeInTheDocument();
   });
 
+  it('shows a win with the confetti and the win burst', () => {
+    roomStore.set(makeRoom({ match: { phase: 'finished', winner: 'a' } }));
+    const { container } = render(Result);
+    expect(container.querySelector('.confetti')).not.toBeNull();
+    expect(screen.getByText('SIEG!')).toBeInTheDocument();
+  });
+
+  describe.each([
+    ['de', 'Spiel beendet (niemand hat gespielt)', 'Endstand 1 : 1', 'Es gab zu lange keine Züge, deshalb wurde das Spiel beendet.'],
+    ['en', 'Match ended (nobody was playing)', 'Final score 1 : 1', 'Nobody made a move for too long, so the match was ended.'],
+  ] as const)('without a winner (%s)', (locale, headline, score, hint) => {
+    beforeEach(() => {
+      setLocale(locale);
+      roomStore.set(makeRoom({ you: 'b0', match: { phase: 'finished', winner: null, score: { a: 1, b: 1 } } }));
+    });
+
+    it('shows a neutral headline, no win/lose text and the final score', () => {
+      render(Result);
+      expect(screen.getByRole('heading', { name: headline })).toBeInTheDocument();
+      expect(screen.getByText(score)).toBeInTheDocument();
+      expect(screen.getByText(hint)).toBeInTheDocument();
+      for (const text of ['Du hast gewonnen!', 'Diesmal verloren.', 'You won the match!', 'Not this time.', 'SIEG!', 'AUA!', 'WIN!', 'OUCH!']) {
+        expect(screen.queryByText(text)).toBeNull();
+      }
+    });
+
+    it('has no confetti, no burst and neither win nor lose styling', () => {
+      const { container } = render(Result);
+      expect(container.querySelector('.confetti')).toBeNull();
+      expect(container.querySelector('.burst-spot')).toBeNull();
+      expect(container.querySelector('.result-win, .result-lose')).toBeNull();
+    });
+
+    it('keeps the rematch and leave actions', () => {
+      render(Result);
+      expect(screen.getAllByRole('button')).toHaveLength(2);
+    });
+  });
+
   it('names the winning team in team2v2', () => {
     roomStore.set(
       makeRoom({ config: { mode: 'team2v2', bestOf: 3 }, you: 'b1', match: { phase: 'finished', winner: 'b', score: { a: 0, b: 2 } } }),
@@ -41,6 +80,13 @@ describe('Result', () => {
     roomStore.set(makeRoom({ match: { phase: 'finished', winner: 'a', forfeited: ['b0'] } }));
     render(Result);
     expect(screen.getByText('Spieler-b0 hat das Spiel verlassen.')).toBeInTheDocument();
+  });
+
+  it('offers a rematch after an abandoned match', async () => {
+    roomStore.set(makeRoom({ match: { phase: 'finished', winner: null } }));
+    render(Result);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Nochmal spielen' }));
+    expect(actions.rematch).toHaveBeenCalledTimes(1);
   });
 
   it('offers a rematch', async () => {

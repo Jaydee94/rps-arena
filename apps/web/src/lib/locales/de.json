@@ -86,6 +86,8 @@
   "result.round_draw": "Unentschieden!",
   "result.match_win": "Du hast gewonnen!",
   "result.match_lose": "Diesmal verloren.",
+  "result.abandoned.title": "Spiel beendet (niemand hat gespielt)",
+  "result.abandoned.hint": "Es gab zu lange keine Züge, deshalb wurde das Spiel beendet.",
   "result.team_win": "Team {team} gewinnt!",
   "result.forfeit": "{name} hat das Spiel verlassen.",
   "result.next": "Nächste Runde",
