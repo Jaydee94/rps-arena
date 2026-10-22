@@ -3,7 +3,7 @@
 <p align="center"><strong>Comic-panel rock-paper-scissors for the browser: no account, no install, just a room code.</strong></p>
 
 <p align="center">
-  <a href="https://github.com/Jaydee94/rps-arena/actions/workflows/ci.yml"><img src="https://github.com/Jaydee94/rps-arena/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/Jaydee94/rps-arena/actions/workflows/release.yml"><img src="https://github.com/Jaydee94/rps-arena/actions/workflows/release.yml/badge.svg" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/Jaydee94/rps-arena" alt="MIT license"></a>
 </p>
 
