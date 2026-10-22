@@ -32,7 +32,40 @@ export class ProtocolError extends Error {
   }
 }
 
-export const AVATARS: readonly string[] = ['fox', 'robot', 'cat', 'owl', 'panda', 'dino', 'alien', 'ghost'];
+export const AVATARS: readonly string[] = [
+  'fox',
+  'robot',
+  'cat',
+  'owl',
+  'panda',
+  'dino',
+  'alien',
+  'ghost',
+  'shark',
+  'frog',
+  'unicorn',
+  'penguin',
+  'octopus',
+  'rabbit',
+  'vampire',
+  'zombie',
+  'yeti',
+  'wizard',
+  'mermaid',
+  'cyclops',
+  'astronaut',
+  'ninja',
+  'pirate',
+  'cyborg',
+  'hero',
+  'viking',
+  'pizza',
+  'taco',
+  'donut',
+  'cactus',
+  'mushroom',
+  'banana',
+];
 
 export const NICKNAME_MAX_LENGTH = 16;
 
