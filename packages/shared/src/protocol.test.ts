@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { BLUFF_EMOTES } from './constants';
-import { AVATARS, ClientEvents, ProtocolError, parseNickname } from './protocol';
+import { AVATARS, ClientEvents, ERROR_CODES, ProtocolError, parseNickname } from './protocol';
+import type { RoomJoined, ServerEvents } from './protocol';
+import type { SeatId } from './match';
 
 function errorCode(fn: () => unknown): string | undefined {
   try {
@@ -124,5 +126,22 @@ describe('ClientEvents', () => {
     for (const name of ['room:start', 'game:next', 'room:rematch'] as const) {
       expect(ClientEvents[name].safeParse({}).success).toBe(true);
     }
+  });
+});
+
+describe('ServerEvents', () => {
+  it('room:joined carries code, token and seat', () => {
+    expectTypeOf<ServerEvents['room:joined']>().toEqualTypeOf<RoomJoined>();
+    expectTypeOf<RoomJoined>().toEqualTypeOf<{ code: string; token: string; seat: SeatId }>();
+    const joined: RoomJoined = { code: 'ABCDE', token: 'f'.repeat(32), seat: 'a0' };
+    expect(Object.keys(joined).sort()).toEqual(['code', 'seat', 'token']);
+  });
+});
+
+describe('ERROR_CODES', () => {
+  it('includes rate_limited and internal next to the game errors', () => {
+    expect(ERROR_CODES).toContain('rate_limited');
+    expect(ERROR_CODES).toContain('internal');
+    expect(new Set(ERROR_CODES).size).toBe(ERROR_CODES.length);
   });
 });
