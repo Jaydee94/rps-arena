@@ -5,6 +5,7 @@ import type { RoomView } from '@rps/shared';
 import Board from './Board.svelte';
 import { setLocale } from '../lib/i18n';
 import { motion } from '../lib/motion';
+import { onCountdownEnded } from '../lib/countdown';
 import { resetConnectionMock, roomStore } from '../test/connection-mock';
 import { makeRoom } from '../test/fixtures';
 
@@ -126,6 +127,42 @@ describe('Board reveal countdown', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Wähle deine Geste!');
     expect(errors).not.toHaveBeenCalled();
     errors.mockRestore();
+  });
+
+  it('signals the end of the countdown once, on a skip and not again from the timer', async () => {
+    const ended = vi.fn();
+    const off = onCountdownEnded(ended);
+    try {
+      feed(picking());
+      render(Board);
+      feed(revealed());
+      await tick();
+      vi.advanceTimersByTime(200);
+      expect(ended).not.toHaveBeenCalled();
+      await fireEvent.pointerDown(window);
+      expect(ended).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(5000);
+      expect(ended).toHaveBeenCalledTimes(1);
+    } finally {
+      off();
+    }
+  });
+
+  it('signals the end of the countdown after its last beat', async () => {
+    const ended = vi.fn();
+    const off = onCountdownEnded(ended);
+    try {
+      feed(picking());
+      render(Board);
+      feed(revealed());
+      await tick();
+      vi.advanceTimersByTime(1259);
+      expect(ended).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(ended).toHaveBeenCalledTimes(1);
+    } finally {
+      off();
+    }
   });
 
   it('jumps straight to the duels on a key press', async () => {
