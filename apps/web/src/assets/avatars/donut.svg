@@ -1,0 +1,10 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <circle class="yellow" cx="32" cy="32" r="29"/>
+  <path class="orange" fill-rule="evenodd" d="M8 34 a24 24 0 1 0 48 0 a24 24 0 1 0 -48 0 Z M26 34 a6 6 0 1 0 12 0 a6 6 0 1 0 -12 0 Z"/>
+  <path class="pink" fill-rule="evenodd" d="M13.1 32.2 C13.1 19.6 21.2 14.2 32 14.2 C42.8 14.2 50.9 19.6 50.9 32.2 C50.9 37.6 49.1 40.3 46.4 42.1 C44.6 45.7 41 43.9 39.2 45.7 C35.6 49.3 32 45.7 29.3 47.5 C25.7 49.3 23 45.7 20.3 44.8 C15.8 43.9 13.1 38.5 13.1 32.2 Z M26 34 a6 6 0 1 0 12 0 a6 6 0 1 0 -12 0 Z"/>
+  <circle class="line" style="stroke:none" cx="23" cy="23" r="3.6"/><circle class="white" style="stroke:none" cx="24.3" cy="21.7" r="1.3"/>
+  <circle class="line" style="stroke:none" cx="41" cy="23" r="3.6"/><circle class="white" style="stroke:none" cx="42.3" cy="21.7" r="1.3"/>
+  <path class="st-yellow" style="stroke-width:3" d="M17 31 L19 27 M45 31 L47 27 M19 40 L22 41"/>
+  <path class="st-green" style="stroke-width:3" d="M45 38 L47 36"/>
+  <path class="n" style="stroke-width:3" d="M27 44 Q32 48 37 44"/>
+</svg>
