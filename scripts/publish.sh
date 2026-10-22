@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+# Publishes one release: the multi-arch container image and the Helm chart (both to GHCR).
+# Called by semantic-release (@semantic-release/exec publishCmd) with the next version.
+#
+#   scripts/publish.sh <version> [--dry-run]
+#
+#   <version>   semver without a leading "v", e.g. 1.2.3 or 1.3.0-rc.1 (no build metadata)
+#   --dry-run   build the image for the host platform only (--load, nothing is pushed) and
+#               package the chart into a temporary directory; nothing leaves the machine.
+#
+# A real run needs a prior `docker login ghcr.io` (docker/login-action in CI), a buildx
+# builder that can build multi-platform images (docker/setup-buildx-action + QEMU in CI) and helm.
+#
+# Re-running a version never overwrites a published artifact: if the image tag or the chart
+# version already exists in GHCR, that part is skipped (so a run that failed half-way can be
+# resumed). Note that a skipped image also leaves the "latest" tag untouched.
+set -euo pipefail
+
+IMAGE="ghcr.io/jaydee94/rps-arena"
+CHART_REPO="oci://ghcr.io/jaydee94/charts"
+CHART_REF="${CHART_REPO}/rps-arena"
+PLATFORMS="linux/amd64,linux/arm64"
+# Semver 2.0.0 core plus an optional prerelease; build metadata ("+...") is not a valid image tag.
+SEMVER_RE='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
+
+usage() {
+  echo "usage: $0 <version> [--dry-run]" >&2
+}
+
+die() {
+  echo "error: $*" >&2
+  exit 1
+}
+
+version=""
+dry_run=false
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) dry_run=true ;;
+    -h | --help) usage; exit 0 ;;
+    -*) usage; die "unknown option '$arg'" ;;
+    *)
+      [ -z "$version" ] || { usage; die "unexpected extra argument '$arg'"; }
+      version="$arg"
+      ;;
+  esac
+done
+[ -n "$version" ] || { usage; die "missing <version>"; }
+[[ "$version" =~ $SEMVER_RE ]] || die "'$version' is not a valid semantic version (expected e.g. 1.2.3 or 1.3.0-rc.1, without a leading 'v' and without build metadata)"
+
+# Always work from the repository root, whatever the caller's cwd is.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+for tool in docker helm git; do
+  command -v "$tool" >/dev/null 2>&1 || die "required tool '$tool' not found in PATH"
+done
+
+revision="$(git rev-parse HEAD)"
+
+# "latest" only moves for stable versions (no prerelease suffix).
+tags=(-t "${IMAGE}:${version}")
+if [[ "$version" != *-* ]]; then
+  tags+=(-t "${IMAGE}:latest")
+fi
+
+workdir="$(mktemp -d)"
+cleanup() {
+  rm -rf "$workdir"
+}
+trap cleanup EXIT
+
+echo "==> Publishing rps-arena ${version} (revision ${revision:0:12}, dry-run: ${dry_run})"
+
+# ---- container image -------------------------------------------------------------------
+build_args=(--build-arg "VERSION=${version}" --build-arg "REVISION=${revision}")
+image_done=false
+if [ "$dry_run" = true ]; then
+  echo "==> [dry-run] Building ${IMAGE}:${version} for the host platform only (loaded, not pushed)"
+  docker buildx build "${build_args[@]}" "${tags[@]}" --load .
+  image_done=true
+elif docker buildx imagetools inspect "${IMAGE}:${version}" >/dev/null 2>&1; then
+  echo "==> ${IMAGE}:${version} already exists in the registry; not rebuilding or overwriting it"
+else
+  echo "==> Building and pushing ${IMAGE}:${version} for ${PLATFORMS}"
+  docker buildx build --platform "$PLATFORMS" "${build_args[@]}" "${tags[@]}" --push .
+  image_done=true
+fi
+
+# ---- Helm chart ------------------------------------------------------------------------
+# The chart in the repository keeps placeholder versions (0.0.0); they are set here.
+echo "==> Packaging chart charts/rps-arena as ${version}"
+helm package charts/rps-arena --version "$version" --app-version "$version" --destination "$workdir"
+chart_tgz="${workdir}/rps-arena-${version}.tgz"
+[ -f "$chart_tgz" ] || die "helm package did not produce ${chart_tgz}"
+# Sanity check: both versions in the packaged chart must be the release version.
+chart_meta="$(helm show chart "$chart_tgz")"
+grep -qx "version: ${version}" <<<"$chart_meta" || die "packaged chart has an unexpected 'version' (wanted ${version})"
+grep -qx "appVersion: ${version}" <<<"$chart_meta" || die "packaged chart has an unexpected 'appVersion' (wanted ${version})"
+
+chart_done=false
+if [ "$dry_run" = true ]; then
+  echo "==> [dry-run] Chart packaged as $(basename "$chart_tgz"); not pushing"
+  chart_done=true
+elif helm show chart "$CHART_REF" --version "$version" >/dev/null 2>&1; then
+  echo "==> ${CHART_REF}:${version} already exists in the registry; not overwriting it"
+else
+  echo "==> Pushing chart to ${CHART_REPO}"
+  helm push "$chart_tgz" "$CHART_REPO"
+  chart_done=true
+fi
+
+# ---- summary ---------------------------------------------------------------------------
+echo "==> Done."
+if [ "$dry_run" = true ]; then
+  echo "    image: ${IMAGE}:${version} built for the host platform and loaded locally (not pushed)"
+  echo "    chart: rps-arena-${version}.tgz packaged (version and appVersion ${version}); not pushed"
+else
+  if [ "$image_done" = true ]; then
+    echo "    image: pushed ${tags[*]//-t /} for ${PLATFORMS}"
+  else
+    echo "    image: skipped (already published)"
+  fi
+  if [ "$chart_done" = true ]; then
+    echo "    chart: pushed ${CHART_REF}:${version}"
+  else
+    echo "    chart: skipped (already published)"
+  fi
+fi
