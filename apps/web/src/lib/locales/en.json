@@ -151,5 +151,9 @@
   "camera.privacy": "Your camera feed stays on your device and is never sent anywhere.",
   "camera.denied": "Camera access denied. Allow it in your browser settings.",
   "camera.no_device": "No camera found.",
-  "camera.load_failed": "Couldn't load gesture recognition."
+  "camera.load_failed": "Couldn't load gesture recognition.",
+  "camera.badge": "Experimental",
+  "camera.hold": "Hold rock, paper or scissors up to the camera.",
+  "camera.loading": "Loading gesture recognition…",
+  "camera.pose_none": "No gesture detected"
 }

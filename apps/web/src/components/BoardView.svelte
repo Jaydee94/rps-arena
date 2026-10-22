@@ -6,6 +6,7 @@
   import { t } from '../lib/i18n';
   import { opponentSeat, teamOf } from '../lib/seats';
   import AnnouncePanel from './AnnouncePanel.svelte';
+  import CameraToggle from './CameraToggle.svelte';
   import GesturePad from './GesturePad.svelte';
   import PlayerCard from './PlayerCard.svelte';
   import Scoreboard from './Scoreboard.svelte';
@@ -116,6 +117,7 @@
       <GesturePad gestures={gestureSetFor(room.config.mode).gestures} {picked} {onpick} />
     {/if}
   {/if}
+  {#if ['classic', 'team2v2'].includes(room.config.mode) && gestureSetFor(room.config.mode).id === 'classic'}<CameraToggle gestures={gestureSetFor(room.config.mode).gestures} {onpick} disabled={picked !== null || match.phase !== 'pick'} />{/if}
 </main>
 
 <style>

@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/node_modules/**', '**/dist/**', '**/coverage/**', 'apps/web/public/models/**'] },
+  { ignores: ['**/node_modules/**', '**/dist/**', '**/coverage/**', 'apps/web/public/models/**', 'apps/web/public/mediapipe-wasm/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
 );
