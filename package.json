@@ -11,7 +11,12 @@
     "lint": "eslint . && npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "compose:up": "docker compose up -d --build --wait redis app",
+    "compose:test": "docker compose run --rm tests",
+    "compose:smoke": "docker compose --profile replicas up -d --wait app2 && node scripts/compose-smoke.mjs",
+    "compose:check": "bash scripts/compose-check.sh",
+    "compose:down": "docker compose --profile test --profile replicas down -v --remove-orphans"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
