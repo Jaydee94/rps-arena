@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { AVATARS } from '@rps/shared';
@@ -64,16 +64,77 @@ describe('AvatarPicker', () => {
     expect(screen.getByRole('radio', { name: 'Fox' })).not.toBeChecked();
   });
 
-  it('scrolls the chosen tile into view when the value changes, without animation', async () => {
-    const scrollIntoView = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoView;
-    render(AvatarPicker, { value: 'fox' });
-    scrollIntoView.mockClear();
-    await userEvent.setup().click(screen.getByRole('radio', { name: 'Banana' }));
-    expect(scrollIntoView).toHaveBeenCalled();
-    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest' });
-    const target = scrollIntoView.mock.contexts.at(-1) as HTMLElement;
-    expect(target.querySelector('input')).toHaveAttribute('value', 'banana');
+  describe('scrolling', () => {
+    // jsdom has no layout: fake a grid 200px high with 72px tiles in rows of 72px, 16px scroll-padding.
+    const TILE = 72;
+    const GRID = 200;
+    const PAD = 16;
+    let proto: Record<string, PropertyDescriptor | undefined>;
+
+    function fakeLayout(root: HTMLElement) {
+      const grid = root.querySelector('.avatars') as HTMLElement;
+      Object.defineProperty(grid, 'clientHeight', { configurable: true, value: GRID });
+      grid.getBoundingClientRect = () => ({ top: 100, bottom: 100 + GRID, height: GRID }) as DOMRect;
+      const labels = [...grid.querySelectorAll('label')];
+      labels.forEach((label, i) => {
+        label.getBoundingClientRect = () => {
+          const top = 100 + i * TILE - grid.scrollTop;
+          return { top, bottom: top + TILE, height: TILE } as DOMRect;
+        };
+      });
+      // jsdom does not know scroll-padding: answer for the grid only, everything else stays real.
+      const real = window.getComputedStyle.bind(window);
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((el, pseudo) =>
+        el === grid
+          ? ({ scrollPaddingTop: `${PAD}px`, scrollPaddingBottom: `${PAD}px` } as unknown as CSSStyleDeclaration)
+          : real(el, pseudo),
+      );
+      return grid;
+    }
+
+    beforeEach(() => {
+      // Guard: the component must not touch the page-wide scrollIntoView at all.
+      proto = { scrollIntoView: Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView') };
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      if (proto.scrollIntoView) Object.defineProperty(Element.prototype, 'scrollIntoView', proto.scrollIntoView);
+      else delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    });
+
+    it('scrolls only the grid to the chosen tile when the value changes, without animation', async () => {
+      const scrollIntoView = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      const { container } = render(AvatarPicker, { value: 'fox' });
+      const grid = fakeLayout(container);
+      expect(grid.scrollTop).toBe(0);
+      const banana = AVATARS.indexOf('banana');
+      await userEvent.setup().click(screen.getByRole('radio', { name: 'Banana' }));
+      // Tile bottom (in content coordinates) sits at the bottom edge less the scroll-padding.
+      expect(grid.scrollTop).toBe(Math.max(0, (banana + 1) * TILE - GRID + PAD));
+      expect(grid.scrollTop).toBeGreaterThan(0);
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it('does not scroll when the chosen tile is already fully visible', async () => {
+      const { container } = render(AvatarPicker, { value: 'fox' });
+      const grid = fakeLayout(container);
+      await userEvent.setup().click(screen.getByRole('radio', { name: (en as Record<string, string>)[`avatar.${AVATARS[1]}`] ?? '' }));
+      expect(grid.scrollTop).toBe(0);
+    });
+
+    it('scrolls back up to a tile above the viewport', async () => {
+      const { container } = render(AvatarPicker, { value: 'fox' });
+      const grid = fakeLayout(container);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('radio', { name: 'Banana' }));
+      const scrolled = grid.scrollTop;
+      expect(scrolled).toBeGreaterThan(0);
+      await user.click(screen.getByRole('radio', { name: 'Fox' }));
+      expect(grid.scrollTop).toBe(Math.max(0, AVATARS.indexOf('fox') * TILE - PAD));
+      expect(grid.scrollTop).toBeLessThan(scrolled);
+    });
   });
 
   it('is a scroll container with room for the check badge and focus ring', () => {
