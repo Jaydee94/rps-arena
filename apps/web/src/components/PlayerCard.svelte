@@ -98,7 +98,7 @@
     rotate: -10deg;
   }
 
-  /* Gespiegelt: the opponent's hand points back at the own one. */
+  /* Mirrored: the opponent's hand points back at the own one. */
   .theirs .tilt {
     rotate: 14deg;
     scale: -1 1;
