@@ -85,6 +85,13 @@ export function botStep(room: Room, rng: Rng, forcePhase: MatchState['phase'] | 
   return match === room.match ? room : { ...room, match };
 }
 
+/**
+ * The bot only looks at recent rounds (the hard level's Markov window), but the history is stored
+ * in the room JSON that is rewritten on every update: unbounded it would grow Redis with every
+ * round of a bot room, rematches included.
+ */
+export const BOT_HISTORY_MAX = 50;
+
 /** Appends the just revealed round of a bot room to its history. */
 function recordHistory(prev: MatchState | null, room: Room): Room {
   const match = room.match;
@@ -94,7 +101,7 @@ function recordHistory(prev: MatchState | null, room: Room): Room {
   const human = match.lastRound?.picks[HUMAN_SEAT];
   const bot = match.lastRound?.picks[BOT_SEAT];
   if (human === undefined || bot === undefined) return room;
-  return { ...room, history: [...room.history, { human, bot }] };
+  return { ...room, history: [...room.history, { human, bot }].slice(-BOT_HISTORY_MAX) };
 }
 
 /** Seats facing each other: a0 vs b0 (and a1 vs b1 in 2v2). */

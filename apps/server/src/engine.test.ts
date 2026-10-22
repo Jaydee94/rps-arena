@@ -8,7 +8,7 @@ import {
   RuleError,
   pick,
 } from '@rps/shared';
-import type { RoomConfig, SeatId } from '@rps/shared';
+import type { BotLevel, RoomConfig, SeatId } from '@rps/shared';
 import {
   applyAnnounce,
   applyNext,
@@ -26,6 +26,7 @@ import {
   tick,
 } from './engine';
 import type { Room } from './room';
+import { BOT_HISTORY_MAX } from './settle';
 
 const T0 = 1_000_000;
 const classic: RoomConfig = { mode: 'classic', bestOf: 3 };
@@ -220,7 +221,7 @@ describe('picks, announces and reveal', () => {
 });
 
 describe('bot', () => {
-  const botRoom = (config: RoomConfig = classic, level: 'easy' | 'hard' = 'easy') =>
+  const botRoom = (config: RoomConfig = classic, level: BotLevel = 'easy') =>
     createRoom({ config, nickname: 'Ann', avatar: 'fox', vsBot: level, socketId: 's1' }, T0);
 
   it('never picks before the human: a due tick leaves the bot silent', () => {
@@ -256,6 +257,33 @@ describe('bot', () => {
     room = applyPick(room, 'a0', { gesture: 'scissors' }, T0 + REVEAL_MS + 1, fixed(0));
     expect(room.history).toHaveLength(2);
   });
+
+  it.each(['easy', 'medium', 'hard'] as const)(
+    'caps the history of a %s bot room across many rounds and rematches, and the bot keeps playing',
+    (level) => {
+      let room = botRoom(classic, level);
+      const gestures = ['rock', 'paper', 'scissors'];
+      let now = T0;
+      let rounds = 0;
+      let lastHuman = '';
+      while (rounds < 130) {
+        now += 1;
+        if (room.match?.phase === 'finished') {
+          room = rematch(room, 'a0', now, fixed(0.3));
+          continue;
+        }
+        lastHuman = gestures[rounds % 3]!;
+        room = applyPick(room, 'a0', { gesture: lastHuman }, now, fixed(0.3));
+        rounds += 1;
+        expect(room.match?.lastRound?.picks.b0).toBeDefined();
+        expect(room.history.length).toBeLessThanOrEqual(BOT_HISTORY_MAX);
+        room = tick(room, room.deadline!, fixed(0.3)); // reveal -> next round or finished
+      }
+      expect(room.history).toHaveLength(BOT_HISTORY_MAX);
+      expect(room.history.at(-1)?.human).toBe(lastHuman);
+      expect(room.botLevel).toBe(level);
+    },
+  );
 
   it('bluff: announces via chooseBotEmote only after the human announced', () => {
     const room = botRoom({ mode: 'bluff', bestOf: 3 });
