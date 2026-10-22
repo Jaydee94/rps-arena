@@ -3,9 +3,10 @@
  * can be checked without a server. main.ts imports this module only behind `import.meta.env.DEV`,
  * so it never reaches a production build.
  *
- * Extra query params: mode=<mode id>, outcome=win|lose|draw, picked=1, phase=announce, left=<seconds>, bot=1.
+ * Extra query params: mode=<mode id>, outcome=win|lose|draw, picked=1, phase=announce, left=<seconds>, bot=1,
+ * watchers=<n> (spectators in the lobby/board room), and for `spectate`: phase=pick|announce|reveal|finished|lobby (no match).
  */
-import { REVEAL_MS, type PlayerView, type PublicMatch, type PublicPlayer, type RoomConfig, type RoomView, type SeatId } from '@rps/shared';
+import { REVEAL_MS, type PlayerView, type PublicMatch, type PublicPlayer, type PublicSpectator, type RoomConfig, type RoomView, type RoundResult, type SeatId } from '@rps/shared';
 import { setDemoState } from './connection';
 
 type Params = URLSearchParams;
@@ -38,6 +39,17 @@ function baseMatch(config: RoomConfig, overrides: Partial<PublicMatch>): PublicM
   };
 }
 
+const WATCHERS: [string, string][] = [
+  ['Zuschauer Zoe', 'cat'],
+  ['Watcher Wim', 'frog'],
+  ['Eine Zuschauerin mit sehr langem Namen', 'owl'],
+];
+
+/** `n` mock spectators (at most 3). */
+function watchers(n: number): PublicSpectator[] {
+  return WATCHERS.slice(0, n).map(([nickname, avatar], i) => ({ id: `spec-${i}`, nickname, avatar, connected: true }));
+}
+
 const MODES = ['classic', 'lizard-spock', 'wheel7', 'wheel9', 'wheel15', 'bluff', 'team2v2'] as const;
 
 function build(name: string, params: Params): RoomView | null {
@@ -56,7 +68,7 @@ function build(name: string, params: Params): RoomView | null {
     hostSeat: 'a0',
     isHost: true,
     players,
-    spectators: [],
+    spectators: watchers(Number(params.get('watchers') ?? 0)),
     match: null,
     tournament: null,
     deadline: null,
@@ -65,8 +77,29 @@ function build(name: string, params: Params): RoomView | null {
   switch (name) {
     case 'home':
       return null;
-    case 'spectate':
-      // A running pick phase seen from the stands: b0 has locked in, nobody's own pick is visible.
+    case 'spectate': {
+      // The stands: nobody's own pick is visible. pick (default): b0 has locked in; reveal; finished.
+      const phase = params.get('phase');
+      const outcome = params.get('outcome') ?? 'win';
+      const picks: Partial<Record<SeatId, string>> = team
+        ? { a0: 'rock', a1: 'paper', b0: 'scissors', b1: 'paper' }
+        : { a0: 'rock', b0: 'scissors' };
+      if (outcome === 'lose') [picks.a0, picks.b0] = ['scissors', 'rock'];
+      if (outcome === 'draw') picks.b0 = picks.a0 as string;
+      const result = outcome === 'win' ? 'a' : outcome === 'lose' ? 'b' : 'draw';
+      let match: PublicMatch | null = baseMatch(config, { lockedSeats: ['b0'] });
+      if (phase === 'lobby') match = null;
+      else if (phase === 'announce') match = baseMatch(config, { phase: 'announce', announces: { a0: 'spock', b0: null } });
+      else if (phase === 'finished') match = baseMatch(config, { phase: 'finished', round: 5, score: { a: 1, b: 3 }, winner: 'b' });
+      else if (phase === 'reveal') {
+        const duels: RoundResult['duels'] = team
+          ? [
+              { seats: ['a0', 'b0'], result },
+              { seats: ['a1', 'b1'], result: 'draw' },
+            ]
+          : [{ seats: ['a0', 'b0'], result }];
+        match = baseMatch(config, { phase: 'reveal', lastRound: { picks, winner: result, duels } });
+      }
       return {
         role: 'spectator',
         code: view.code,
@@ -75,14 +108,12 @@ function build(name: string, params: Params): RoomView | null {
         isHost: false,
         me: null,
         players,
-        spectators: [
-          { id: 'spec-1', nickname: 'Zuschauer Zoe', avatar: 'cat', connected: true },
-          { id: 'spec-2', nickname: 'Watcher Wim', avatar: 'frog', connected: true },
-        ],
-        match: baseMatch(config, { lockedSeats: ['b0'] }),
+        spectators: watchers(Number(params.get('watchers') ?? 2)),
+        match,
         tournament: null,
-        deadline: Date.now() + left * 1000,
+        deadline: !match || match.phase === 'finished' ? null : Date.now() + (phase === 'reveal' ? REVEAL_MS : left * 1000),
       };
+    }
     case 'lobby':
       if (team) delete view.players.b1;
       if (params.get('bot')) view.players.b0 = player('b0', { isBot: true, nickname: 'Botty', avatar: 'robot' });
