@@ -121,7 +121,7 @@
     <span class="title">{t('camera.title')}</span>
     <span class="knob" aria-hidden="true"></span>
   </button>
-  <p class="sub"><span class="badge">{t('camera.badge')}</span><span class="dot" aria-hidden="true">·</span><span>{t('camera.privacy')}</span></p>
+  <p class="sub"><span class="badge">{t('camera.badge')}</span> {t('camera.privacy')}</p>
 
   <div class="problem" role="alert">
     {#if error}<p>{t(`camera.${error}`)}</p>{/if}
@@ -222,19 +222,23 @@
     right: 2px;
   }
 
+  /* Plain inline flow: the pill leads the text and the text wraps under it, so no separator can dangle. */
   .sub {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0 var(--space-2);
     margin: 0;
     font-size: var(--text-sm);
-    line-height: 1.3;
+    line-height: 1.5;
   }
 
   .badge {
-    font-weight: 700;
+    display: inline-block;
+    margin-inline-end: var(--space-1);
+    padding: 0 var(--space-2);
+    border: calc(var(--outline) / 2) solid var(--edge);
+    border-radius: var(--radius-pill);
+    background: var(--yellow);
     color: var(--on-bright);
+    font-weight: 700;
+    line-height: 1.3;
   }
 
   .problem:not(:empty) {

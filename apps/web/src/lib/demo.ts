@@ -5,8 +5,7 @@
  *
  * Extra query params: mode=<mode id>, outcome=win|lose|draw, picked=1, phase=announce, left=<seconds>, bot=1.
  */
-import { REVEAL_MS } from '@rps/shared';
-import type { PublicMatch, PublicPlayer, RoomConfig, RoomView, SeatId } from '@rps/shared';
+import { REVEAL_MS, type PublicMatch, type PublicPlayer, type RoomConfig, type RoomView, type SeatId } from '@rps/shared';
 import { setDemoState } from './connection';
 
 type Params = URLSearchParams;
