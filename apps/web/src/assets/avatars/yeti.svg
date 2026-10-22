@@ -1,0 +1,9 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <circle class="teal" cx="32" cy="32" r="29"/>
+  <path class="white" d="M32 6 L41 10 L49 12 L51 22 L57 31 L52 40 L52 50 L43 53 L32 58 L21 53 L12 50 L12 40 L7 31 L13 22 L15 12 L23 10 Z"/>
+  <path class="grey" d="M32 21 C43 21 49 28 48 38 C47 48 40 53 32 53 C24 53 17 48 16 38 C15 28 21 21 32 21 Z"/>
+  <circle class="white" cx="24.5" cy="33" r="6"/><circle class="white" cx="39.5" cy="33" r="6"/>
+  <circle class="line" style="stroke:none" cx="25.5" cy="34" r="3"/><circle class="line" style="stroke:none" cx="38.5" cy="34" r="3"/>
+  <path class="line" d="M26 44 Q32 52 38 44 Z" style="stroke-width:3"/>
+  <path class="white" style="stroke:none" d="M29 45 L30.5 48.5 L32 45 Z M32 45 L33.5 48.5 L35 45 Z"/>
+</svg>
