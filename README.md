@@ -551,12 +551,11 @@ Die Konfiguration wird in der CI validiert (Job `renovate-config`).
 - [ ] **Erstes Release:** Der erste Push auf `main` mit `feat`-Commits erzeugt `1.0.0`. Scheitert dabei das
   Veröffentlichen mit einer 403-Antwort von GHCR, den manuellen Lauf mit `first_publish = true` starten
   (siehe [Release und CI](#release-und-ci)).
-- [ ] **Lizenz:** Das Repository enthält derzeit keine `LICENSE`-Datei. [`docs/assets.md`](docs/assets.md) geht
-  von MIT aus. Vor einer Veröffentlichung eine `LICENSE`-Datei ergänzen.
 
 ## Lizenzen und Assets
 
-Alle Illustrationen (Avatare, Gesten) sind selbst gezeichnete SVGs. Die Schriften Bangers und Comic Neue sind
+Der Quellcode steht unter der [MIT-Lizenz](LICENSE). Alle Illustrationen (Avatare, Gesten) sind selbst
+gezeichnete SVGs und stehen unter derselben Lizenz. Die Schriften Bangers und Comic Neue sind
 selbst gehostet (SIL Open Font License 1.1, Lizenztexte liegen neben den Dateien). SFX und Musik werden zur
 Laufzeit mit der Web-Audio-API erzeugt, es gibt keine Audiodateien. Zur Laufzeit wird kein Asset von Dritten
 geladen. Quellen und Lizenzen stehen in [`docs/assets.md`](docs/assets.md).
