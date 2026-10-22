@@ -229,6 +229,23 @@ describe('spectatorViewFor', () => {
     expect(view.match?.yourPick).toBeNull();
   });
 
+  it('builds the pick-phase match from an explicit allow-list of keys', () => {
+    // A new MatchState field must be added here on purpose, never leak in by default.
+    const view = spectatorViewFor(openPickRoom());
+    expect(Object.keys(view.match ?? {}).sort()).toEqual([
+      'announces',
+      'config',
+      'forfeited',
+      'lastRound',
+      'lockedSeats',
+      'phase',
+      'round',
+      'score',
+      'winner',
+      'yourPick',
+    ]);
+  });
+
   it('has a null yourPick even for a single locked seat', () => {
     const room = withSpectators(
       roomWith({ ...createMatch({ mode: 'classic', bestOf: 3 }), picks: { a0: 'rock' } }),
