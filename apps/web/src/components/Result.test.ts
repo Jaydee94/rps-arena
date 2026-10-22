@@ -36,6 +36,17 @@ describe('Result', () => {
     expect(screen.getByText('SIEG!')).toBeInTheDocument();
   });
 
+  it.each([
+    ['a', 'Du hast gewonnen!'],
+    ['b', 'Diesmal verloren.'],
+    [null, 'Spiel vorzeitig beendet'],
+  ] as const)('puts the headline (winner %s) in a panel box', (winner, name) => {
+    roomStore.set(makeRoom({ match: { phase: 'finished', winner } }));
+    render(Result);
+    const box = screen.getByRole('heading', { level: 2, name }).closest('.panel');
+    expect(box).not.toBeNull();
+  });
+
   describe.each([
     ['de', 'Spiel vorzeitig beendet', 'Endstand 1 : 1', 'Endstand 2 : 0', 'Endstand 0 : 2', 'Das Spiel konnte nicht weitergeführt werden.', 'Nochmal spielen', 'Zum Start'],
     ['en', 'Match ended early', 'Final score 1 : 1', 'Final score 2 : 0', 'Final score 0 : 2', 'The match could not be continued.', 'Play again', 'Back to start'],

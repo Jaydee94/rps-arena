@@ -186,7 +186,7 @@
   }
 
   .result-lose .avatar-hero {
-    animation: droop 1.2s ease-out both;
+    animation: loser-droop 900ms ease-out both;
   }
 
   @keyframes headline-bounce {
@@ -286,4 +286,12 @@
   /* ==== REVEAL (slam, speed lines, flash, burst, loser) ==== */
 
   /* ==== RESULT and LOBBY ==== */
+  /* The losing avatar on the result screen; the reveal screen reuses this keyframe for its losing sticker. */
+  @keyframes loser-droop {
+    to {
+      rotate: 16deg;
+      translate: 0 12px;
+      filter: saturate(0.25);
+    }
+  }
 }
