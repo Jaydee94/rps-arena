@@ -44,7 +44,7 @@ describe('ui.css building blocks', () => {
     const segment = rule('.segmented .segment');
     expect(segment).toContain('min-width: 56px');
     expect(segment).toContain('min-height: 44px');
-    expect(rule('.segmented .segment:has(input:checked)')).toContain('var(--red)');
+    expect(rule('.segmented .segment:has(input:checked)')).toContain('var(--yellow)');
     expect(rule('.segmented .segment:has(input:checked)::after')).toContain('✓');
   });
 

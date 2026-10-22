@@ -28,10 +28,34 @@
   const hasName = $derived(nickname.trim() !== '');
 
   // Room codes have no spaces: drop them (and uppercase) while typing so they never eat the length limit.
+  const cleanCode = (raw: string) => raw.replace(/\s+/g, '').toUpperCase();
+
   function onCodeInput(event: Event & { currentTarget: HTMLInputElement }) {
-    const clean = event.currentTarget.value.replace(/\s+/g, '').toUpperCase();
-    event.currentTarget.value = clean;
+    const input = event.currentTarget;
+    const raw = input.value;
+    const clean = cleanCode(raw);
+    if (clean !== raw) {
+      // Keep the caret where the user is typing instead of jumping to the end.
+      const caret = cleanCode(raw.slice(0, input.selectionStart ?? raw.length)).length;
+      input.value = clean;
+      input.setSelectionRange(caret, caret);
+    }
     code = clean;
+  }
+
+  // maxlength would cut a pasted " AB3 DE" before the input handler can clean it, so insert it cleaned.
+  function onCodePaste(event: ClipboardEvent & { currentTarget: HTMLInputElement }) {
+    if (!event.clipboardData) return;
+    event.preventDefault();
+    const input = event.currentTarget;
+    const pasted = cleanCode(event.clipboardData.getData('text'));
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? start;
+    const next = (input.value.slice(0, start) + pasted + input.value.slice(end)).slice(0, CODE_LENGTH);
+    const caret = Math.min(start + pasted.length, next.length);
+    input.value = next;
+    input.setSelectionRange(caret, caret);
+    code = next;
   }
 
   function join() {
@@ -83,6 +107,7 @@
           class="code"
           value={code}
           oninput={onCodeInput}
+          onpaste={onCodePaste}
           bind:this={codeInput}
           maxlength={CODE_LENGTH}
           placeholder={t('home.code_placeholder')}
@@ -128,7 +153,8 @@
     background-size: var(--dot-panel-size) var(--dot-panel-size);
   }
 
-  .hero > * {
+  /* The caption is absolutely positioned against the panel's padding box, so it stays out of the grid area. */
+  .hero > :not(.hero-caption) {
     grid-area: 1 / 1;
     min-width: 0;
   }

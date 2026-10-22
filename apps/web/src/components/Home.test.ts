@@ -153,5 +153,39 @@ describe('Home', () => {
       render(Home);
       expect(screen.getByRole('checkbox', { name: 'Gegen Bot spielen' })).toBeInTheDocument();
     });
+
+    describe('room code field', () => {
+      const code = () => screen.getByLabelText('Raum-Code');
+
+      it('uppercases typed lowercase letters', async () => {
+        render(Home);
+        await userEvent.setup().type(code(), 'ab3de');
+        expect(code()).toHaveValue('AB3DE');
+      });
+
+      it('ignores typed spaces so they never use up the length limit', async () => {
+        render(Home);
+        await userEvent.setup().type(code(), ' a b 3 d e ');
+        expect(code()).toHaveValue('AB3DE');
+      });
+
+      it('cleans pasted codes with leading and inner spaces', async () => {
+        render(Home);
+        const user = userEvent.setup();
+        await user.click(code());
+        await user.paste(' ab3 de');
+        expect(code()).toHaveValue('AB3DE');
+      });
+
+      it('joins with a pasted code', async () => {
+        render(Home);
+        const user = userEvent.setup();
+        await user.type(nameField(), 'Bernd');
+        await user.click(code());
+        await user.paste('AB3 DE');
+        await user.click(screen.getByRole('button', { name: 'Raum beitreten' }));
+        expect(actions.joinRoom).toHaveBeenCalledWith({ code: 'AB3DE', nickname: 'Bernd', avatar: 'fox' });
+      });
+    });
   });
 });

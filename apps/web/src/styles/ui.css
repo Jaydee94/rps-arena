@@ -217,9 +217,10 @@ fieldset.group > legend {
   cursor: pointer;
 }
 
+/* Ink on yellow: white on red does not reach 4.5:1 for the display font at this size. */
 .segmented .segment:has(input:checked) {
-  background: var(--red);
-  color: var(--white);
+  background: var(--yellow);
+  color: var(--on-bright);
 }
 
 /* Not only color: the chosen segment also gets a check mark. It is positioned out of the flow,

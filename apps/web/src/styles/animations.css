@@ -280,7 +280,11 @@
 
   /* ==== START screen (wordmark, hero, avatar badge, CTA) ==== */
 
-  /* Start screen panels pop in one after the other. */
+  /* Start screen: the panels pop in one after the other, so the screen wrapper itself stays still. */
+  .app[data-screen='home'] .screen {
+    animation: none;
+  }
+
   .home > .panel {
     animation: screen-in var(--dur) var(--ease-pop) both;
     animation-delay: calc(var(--i, 0) * 110ms);
@@ -315,6 +319,7 @@
     animation:
       screen-in var(--dur) var(--ease-pop) both,
       dots-drift 5s linear infinite;
+    animation-delay: calc(var(--i, 0) * 110ms), 0s;
   }
 
   .check-badge {
