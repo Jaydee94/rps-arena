@@ -1,0 +1,99 @@
+# Local development and tests with Docker Compose.
+#
+#   docker compose up -d --build --wait redis app     app + Redis on http://127.0.0.1:8080
+#   docker compose run --build --rm tests              whole test suite, Redis-backed tests included
+#   docker compose --profile replicas up -d --wait app2   second instance on http://127.0.0.1:8081
+#   docker compose --profile test --profile replicas down -v --remove-orphans
+#
+# Host ports are published on 127.0.0.1 only and can be moved when they are taken:
+#   APP_PORT (default 8080), APP2_PORT (default 8081), REDIS_PORT (default 6380, not 6379, so a
+#   Redis already running on the host does not clash).
+# No service sets container_name, so several checkouts can run side by side
+# (set COMPOSE_PROJECT_NAME and different ports).
+name: rps-arena
+
+services:
+  redis:
+    image: redis:7.4.8-alpine
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 2s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rps-arena:local
+    environment:
+      PORT: "8080"
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      # The runtime image is alpine without curl or wget; node (PID 1's own binary) has fetch.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 3s
+
+  # Second instance on the same Redis: proves cross-replica broadcast and rejoin.
+  app2:
+    profiles: ["replicas"]
+    image: rps-arena:local # built by `app`; not built a second time
+    environment:
+      PORT: "8080"
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "127.0.0.1:${APP2_PORT:-8081}:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 3s
+
+  # Whole test suite in a clean Linux container built from the Dockerfile's `test` stage (sources
+  # and dependencies are baked into the image: no bind mount, nothing is written to the host).
+  # REDIS_URL is set, so the Redis-backed tests run instead of being skipped.
+  # COMPOSE_TEST_CMD overrides the command (default: npm test).
+  tests:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    image: rps-arena:test
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: ["sh", "-c", "${COMPOSE_TEST_CMD:-npm test}"]

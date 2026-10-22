@@ -3,8 +3,8 @@
 # One image: the Svelte SPA (apps/web/dist) and the Node/Socket.IO game server on port 8080.
 ARG NODE_IMAGE=node:24.22.1-alpine3.24
 
-# ---- build: install everything, bundle the server (esbuild) and build the SPA (vite) ----
-FROM ${NODE_IMAGE} AS build
+# ---- source: all workspaces with their dependencies installed (shared by build and test) ----
+FROM ${NODE_IMAGE} AS source
 WORKDIR /app
 
 # Manifests first so `npm ci` stays cached until a dependency changes.
@@ -16,8 +16,18 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund
 
 COPY . .
+
+# ---- build: bundle the server (esbuild) and build the SPA (vite) ----
+FROM source AS build
 # The web `prebuild` downloads the MediaPipe model (SHA-256 verified) and copies the WASM files.
 RUN npm run build
+
+# ---- test: the whole unit/integration suite (`docker compose run --build --rm tests`) ----
+# Not the default target (`runtime` stays the last stage). Needs no network: the web build and
+# its model download are not part of `npm test`. Set REDIS_URL at run time to run the Redis tests.
+FROM source AS test
+ENV CI=true
+CMD ["npm", "test"]
 
 # ---- deps: production dependencies of @rps/server only, versions pinned by the lockfile ----
 FROM ${NODE_IMAGE} AS deps

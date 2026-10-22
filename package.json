@@ -12,7 +12,12 @@
     "typecheck": "npm run typecheck --workspaces --if-present && tsc -p e2e",
     "test": "vitest run",
     "build": "npm run build --workspaces --if-present",
-    "e2e": "npm run build && playwright test -c e2e/playwright.config.ts"
+    "e2e": "npm run build && playwright test -c e2e/playwright.config.ts",
+    "compose:up": "docker compose up -d --build --wait redis app",
+    "compose:test": "docker compose run --build --rm tests",
+    "compose:smoke": "docker compose up -d --build --wait redis app && docker compose --profile replicas up -d --wait app2 && node scripts/compose-smoke.mjs",
+    "compose:check": "bash scripts/compose-check.sh",
+    "compose:down": "docker compose --profile test --profile replicas down -v --remove-orphans"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
