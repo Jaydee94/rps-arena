@@ -244,47 +244,49 @@
   /*
    * Keep the bubble inside the screen: the tile in the first column hangs it to the right, the one in
    * the last column to the left, a lone last tile (its row is centred) stays centred. The number of
-   * columns follows the width of the pad (tiles are 6.5rem, large ones 8.5rem, 0.75rem apart).
+   * columns follows the width of the pad (tiles are 6.5rem, large ones 8.5rem, 0.75rem apart):
+   * n columns need n * tile + (n - 1) * gap, e.g. 4 * 6.5rem + 3 * 0.75rem = 28.25rem. The thresholds
+   * are in rem like the tiles, so they stay right when the root font size changes.
    */
   .tile:last-child { --hint-align: flex-end; }
 
-  @container pad (width < 452px) {
+  @container pad (width < 28.25rem) {
     .tile:not(.large):nth-child(3n + 1) { --hint-align: flex-start; }
     .tile:not(.large):nth-child(3n) { --hint-align: flex-end; }
     .tile:not(.large):nth-child(3n + 1):last-child { --hint-align: center; }
   }
 
-  @container pad (452px <= width < 568px) {
+  @container pad (28.25rem <= width < 35.5rem) {
     .tile:not(.large):nth-child(4n + 1) { --hint-align: flex-start; }
     .tile:not(.large):nth-child(4n) { --hint-align: flex-end; }
     .tile:not(.large):nth-child(4n + 1):last-child { --hint-align: center; }
   }
 
-  @container pad (568px <= width < 684px) {
+  @container pad (35.5rem <= width < 42.75rem) {
     .tile:not(.large):nth-child(5n + 1) { --hint-align: flex-start; }
     .tile:not(.large):nth-child(5n) { --hint-align: flex-end; }
     .tile:not(.large):nth-child(5n + 1):last-child { --hint-align: center; }
   }
 
-  @container pad (width >= 684px) {
+  @container pad (width >= 42.75rem) {
     .tile:not(.large):nth-child(6n + 1) { --hint-align: flex-start; }
     .tile:not(.large):nth-child(6n) { --hint-align: flex-end; }
     .tile:not(.large):nth-child(6n + 1):last-child { --hint-align: center; }
   }
 
-  @container pad (width < 580px) {
+  @container pad (width < 36.25rem) {
     .tile.large:nth-child(3n + 1) { --hint-align: flex-start; }
     .tile.large:nth-child(3n) { --hint-align: flex-end; }
     .tile.large:nth-child(3n + 1):last-child { --hint-align: center; }
   }
 
-  @container pad (580px <= width < 728px) {
+  @container pad (36.25rem <= width < 45.5rem) {
     .tile.large:nth-child(4n + 1) { --hint-align: flex-start; }
     .tile.large:nth-child(4n) { --hint-align: flex-end; }
     .tile.large:nth-child(4n + 1):last-child { --hint-align: center; }
   }
 
-  @container pad (width >= 728px) {
+  @container pad (width >= 45.5rem) {
     .tile.large:nth-child(5n + 1) { --hint-align: flex-start; }
     .tile.large:nth-child(5n) { --hint-align: flex-end; }
     .tile.large:nth-child(5n + 1):last-child { --hint-align: center; }
