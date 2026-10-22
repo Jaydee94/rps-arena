@@ -15,16 +15,19 @@ import {
   createRoom,
   joinRoom,
   markDisconnected,
+  markSpectatorDisconnected,
   moveSeat,
   rejoinRoom,
   rematch,
-  seatOfSocket,
   startMatch,
+  whoOfSocket,
 } from './engine';
+import type { Who } from './engine';
 import { TokenBucket } from './rate-limit';
+import { spectatorsOf } from './room';
 import type { Room } from './room';
 import type { RoomStore } from './store';
-import { viewFor } from './view';
+import { spectatorViewFor, viewFor } from './view';
 
 export interface GatewayOptions {
   /** rng for room codes (tests inject collisions). */
@@ -38,7 +41,10 @@ export interface GatewayOptions {
 }
 
 export interface Gateway {
-  /** Sends every seated human its own view. Reaches all replicas through the adapter. */
+  /**
+   * Sends every seated human its own view and the shared spectator view once to the spectator
+   * channel. Reaches all replicas through the adapter.
+   */
   broadcast(room: Room): void;
   /** Detaches all sockets from a deleted room. */
   dropRoom(code: string): void;
@@ -64,6 +70,13 @@ const EMPTY_PAYLOAD_EVENTS = new Set<ClientEventName>(['room:start', 'game:next'
 /** Socket.IO room carrying one seat's private view. */
 export const seatChannel = (code: string, seat: SeatId) => `${code}:${seat}`;
 
+/** Socket.IO room carrying the spectator view (identical for every spectator of the room). */
+export const spectatorChannel = (code: string) => `${code}:spec`;
+
+/** The private channel of a player seat or the shared one of all spectators. */
+const channelOf = (code: string, who: Who) =>
+  who.role === 'player' ? seatChannel(code, who.seat) : spectatorChannel(code);
+
 function errorCodeOf(error: unknown): ErrorCode {
   if (error instanceof ProtocolError) return error.code;
   if (error instanceof RuleError) return RULE_ERRORS[error.code];
@@ -74,7 +87,9 @@ function errorCodeOf(error: unknown): ErrorCode {
 
 /**
  * Wires the client events to the engine. Every change goes through `store.update`, so it is
- * atomic across replicas; afterwards each seat gets its `viewFor` view on its seat channel.
+ * atomic across replicas; afterwards each seat gets its `viewFor` view on its seat channel and all
+ * spectators share one `spectatorViewFor` view on the spectator channel. Spectators may only watch:
+ * game and host events from them are `not_player`.
  * Failures become `room:error { code, message: code }` (the client localizes by code), never a
  * crash or a dropped connection.
  */
@@ -100,10 +115,15 @@ export function createGateway(
     for (const [seat, player] of Object.entries(room.players) as [SeatId, Room['players'][SeatId]][]) {
       if (player && !player.isBot) io.to(seatChannel(room.code, seat)).emit('room:state', viewFor(room, seat));
     }
+    if (spectatorsOf(room).length > 0) io.to(spectatorChannel(room.code)).emit('room:state', spectatorViewFor(room));
   }
 
   function dropRoom(code: string): void {
-    io.in(code).socketsLeave([code, ...(['a0', 'a1', 'b0', 'b1'] as const).map((s) => seatChannel(code, s))]);
+    io.in(code).socketsLeave([
+      code,
+      ...(['a0', 'a1', 'b0', 'b1'] as const).map((s) => seatChannel(code, s)),
+      spectatorChannel(code),
+    ]);
   }
 
   io.on('connection', (raw) => {
@@ -118,15 +138,26 @@ export function createGateway(
       else fail('rate_limited');
     });
 
-    async function bind(room: Room, seat: SeatId): Promise<void> {
+    async function bind(room: Room, who: Who): Promise<void> {
       socket.data.code = room.code;
-      await socket.join([room.code, seatChannel(room.code, seat)]);
-      socket.emit('room:joined', {
-        code: room.code,
-        token: room.players[seat]!.token,
-        role: 'player',
-        seat,
-      });
+      await socket.join([room.code, channelOf(room.code, who)]);
+      if (who.role === 'player') {
+        socket.emit('room:joined', {
+          code: room.code,
+          token: room.players[who.seat]!.token,
+          role: 'player',
+          seat: who.seat,
+        });
+      } else {
+        const spectator = spectatorsOf(room).find((s) => s.id === who.id);
+        if (!spectator) throw new ProtocolError('internal');
+        socket.emit('room:joined', {
+          code: room.code,
+          token: spectator.token,
+          role: 'spectator',
+          seat: null,
+        });
+      }
       broadcast(room);
     }
 
@@ -138,16 +169,19 @@ export function createGateway(
       for (const channel of socket.rooms) if (channel !== socket.id) await socket.leave(channel);
       let changed = false;
       const room = await store.update(code, (current) => {
-        const seat = seatOfSocket(current, socket.id);
-        if (!seat) return null;
+        const who = whoOfSocket(current, socket.id);
+        if (!who) return null;
         changed = true;
-        return markDisconnected(current, seat, clock());
+        return who.role === 'player'
+          ? markDisconnected(current, who.seat, clock())
+          : markSpectatorDisconnected(current, who.id, clock());
       });
       if (room && changed) broadcast(room);
     }
 
     /**
-     * Runs `fn` for this socket's own seat, atomically, then broadcasts (after `beforeBroadcast`,
+     * Runs `fn` for this socket's own seat, atomically, then broadcasts. A spectator socket gets
+     * `not_player` and the room stays as it is (after `beforeBroadcast`,
      * e.g. moving sockets to new seat channels).
      */
     async function asSeat(
@@ -157,9 +191,10 @@ export function createGateway(
       const code = socket.data.code;
       if (!code) throw new ProtocolError('bad_token');
       const room = await store.update(code, (current) => {
-        const seat = seatOfSocket(current, socket.id);
-        if (!seat) throw new ProtocolError('bad_token');
-        return fn(current, seat, clock());
+        const who = whoOfSocket(current, socket.id);
+        if (!who) throw new ProtocolError('bad_token');
+        if (who.role !== 'player') throw new ProtocolError('not_player');
+        return fn(current, who.seat, clock());
       });
       if (!room) throw new ProtocolError('room_not_found');
       beforeBroadcast?.(room);
@@ -171,42 +206,39 @@ export function createGateway(
         await release();
         for (let attempt = 0; attempt < maxCodeAttempts; attempt++) {
           const room = createRoom({ ...p, socketId: socket.id }, clock(), options.codeRng);
-          if (await store.create(room)) return bind(room, 'a0');
+          if (await store.create(room)) return bind(room, { role: 'player', seat: 'a0' });
         }
         throw new ProtocolError('internal');
       },
       'room:join': async (p) => {
         await release();
-        let seat: SeatId = 'a0';
+        let who: Who | null = null;
         const room = await store.update(p.code, (current) => {
           const joined = joinRoom(current, p.nickname, p.avatar, clock(), socket.id);
-          // Spectators are not wired up yet: keep the previous behavior (nothing is stored).
-          if (joined.who.role !== 'player') throw new ProtocolError('room_full');
-          seat = joined.who.seat;
+          who = joined.who;
           return joined.room;
         });
-        if (!room) throw new ProtocolError('room_not_found');
-        await bind(room, seat);
+        if (!room || !who) throw new ProtocolError('room_not_found');
+        await bind(room, who);
       },
       'room:rejoin': async (p) => {
         if (socket.data.code !== p.code) await release();
-        let seat: SeatId = 'a0';
+        let who: Who | null = null;
         let previous: string | null = null;
         const room = await store.update(p.code, (current) => {
           const result = rejoinRoom(current, p.token, clock(), socket.id);
-          // Unreachable until spectators are wired up (the gateway never stores one).
-          if (result.who.role !== 'player') throw new ProtocolError('bad_token');
-          seat = result.who.seat;
+          who = result.who;
           previous = result.previousSocketId;
           return result.room;
         });
-        if (!room) throw new ProtocolError('room_not_found');
+        if (!room || !who) throw new ProtocolError('room_not_found');
         if (previous) {
-          // The seat now belongs to this socket; cut the old one (on any replica) off the room.
+          // The seat (or spectator) now belongs to this socket; cut the old one (on any replica)
+          // off the room.
           io.to(previous).emit('room:error', { code: 'bad_token', message: 'bad_token' });
-          io.in(previous).socketsLeave([room.code, seatChannel(room.code, seat)]);
+          io.in(previous).socketsLeave([room.code, channelOf(room.code, who)]);
         }
-        await bind(room, seat);
+        await bind(room, who);
       },
       'room:start': () => asSeat((room, seat, now) => startMatch(room, seat, now)),
       'seat:move': (p) =>
