@@ -3,13 +3,16 @@ name: ci
 on:
   pull_request:
     branches: [main]
+    # `edited` re-validates the PR title; the other jobs skip it (see their `if`).
+    types: [opened, reopened, edited, synchronize]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # Title edits get their own group so they never cancel a running check suite.
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event.action == 'edited' && 'title' || 'checks' }}
   cancel-in-progress: true
 
 jobs:
@@ -36,6 +39,7 @@ jobs:
             build
 
   test:
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     services:
       redis:
@@ -61,6 +65,7 @@ jobs:
       - run: npm test
 
   e2e:
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1 # v7
@@ -74,6 +79,7 @@ jobs:
       - run: npm run e2e
 
   image:
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1 # v7
@@ -86,6 +92,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   chart:
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     env:
       KUBECONFORM_VERSION: v0.8.0
