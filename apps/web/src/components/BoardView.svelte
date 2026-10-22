@@ -2,7 +2,7 @@
   import { gestureSetFor, type PublicMatch, type RoomView, type SeatId } from '@rps/shared';
   import { announce, next, pick } from '../lib/connection';
   import { duelViews, outcomeFor, type DuelView, type Side } from '../lib/board';
-  import { shouldCountDown } from '../lib/countdown';
+  import { emitCountdownEnded, shouldCountDown } from '../lib/countdown';
   import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
   import { opponentSeat, teamOf } from '../lib/seats';
@@ -62,10 +62,12 @@
     }
     prevRoom = current;
   });
-  // May run while the Countdown is still mounting (beat 0 calls it at once); only flips state.
+  // May run while the Countdown is still mounting (beat 0 calls it at once); flips state and
+  // releases the reveal sounds that wait for the countdown (lib/sfx-bridge.ts).
   const endCountdown = () => {
     countingDown = false;
     heldScore = null;
+    emitCountdownEnded();
   };
   const shownScore = $derived(countingDown && heldScore ? heldScore : match.score);
   const revealing = $derived(match.phase === 'reveal' && !countingDown);

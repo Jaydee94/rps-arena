@@ -13,7 +13,8 @@ vi.mock('./audio', () => ({
 }));
 vi.mock('./connection', () => ({ room: roomStore }));
 
-const { diffRoomSounds, scheduleRoomSounds, startSfxBridge } = await import('./sfx-bridge');
+const { createRoomSoundPlayer, diffRoomSounds, scheduleRoomSounds, startSfxBridge } = await import('./sfx-bridge');
+const { emitCountdownEnded } = await import('./countdown');
 const { motion } = await import('./motion');
 
 const revealRoom = (you: SeatId, winner: 'a' | 'b' | 'draw', yourPick: string | null = 'rock') =>
@@ -263,13 +264,171 @@ describe('startSfxBridge with a countdown', () => {
     motion.countdownBeatMs = 0;
   });
 
-  it('plays the reveal chain with the countdown delays', () => {
-    roomStore.set(makeRoom({ match: { yourPick: null } }));
-    roomStore.set(revealRoom('a0', 'a'));
-    expect(play.mock.calls.map(([name]) => name)).toEqual(['lock', 'reveal', 'win']);
-    const delays = play.mock.calls.map(([, delay]) => delay as number);
-    expect(delays[0]).toBe(0);
-    expect(delays[1]).toBeCloseTo(1.26);
-    expect(delays[2]).toBeCloseTo(1.96);
+  it('plays the lock at once and the reveal chain when the countdown ends', () => {
+    vi.useFakeTimers();
+    try {
+      roomStore.set(makeRoom({ match: { yourPick: null } }));
+      roomStore.set(revealRoom('a0', 'a'));
+      expect(play.mock.calls).toEqual([['lock', 0]]);
+      vi.advanceTimersByTime(1259);
+      expect(play).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(1);
+      expect(play.mock.calls.map(([name]) => name)).toEqual(['lock', 'reveal', 'win']);
+      expect(play.mock.calls[1]![1]).toBeCloseTo(0);
+      expect(play.mock.calls[2]![1]).toBeCloseTo(0.7);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('plays the reveal chain right away when the countdown is skipped', () => {
+    vi.useFakeTimers();
+    try {
+      roomStore.set(makeRoom({ match: { yourPick: 'rock' } }));
+      roomStore.set(revealRoom('a0', 'b'));
+      vi.advanceTimersByTime(200);
+      expect(play).not.toHaveBeenCalled();
+      emitCountdownEnded();
+      expect(play.mock.calls.map(([name]) => name)).toEqual(['reveal', 'lose']);
+      vi.advanceTimersByTime(5000);
+      expect(play).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('createRoomSoundPlayer', () => {
+  const played: { name: string; delay: number; at: number }[] = [];
+  let player: ReturnType<typeof createRoomSoundPlayer>;
+  let t0 = 0;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    t0 = Date.now();
+    played.length = 0;
+    motion.countdownBeatMs = 420;
+    player = createRoomSoundPlayer((name, delay) =>
+      played.push({ name, delay: Number(delay.toFixed(3)), at: Date.now() - t0 }),
+    );
+  });
+
+  afterEach(() => {
+    player.dispose();
+    vi.useRealTimers();
+    motion.countdownBeatMs = 0;
+  });
+
+  const picking = () => makeRoom({ match: { yourPick: 'rock' } });
+
+  it('plays the reveal chain at the natural end of the countdown (1.26 s)', () => {
+    player.update(picking(), revealRoom('a0', 'a'));
+    vi.advanceTimersByTime(1000);
+    expect(played).toEqual([]);
+    vi.advanceTimersByTime(260);
+    player.countdownEnded(); // the Countdown's own end arrives just after the timer: no repeat
+    expect(played).toEqual([
+      { name: 'reveal', delay: 0, at: 1260 },
+      { name: 'win', delay: 0.7, at: 1260 },
+    ]);
+  });
+
+  it('plays the reveal chain at the skip (0.2 s), keeping its order and spacing', () => {
+    player.update(picking(), revealRoom('a0', 'a'));
+    vi.advanceTimersByTime(200);
+    player.countdownEnded();
+    vi.advanceTimersByTime(5000);
+    expect(played).toEqual([
+      { name: 'reveal', delay: 0, at: 200 },
+      { name: 'win', delay: 0.7, at: 200 },
+    ]);
+  });
+
+  it('falls back to a timer when nobody signals the end of the countdown', () => {
+    player.update(picking(), revealRoom('a0', 'draw'));
+    vi.advanceTimersByTime(1259);
+    expect(played).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(played.map(({ name, at }) => [name, at])).toEqual([
+      ['reveal', 1260],
+      ['draw', 1260],
+    ]);
+  });
+
+  it('plays the lock sound immediately and lets it finish before an early reveal', () => {
+    player.update(makeRoom({ match: { yourPick: null } }), revealRoom('a0', 'a'));
+    expect(played).toEqual([{ name: 'lock', delay: 0, at: 0 }]);
+    vi.advanceTimersByTime(50);
+    player.countdownEnded();
+    expect(played).toEqual([
+      { name: 'lock', delay: 0, at: 0 },
+      { name: 'reveal', delay: 0.15, at: 50 },
+      { name: 'win', delay: 0.85, at: 50 },
+    ]);
+  });
+
+  it('drops the held reveal chain when the phase changes before the flush', () => {
+    const reveal = revealRoom('a0', 'a');
+    player.update(picking(), reveal);
+    vi.advanceTimersByTime(200);
+    const finished = makeRoom({ you: 'a0', match: { phase: 'finished', winner: 'a', yourPick: 'rock' } });
+    player.update(reveal, finished);
+    expect(played).toEqual([{ name: 'win', delay: 0, at: 200 }]);
+    player.countdownEnded();
+    vi.advanceTimersByTime(5000);
+    expect(played).toEqual([{ name: 'win', delay: 0, at: 200 }]);
+  });
+
+  it('drops the held reveal chain when the next round starts after a skip and Next', () => {
+    const reveal = revealRoom('a0', 'a');
+    player.update(picking(), reveal);
+    player.update(reveal, makeRoom({ match: { phase: 'pick', yourPick: null } }));
+    player.countdownEnded();
+    vi.advanceTimersByTime(5000);
+    expect(played).toEqual([]);
+  });
+
+  it('keeps the held chain while the phase stays reveal', () => {
+    const reveal = revealRoom('a0', 'a');
+    player.update(picking(), reveal);
+    player.update(reveal, makeRoom({ ...reveal, match: { ...reveal.match, lockedSeats: ['a0'] } }));
+    player.countdownEnded();
+    expect(played.map(({ name }) => name)).toEqual(['reveal', 'win']);
+  });
+
+  it('plays at once without a countdown (reduced motion or switched off) and nothing after a reconnect', () => {
+    motion.countdownBeatMs = 0;
+    player.update(picking(), revealRoom('a0', 'a'));
+    expect(played).toEqual([
+      { name: 'reveal', delay: 0, at: 0 },
+      { name: 'win', delay: 0.7, at: 0 },
+    ]);
+    played.length = 0;
+    motion.countdownBeatMs = 420;
+    player.update(null, revealRoom('a0', 'a'));
+    vi.advanceTimersByTime(5000);
+    expect(played).toEqual([]);
+  });
+
+  it('plays at once under reduced motion', () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({ matches: query.includes('reduce'), media: query })),
+    );
+    try {
+      player.update(makeRoom({ match: { yourPick: null } }), revealRoom('a0', 'b'));
+      expect(played).toEqual([
+        { name: 'lock', delay: 0, at: 0 },
+        { name: 'reveal', delay: 0.2, at: 0 },
+        { name: 'lose', delay: 0.9, at: 0 },
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('ignores an end signal without held sounds', () => {
+    player.countdownEnded();
+    expect(played).toEqual([]);
   });
 });
