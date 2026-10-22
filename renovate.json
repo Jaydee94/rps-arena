@@ -7,7 +7,13 @@
   "packageRules": [
     {
       "description": "Every dependency update is released as a patch by semantic-release (fix(deps)).",
-      "matchManagers": ["npm", "dockerfile", "github-actions", "helm-values", "helmv3"],
+      "matchManagers": [
+        "npm",
+        "dockerfile",
+        "github-actions",
+        "helm-values",
+        "helmv3"
+      ],
       "semanticCommitType": "fix",
       "semanticCommitScope": "deps"
     },
@@ -21,6 +27,29 @@
       "description": "Merge patch and minor updates automatically once the required checks are green. Major updates stay manual.",
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
+    },
+    {
+      "description": "Release tooling is reviewed by a human and does not ship a new game version: its own group, no automerge, and build(deps) so semantic-release does not cut a release for it. Must stay after the generic fix(deps), grouping and automerge rules above.",
+      "matchManagers": ["npm"],
+      "matchPackageNames": [
+        "semantic-release",
+        "@semantic-release/*",
+        "conventional-changelog-*"
+      ],
+      "groupName": "semantic-release",
+      "automerge": false,
+      "semanticCommitType": "build",
+      "semanticCommitScope": "deps"
+    },
+    {
+      "description": "Stay below @mediapipe/tasks-vision 1.0: versions >= 1 ship built-in telemetry (a POST to a Google logging endpoint), which would break the privacy promise that nothing from the camera leaves the device. 0.10.x contains no external URLs.",
+      "matchPackageNames": ["@mediapipe/tasks-vision"],
+      "allowedVersions": "<1"
+    },
+    {
+      "description": "Stay below conventional-changelog-conventionalcommits 10: 10.x requires conventional-changelog-writer 9, which @semantic-release/release-notes-generator 14 (conventional-changelog-writer 8) cannot use, so the release notes generation would fail.",
+      "matchPackageNames": ["conventional-changelog-conventionalcommits"],
+      "allowedVersions": "<10"
     }
   ]
 }
