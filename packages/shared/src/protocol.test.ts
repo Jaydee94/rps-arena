@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { BLUFF_EMOTES } from './constants';
 import { AVATARS, ClientEvents, ProtocolError, parseNickname } from './protocol';
 
 function errorCode(fn: () => unknown): string | undefined {
@@ -106,6 +107,15 @@ describe('ClientEvents', () => {
     expect(ClientEvents['game:announce'].safeParse({ emote: null }).success).toBe(true);
     expect(ClientEvents['game:announce'].safeParse({ emote: 'rock' }).success).toBe(true);
     expect(ClientEvents['game:announce'].safeParse({ emote: 5 }).success).toBe(false);
+  });
+
+  it('restricts game:announce to bluff emotes or null', () => {
+    expect(ClientEvents['game:announce'].safeParse({ emote: 'hello' }).success).toBe(false);
+    expect(ClientEvents['game:announce'].safeParse({ emote: '' }).success).toBe(false);
+    expect(ClientEvents['game:announce'].safeParse({ emote: null }).success).toBe(true);
+    for (const emote of BLUFF_EMOTES) {
+      expect(ClientEvents['game:announce'].safeParse({ emote }).success).toBe(true);
+    }
     expect(ClientEvents['game:pick'].safeParse({ gesture: 'rock' }).success).toBe(true);
     expect(ClientEvents['game:pick'].safeParse({}).success).toBe(false);
   });

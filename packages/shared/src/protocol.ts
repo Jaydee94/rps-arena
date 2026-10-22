@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { normalizeCode } from './codes';
+import { BLUFF_EMOTES } from './constants';
 import type { ModeId } from './gestures';
 import type { MatchState, RoomConfig, RoundResult, SeatId, Team } from './match';
 
@@ -54,6 +55,7 @@ const nicknameSchema = z
 
 const avatarSchema = z.string().refine((s) => AVATARS.includes(s), 'unknown avatar');
 const codeSchema = z.string().transform(normalizeCode).pipe(z.string().min(1).max(16));
+const emoteSchema = z.string().refine((s) => BLUFF_EMOTES.includes(s), 'unknown emote');
 const botLevelSchema = z.enum(['easy', 'medium', 'hard']);
 const emptySchema = z.object({});
 
@@ -68,7 +70,7 @@ export const ClientEvents = {
   'room:rejoin': z.object({ code: codeSchema, token: z.string().min(1).max(128) }),
   'room:start': emptySchema,
   'seat:move': z.object({ from: seatSchema, to: seatSchema }),
-  'game:announce': z.object({ emote: z.string().min(1).max(32).nullable() }),
+  'game:announce': z.object({ emote: emoteSchema.nullable() }),
   'game:pick': z.object({ gesture: z.string().min(1).max(32) }),
   'game:next': emptySchema,
   'room:rematch': emptySchema,
