@@ -16,7 +16,7 @@ describe('App screen routing', () => {
 
   it('shows Home without a room', () => {
     render(App);
-    expect(screen.getByRole('button', { name: 'Raum erstellen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Raum erstellen/ })).toBeInTheDocument();
   });
 
   it('shows the Lobby while there is no match', () => {
