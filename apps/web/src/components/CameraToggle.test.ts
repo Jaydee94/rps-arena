@@ -176,6 +176,24 @@ describe('CameraToggle', () => {
     expect(onpick).toHaveBeenCalledWith('rock');
   });
 
+  it('shows the recognized pose as a text label with a decorative icon and no emoji', async () => {
+    recognizerWorks();
+    await enable();
+    const section = screen.getByRole('region', { name: de['camera.title'] });
+
+    expect(screen.getByText(de['camera.pose_none'])).toBeInTheDocument();
+
+    hold('Closed_Fist', 0, 100);
+    await tick();
+
+    const label = screen.getByText(de['gesture.rock']);
+    expect(label.closest('.pose')).not.toBeNull();
+    const icon = label.closest('.pose')!.querySelector('[data-gesture="rock"]');
+    expect(icon).not.toBeNull();
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(section.textContent).not.toMatch(/\p{Extended_Pictographic}/u);
+  });
+
   it('stops the recognizer when toggled off', async () => {
     recognizerWorks();
     await enable();

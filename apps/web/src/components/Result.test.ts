@@ -29,6 +29,56 @@ describe('Result', () => {
     expect(screen.getByText('Endstand 1 : 2')).toBeInTheDocument();
   });
 
+  it('shows a win with the confetti and the win burst', () => {
+    roomStore.set(makeRoom({ match: { phase: 'finished', winner: 'a' } }));
+    const { container } = render(Result);
+    expect(container.querySelector('.confetti')).not.toBeNull();
+    expect(screen.getByText('SIEG!')).toBeInTheDocument();
+  });
+
+  describe.each([
+    ['de', 'Spiel vorzeitig beendet', 'Endstand 1 : 1', 'Endstand 2 : 0', 'Endstand 0 : 2', 'Das Spiel konnte nicht weitergeführt werden.', 'Nochmal spielen', 'Zum Start'],
+    ['en', 'Match ended early', 'Final score 1 : 1', 'Final score 2 : 0', 'Final score 0 : 2', 'The match could not be continued.', 'Play again', 'Back to start'],
+  ] as const)('without a winner (%s)', (locale, headline, score, scoreLead, scoreTrail, hint, rematch, leave) => {
+    beforeEach(() => {
+      setLocale(locale);
+      roomStore.set(makeRoom({ you: 'b0', match: { phase: 'finished', winner: null, score: { a: 1, b: 1 } } }));
+    });
+
+    it.each([
+      ['b0', scoreTrail],
+      ['a0', scoreLead],
+    ] as const)('keeps the neutral headline and shows a non-zero score (viewer %s)', (you, expected) => {
+      roomStore.set(makeRoom({ you, match: { phase: 'finished', winner: null, score: { a: 2, b: 0 } } }));
+      render(Result);
+      expect(screen.getByRole('heading', { name: headline })).toBeInTheDocument();
+      expect(screen.getByText(expected)).toBeInTheDocument();
+      expect(screen.queryByText(/niemand|nobody/i)).toBeNull();
+    });
+
+    it('shows a neutral headline, no win/lose text and the final score', () => {
+      render(Result);
+      expect(screen.getByRole('heading', { name: headline })).toBeInTheDocument();
+      expect(screen.getByText(score)).toBeInTheDocument();
+      expect(screen.getByText(hint)).toBeInTheDocument();
+      for (const text of ['Du hast gewonnen!', 'Diesmal verloren.', 'You won the match!', 'Not this time.', 'SIEG!', 'AUA!', 'WIN!', 'OUCH!']) {
+        expect(screen.queryByText(text)).toBeNull();
+      }
+    });
+
+    it('has no confetti, no burst and neither win nor lose styling', () => {
+      const { container } = render(Result);
+      expect(container.querySelector('.confetti')).toBeNull();
+      expect(container.querySelector('.burst-spot')).toBeNull();
+      expect(container.querySelector('.result-win, .result-lose')).toBeNull();
+    });
+
+    it('keeps the rematch and leave actions', () => {
+      render(Result);
+      expect(screen.getAllByRole('button').map((b) => b.textContent?.trim())).toEqual([rematch, leave]);
+    });
+  });
+
   it('names the winning team in team2v2', () => {
     roomStore.set(
       makeRoom({ config: { mode: 'team2v2', bestOf: 3 }, you: 'b1', match: { phase: 'finished', winner: 'b', score: { a: 0, b: 2 } } }),
@@ -41,6 +91,13 @@ describe('Result', () => {
     roomStore.set(makeRoom({ match: { phase: 'finished', winner: 'a', forfeited: ['b0'] } }));
     render(Result);
     expect(screen.getByText('Spieler-b0 hat das Spiel verlassen.')).toBeInTheDocument();
+  });
+
+  it('offers a rematch after an abandoned match', async () => {
+    roomStore.set(makeRoom({ match: { phase: 'finished', winner: null } }));
+    render(Result);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Nochmal spielen' }));
+    expect(actions.rematch).toHaveBeenCalledTimes(1);
   });
 
   it('offers a rematch', async () => {

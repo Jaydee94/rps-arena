@@ -3,8 +3,9 @@
   import { createHoldConfirmer } from '../lib/camera/hold';
   import { mapGesture, type Pose } from '../lib/camera/mapping';
   import { CameraError, startRecognizer, type CameraErrorCode, type RecognizerHandle } from '../lib/camera/recognizer';
-  import { gestureEmoji, gestureKey } from '../lib/gestures-ui';
+  import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
+  import GestureIcon from './GestureIcon.svelte';
 
   interface Props {
     /** The gestures of the current round; a recognized pose outside of it is ignored. */
@@ -106,9 +107,7 @@
     handle = null;
   });
 
-  const poseLabel = $derived(
-    loading ? t('camera.loading') : pose ? `${gestureEmoji(pose)} ${t(gestureKey(pose))}` : t('camera.pose_none'),
-  );
+  const poseLabel = $derived(loading ? t('camera.loading') : pose ? t(gestureKey(pose)) : t('camera.pose_none'));
 </script>
 
 <svelte:document {onvisibilitychange} />
@@ -116,7 +115,10 @@
 <section class="camera" aria-label={t('camera.title')}>
   <div class="head">
     <button type="button" class="btn btn-small" aria-pressed={enabled} onclick={toggle}>
-      <span aria-hidden="true">📷</span>
+      <svg class="cam-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 7h3l1.5-2h7L17 7h3v12H4z" />
+        <circle cx="12" cy="13" r="3.5" />
+      </svg>
       {t('camera.title')}
     </button>
     <span class="badge">{t('camera.badge')}</span>
@@ -142,7 +144,10 @@
         />
       </svg>
     </div>
-    <p class="pose">{poseLabel}</p>
+    <p class="pose">
+      {#if !loading && pose}<GestureIcon id={pose} size={36} />{/if}
+      <span>{poseLabel}</span>
+    </p>
     <p class="note">{t('camera.hold')}</p>
   {/if}
 
@@ -226,7 +231,21 @@
     stroke-linecap: round;
   }
 
+  .cam-icon {
+    width: 1.25em;
+    height: 1.25em;
+    vertical-align: -0.2em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linejoin: round;
+  }
+
   .pose {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
     font-family: var(--font-display);
     font-size: var(--text-lg);
   }

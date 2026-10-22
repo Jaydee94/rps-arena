@@ -4,17 +4,15 @@ import type {
   ClientEventName,
   ClientEventPayloads,
   ErrorCode,
+  RoomJoined,
   RoomView,
   SeatId,
   ServerEvents,
 } from '@rps/shared';
 
-/** Sent by the server after room:create / room:join / room:rejoin (not part of ServerEvents yet). */
-export interface RoomJoined {
-  code: string;
-  token: string;
-  seat: SeatId;
-}
+/** The shared event payload maps as socket.io listener maps. */
+type ListenersOf<Payloads> = { [K in keyof Payloads]: (payload: Payloads[K]) => void };
+type GameSocket = Socket<ListenersOf<ServerEvents>, ListenersOf<ClientEventPayloads>>;
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 export interface LastError {
@@ -75,14 +73,14 @@ export const room: Readable<RoomView | null> = { subscribe: roomStore.subscribe 
 export const lastError: Readable<LastError | null> = { subscribe: lastErrorStore.subscribe };
 export const status: Readable<ConnectionStatus> = { subscribe: statusStore.subscribe };
 
-let socket: Socket | null = null;
+let socket: GameSocket | null = null;
 // True while the last thing we sent was the automatic room:rejoin and the server has not answered yet.
 let pendingRejoin = false;
 
 /** Opens the websocket (once). Call from main.ts; importing this module has no side effects. */
 export function connect(): void {
   if (socket) return;
-  const s = io({ transports: ['websocket'] });
+  const s: GameSocket = io({ transports: ['websocket'] });
   socket = s;
 
   s.on('connect', () => {
@@ -90,13 +88,13 @@ export function connect(): void {
     const session = loadSession();
     if (session) {
       pendingRejoin = true;
-      s.emit('room:rejoin', session satisfies ClientEventPayloads['room:rejoin']);
+      s.emit('room:rejoin', session);
     }
   });
   s.on('disconnect', () => statusStore.set('disconnected'));
   s.on('connect_error', () => statusStore.set('disconnected'));
 
-  s.on('room:state', (view: ServerEvents['room:state']) => {
+  s.on('room:state', (view) => {
     pendingRejoin = false;
     roomStore.set(view);
   });
@@ -104,7 +102,7 @@ export function connect(): void {
     pendingRejoin = false;
     saveSession({ code: joined.code, token: joined.token });
   });
-  s.on('room:error', (error: ServerEvents['room:error']) => {
+  s.on('room:error', (error) => {
     lastErrorStore.set({ code: error.code, message: error.message });
     // Only a rejected automatic rejoin invalidates the saved session; a mistyped join must not.
     if (pendingRejoin && (error.code === 'bad_token' || error.code === 'room_not_found')) {
@@ -133,7 +131,8 @@ export function forgetSession(): void {
 function send<K extends ClientEventName>(event: K, payload: ClientEventPayloads[K]): void {
   connect();
   pendingRejoin = false;
-  socket?.emit(event, payload);
+  // A generic event name cannot be matched against the per-event listener map; the signature above already ties them together.
+  (socket as Socket | null)?.emit(event, payload);
 }
 
 export const createRoom = (payload: ClientEventPayloads['room:create']) => send('room:create', payload);
