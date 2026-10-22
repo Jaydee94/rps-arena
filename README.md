@@ -480,6 +480,12 @@ nur in der PR-CI. Wenn die Commits ein Release rechtfertigen, entstehen:
 - das Helm-Chart als OCI-Artefakt `oci://ghcr.io/jaydee94/charts/rps-arena` in Version `X.Y.Z` (mit `appVersion`
   `X.Y.Z`).
 
+Das Dockerfile baut `source`, `build`, `test` und `deps` auf der Build-Plattform (`--platform=$BUILDPLATFORM`),
+sodass `npm ci` und der Vite-Build für die arm64-Variante nicht unter QEMU laufen. Das ist möglich, weil
+Server-Bundle, SPA und die Produktionsabhängigkeiten reines JavaScript sind (der Test
+[`scripts/dockerfile-deps.test.ts`](scripts/dockerfile-deps.test.ts) schlägt an, sobald eine Produktionsabhängigkeit
+plattformspezifisch wird). Nur die letzte Stufe `runtime` entsteht für die Zielplattform und enthält kein `RUN`.
+
 semantic-release committet **nichts** zurück nach `main`. Es setzt nur Tag und GitHub Release, das Chart bekommt
 seine Version erst beim Verpacken in [`scripts/publish.sh`](scripts/publish.sh). Dadurch braucht `main` keine
 Ausnahme in der Branch-Protection und keinen Bot-Token. `publish.sh` überschreibt nie ein bereits vorhandenes

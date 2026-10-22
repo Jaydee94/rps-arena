@@ -3,8 +3,15 @@
 # One image: the Svelte SPA (apps/web/dist) and the Node/Socket.IO game server on port 8080.
 ARG NODE_IMAGE=node:24.22.1-alpine3.24
 
+# Stage platforms: `source`, `build`, `test` and `deps` run on the machine that builds the image
+# (--platform=$BUILDPLATFORM), so a multi-platform build (the arm64 half of the release) does not run
+# `npm ci` and vite under QEMU. That is safe because their output is platform-independent: the esbuild
+# bundle and the SPA are plain JS/CSS/HTML, and the production dependency tree has no native or
+# OS/CPU-specific package (guarded by scripts/dockerfile-deps.test.ts). Only `runtime`, the last stage,
+# is built for the target platform.
+
 # ---- source: all workspaces with their dependencies installed (shared by build and test) ----
-FROM ${NODE_IMAGE} AS source
+FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS source
 WORKDIR /app
 
 # Manifests first so `npm ci` stays cached until a dependency changes.
@@ -30,7 +37,8 @@ ENV CI=true
 CMD ["npm", "test"]
 
 # ---- deps: production dependencies of @rps/server only, versions pinned by the lockfile ----
-FROM ${NODE_IMAGE} AS deps
+# Pure JavaScript only (see the note at the top), hence safe to install on the build platform.
+FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
