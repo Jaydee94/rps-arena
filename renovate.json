@@ -4,6 +4,26 @@
   "timezone": "Europe/Berlin",
   "semanticCommits": "enabled",
   "platformAutomerge": true,
+  "customManagers": [
+    {
+      "description": "Node base image of the Dockerfile (ARG NODE_IMAGE=node:<node version>-alpine<alpine version>). The regex versioning rule in packageRules compares the Node version first and the Alpine version second, so both move together.",
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)Dockerfile$/"],
+      "matchStrings": [
+        "ARG NODE_IMAGE=node:(?<currentValue>\\d+\\.\\d+\\.\\d+-alpine\\d+\\.\\d+)\\s"
+      ],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "docker"
+    },
+    {
+      "description": "Pinned Renovate version of the renovate-config job in ci.yml, annotated with '# renovate: datasource=... depName=...' on the line above.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/ci\\.yml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\s*- run: npx --yes --package \\S+@(?<currentValue>\\d+\\.\\d+\\.\\d+) "
+      ]
+    }
+  ],
   "packageRules": [
     {
       "description": "Every dependency update is released as a patch by semantic-release (fix(deps)).",
@@ -12,7 +32,8 @@
         "dockerfile",
         "github-actions",
         "helm-values",
-        "helmv3"
+        "helmv3",
+        "custom.regex"
       ],
       "semanticCommitType": "fix",
       "semanticCommitScope": "deps"
@@ -27,6 +48,26 @@
       "description": "Merge patch and minor updates automatically once the required checks are green. Major updates stay manual.",
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
+    },
+    {
+      "description": "The Dockerfile's Node image is tracked by the custom manager above; keep the built-in dockerfile manager from opening a second, conflicting pull request for it.",
+      "matchManagers": ["dockerfile"],
+      "matchDepNames": ["node"],
+      "enabled": false
+    },
+    {
+      "description": "Compare <node version>-alpine<alpine version> tags as one version: the Node version first, the Alpine version second, so both update together. config:recommended sets its own versioning and versionCompatibility (which pins the -alpineX.Y suffix) for the node image; both are overridden here.",
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["node"],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-alpine(?<build>\\d+)\\.(?<revision>\\d+)$",
+      "versionCompatibility": "^(?<version>.+)$"
+    },
+    {
+      "description": "The Node major is pinned by .nvmrc and engines (24); the Dockerfile image follows it. Newer majors are bumped by hand together with those.",
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["node"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
     },
     {
       "description": "Release tooling is reviewed by a human and does not ship a new game version: its own group, no automerge, and build(deps) so semantic-release does not cut a release for it. Must stay after the generic fix(deps), grouping and automerge rules above.",

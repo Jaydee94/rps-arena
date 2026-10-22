@@ -92,5 +92,6 @@ jobs:
       - uses: actions/setup-node@v7.1.0 # v7
         with:
           node-version-file: .nvmrc
-      # keep in sync with Renovate's major; not tracked by Renovate automatically
+      # Renovate bumps this pin itself (custom manager in renovate.json, anchored on the annotation below)
+      # renovate: datasource=npm depName=renovate
       - run: npx --yes --package renovate@44.176.3 -- renovate-config-validator --strict
