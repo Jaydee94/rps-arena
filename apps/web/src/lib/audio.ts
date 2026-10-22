@@ -330,7 +330,9 @@ function unlock(): void {
 function play(name: SoundName, delay = 0): void {
   if (!settings.sfx) return;
   const graph = ready();
-  if (!graph) return;
+  // A suspended/interrupted context has a frozen clock: scheduling now would pile sounds up and
+  // fire them all at once on resume, so they are dropped instead.
+  if (!graph || graph.c.state !== 'running') return;
   RECIPES[name](graph.c, graph.out, graph.c.currentTime + Math.max(0, delay));
 }
 

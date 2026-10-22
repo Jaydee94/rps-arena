@@ -137,6 +137,63 @@ describe('audio defaults and unlock', () => {
   });
 });
 
+describe('suspended context', () => {
+  const context = () => {
+    const instance = FakeAudioContext.instances[0];
+    if (!instance) throw new Error('no context');
+    return instance;
+  };
+
+  it('creates no nodes while the context is not running, and drops those sounds', async () => {
+    const { audio } = await load();
+    audio.unlock();
+    context().state = 'suspended';
+    const before = created().length;
+    audio.play('click');
+    audio.play('win', 0.5);
+    expect(created()).toHaveLength(before);
+
+    context().state = 'running';
+    expect(created()).toHaveLength(before); // nothing is replayed on resume
+    audio.play('click');
+    expect(created().length).toBeGreaterThan(before);
+  });
+
+  it('also stays silent while the context is interrupted', async () => {
+    const { audio } = await load();
+    audio.unlock();
+    (context() as { state: string }).state = 'interrupted';
+    const before = created().length;
+    audio.play('click');
+    expect(created()).toHaveLength(before);
+  });
+
+  it('does nothing when unlock() is called on a running context', async () => {
+    const { audio } = await load();
+    audio.unlock();
+    context().resume.mockClear();
+    audio.unlock();
+    expect(context().resume).not.toHaveBeenCalled();
+  });
+
+  it('retries resume() on a later unlock() after a rejected one', async () => {
+    const { audio } = await load();
+    audio.unlock();
+    const c = context();
+    c.state = 'suspended';
+    c.resume.mockImplementationOnce(() => Promise.reject(new Error('not allowed')));
+    audio.unlock();
+    await Promise.resolve();
+    expect(c.state).toBe('suspended');
+    audio.unlock();
+    expect(c.resume).toHaveBeenCalledTimes(3);
+    expect(c.state).toBe('running');
+    const before = created().length;
+    audio.play('click');
+    expect(created().length).toBeGreaterThan(before);
+  });
+});
+
 describe('sfx switch', () => {
   it('creates no nodes after setSfx(false)', async () => {
     const { audio } = await load();

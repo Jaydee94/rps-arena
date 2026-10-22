@@ -155,6 +155,24 @@ describe('startSfxBridge', () => {
     expect(unlock).toHaveBeenCalled();
   });
 
+  it.each(['pointerdown', 'pointerup', 'click', 'touchend', 'keydown'])(
+    'unlocks on %s (activation events differ between engines)',
+    (type) => {
+      document.body.dispatchEvent(new Event(type, { bubbles: true }));
+      expect(unlock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('plays the click sound only once per tap (on pointerdown, not on pointerup/click)', () => {
+    const button = document.createElement('button');
+    document.body.append(button);
+    for (const type of ['pointerdown', 'pointerup', 'click']) {
+      button.dispatchEvent(new Event(type, { bubbles: true }));
+    }
+    expect(play).toHaveBeenCalledTimes(1);
+    button.remove();
+  });
+
   it('plays sounds for room transitions, staggering follow-ups', () => {
     roomStore.set(makeRoom({ match: { yourPick: null } }));
     expect(play).not.toHaveBeenCalled();
@@ -168,8 +186,9 @@ describe('startSfxBridge', () => {
 
   it('removes its listeners and subscription on stop', () => {
     stop();
-    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    for (const type of ['pointerdown', 'pointerup', 'click', 'touchend', 'keydown']) {
+      document.body.dispatchEvent(new Event(type, { bubbles: true }));
+    }
     roomStore.set(makeRoom({ match: { yourPick: null } }));
     roomStore.set(revealRoom('a0', 'a'));
     expect(unlock).not.toHaveBeenCalled();

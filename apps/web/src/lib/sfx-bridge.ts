@@ -35,14 +35,18 @@ export function diffRoomSounds(prev: RoomView | null, next: RoomView | null): So
  */
 export function startSfxBridge(): () => void {
   const onPointerDown = (event: Event) => {
-    audio.unlock();
     const target = event.target;
     const button = target instanceof Element ? target.closest('button') : null;
     if (button && !button.disabled) audio.play('click');
   };
-  const onKeyDown = () => audio.unlock();
+  // Engines disagree on which events count as a user activation (touch pointerdown does not on
+  // WebKit; click/pointerup/touchend/keydown do), so every one of them tries to unlock. unlock()
+  // is idempotent and cheap once the context runs, and re-resumes a suspended/interrupted one.
+  const onGesture = () => audio.unlock();
+  const GESTURES = ['pointerdown', 'pointerup', 'click', 'touchend', 'keydown'];
+  for (const type of GESTURES) document.addEventListener(type, onGesture, true);
+  // Registered after the unlock listener, so the click can already sound on a fresh context.
   document.addEventListener('pointerdown', onPointerDown, true);
-  document.addEventListener('keydown', onKeyDown, true);
 
   let prev: RoomView | null = null;
   const unsubscribe = room.subscribe((next) => {
@@ -57,7 +61,7 @@ export function startSfxBridge(): () => void {
 
   return () => {
     document.removeEventListener('pointerdown', onPointerDown, true);
-    document.removeEventListener('keydown', onKeyDown, true);
+    for (const type of GESTURES) document.removeEventListener(type, onGesture, true);
     unsubscribe();
   };
 }
