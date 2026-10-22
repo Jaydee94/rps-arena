@@ -214,6 +214,17 @@ describe('publish.sh --assume-missing (first publish; GHCR answers 403 for packa
     expect(called(r, 'buildx build')[0]).toContain('--push');
   });
 
+  it.each(['', '0'])('does not enable the escape hatch for PUBLISH_ASSUME_MISSING=%j', (value) => {
+    // semantic-release renders `PUBLISH_ASSUME_MISSING= bash ...` for every release but the first.
+    for (const env of [{ image: DENIED }, { image: 'exists', chart: DENIED }]) {
+      const r = run(['1.0.0'], { ...env, assumeMissing: value });
+      expect(r.status).toBe(3);
+      expect(r.output).not.toContain('WARNING: assuming');
+      expect(called(r, 'buildx build')).toHaveLength(0);
+      expect(called(r, 'helm push')).toHaveLength(0);
+    }
+  });
+
   it('treats a chart authorization answer as missing with the flag, and warns', () => {
     const r = run(['1.0.0', '--assume-missing'], { image: 'exists', chart: '401 Unauthorized' });
     expect(r.status).toBe(0);

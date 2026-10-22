@@ -102,6 +102,7 @@ jobs:
           # Passed through the environment, never interpolated into the script; publish.sh
           # validates that it is a semantic version.
           VERSION: ${{ inputs.version }}
-          # Only this manual job can set it. The push-triggered release job (semantic-release ->
-          # publish.sh) never sets PUBLISH_ASSUME_MISSING, so an ambiguous registry answer there aborts.
+          # Recovery path for a first publish that failed after tag and GitHub Release were created.
+          # The push-triggered release job gets the flag only through the publishCmd in
+          # .releaserc.json, and only while semantic-release finds no earlier release.
           PUBLISH_ASSUME_MISSING: ${{ inputs.first_publish && '1' || '' }}

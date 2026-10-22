@@ -497,14 +497,22 @@ bash scripts/publish.sh 1.2.3 --dry-run
 ```
 
 **Erstes Veröffentlichen:** GHCR antwortet für Pakete, die es noch nicht gibt, mit `403 denied`. Das lässt sich
-nicht von einem echten Rechteproblem unterscheiden, deshalb bricht `publish.sh` bei so einer Antwort ab und
-pusht nichts. Scheitert der allererste Release-Lauf im Veröffentlichen (Tag und GitHub Release existieren dann
-schon), startet man den manuellen Lauf mit der erzeugten Version (z. B. `1.0.0`) und setzt zusätzlich
-**`first_publish = true`**. Dann gilt eine Autorisierungsantwort als "Paket existiert noch nicht" (Warnzeile im
-Log) und Image sowie Chart werden gepusht. Netzwerkfehler, Timeouts und Serverfehler brechen weiter ab. Von Hand
-geht dasselbe mit `bash scripts/publish.sh 1.0.0 --assume-missing` (oder der Umgebungsvariable
-`PUBLISH_ASSUME_MISSING=1`). `first_publish` nie für spätere Releases setzen. Nur der manuelle Job kann das Flag
-setzen, der Lauf bei einem Push nie.
+nicht von einem echten Rechteproblem unterscheiden, deshalb bricht `publish.sh` bei so einer Antwort normalerweise
+ab und pusht nichts. Beim allerersten Release gibt es aber nichts, was überschrieben werden könnte: Die
+`publishCmd` in [`.releaserc.json`](.releaserc.json) setzt `PUBLISH_ASSUME_MISSING=1` genau dann, wenn
+semantic-release keinen früheren Release kennt (`lastRelease.version` ist leer), und lässt es bei jedem
+weiteren Release leer. Das erste Release braucht deshalb **keinen manuellen Schritt**. Eine Autorisierungsantwort
+gilt dann als "Paket existiert noch nicht" (Warnzeile im Log), Netzwerkfehler, Timeouts und Serverfehler
+brechen weiter ab. Ein leerer Wert schaltet nichts frei, nur genau `1` zählt. Der Test
+[`scripts/release-config.test.ts`](scripts/release-config.test.ts) rendert die `publishCmd` mit derselben
+lodash-Funktion wie semantic-release und prüft beide Fälle.
+
+Scheitert der allererste Lauf trotzdem im Veröffentlichen (Tag und GitHub Release existieren dann schon, z. B.
+wegen einer unerwarteten Registry-Antwort), bleibt der Weg von oben: manueller Lauf mit der erzeugten Version
+(z. B. `1.0.0`) und zusätzlich **`first_publish = true`**. Von Hand geht dasselbe mit
+`bash scripts/publish.sh 1.0.0 --assume-missing` (oder der Umgebungsvariable `PUBLISH_ASSUME_MISSING=1`).
+`first_publish` nie für spätere Releases setzen. Der Lauf bei einem Push kann das Flag nur über die erste
+Release-Regel oben setzen, nie sonst.
 
 ### Renovate
 
@@ -551,9 +559,9 @@ Die Konfiguration wird in der CI validiert (Job `renovate-config`).
   stellen (dann ist für `helm install` und `docker pull` keine Anmeldung nötig), jedes Paket mit dem Repository
   verknüpfen (*Connect repository*) und dem Repository Schreibzugriff für Actions geben (*Manage Actions
   access*). Das Image trägt das Label `org.opencontainers.image.source`, das Chart-Paket sollte man prüfen.
-- [ ] **Erstes Release:** Der erste Push auf `main` mit `feat`-Commits erzeugt `1.0.0`. Scheitert dabei das
-  Veröffentlichen mit einer 403-Antwort von GHCR, den manuellen Lauf mit `first_publish = true` starten
-  (siehe [Release und CI](#release-und-ci)).
+- [ ] **Erstes Release:** Der erste Push auf `main` mit `feat`-Commits erzeugt `1.0.0` und veröffentlicht Image
+  und Chart ohne manuellen Schritt. Scheitert das Veröffentlichen trotzdem, den manuellen Lauf mit
+  `first_publish = true` starten (siehe [Release und CI](#release-und-ci)).
 - [ ] **Lizenz:** Das Repository enthält derzeit keine `LICENSE`-Datei. [`docs/assets.md`](docs/assets.md) geht
   von MIT aus. Vor einer Veröffentlichung eine `LICENSE`-Datei ergänzen.
 

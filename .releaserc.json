@@ -28,7 +28,9 @@
     "@semantic-release/github",
     [
       "@semantic-release/exec",
-      { "publishCmd": "bash scripts/publish.sh ${nextRelease.version}" }
+      {
+        "publishCmd": "PUBLISH_ASSUME_MISSING=${lastRelease.version ? '' : '1'} bash scripts/publish.sh ${nextRelease.version}"
+      }
     ]
   ]
 }

@@ -31,7 +31,9 @@
 # authorization answer, i.e. its output matches AUTH_RE below, is treated as "not found" for both
 # the image and the chart check, with a loud WARNING line, and publishing proceeds. Network errors,
 # timeouts, 5xx and everything else still abort, and exists / not-found answers are unaffected.
-# The flag has no effect with --dry-run. Use it only for the very first publish of the packages.
+# The flag has no effect with --dry-run. Use it only for the very first publish of the packages:
+# the publishCmd in .releaserc.json sets PUBLISH_ASSUME_MISSING=1 only while semantic-release finds
+# no earlier release (lastRelease.version empty), and leaves it empty (= disabled) otherwise.
 #   AUTH_RE (case-insensitive): denied | unauthorized | status code 401/403 | 401/403 Unauthorized/Forbidden
 #
 # Recovery: semantic-release creates the git tag and the GitHub Release BEFORE calling this script.
