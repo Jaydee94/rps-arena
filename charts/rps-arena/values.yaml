@@ -45,7 +45,15 @@ redis:
   # Deploy a simple in-chart Redis. When false, redis.externalUrl is required.
   enabled: true
   image: redis:7-alpine
+  # URL of an external Redis (used when redis.enabled=false). It lands as plain text in the
+  # Deployment and in `helm get values`, so do not put a password in it: use existingSecret.
   externalUrl: ""
+  # Name of an existing Secret holding the external Redis URL (including a password, if any) under
+  # existingSecretKey. When set, REDIS_URL is read from it via secretKeyRef and externalUrl is not
+  # needed. Only used with redis.enabled=false. Create it yourself, e.g.:
+  #   kubectl create secret generic rps-redis --from-literal=redis-url='rediss://user:pass@host:6379'
+  existingSecret: ""
+  existingSecretKey: redis-url
   persistence:
     enabled: false
     size: 1Gi

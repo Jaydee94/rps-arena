@@ -331,7 +331,7 @@ ingress:
     enabled: true
     clusterIssuer: letsencrypt-prod   # setzt die Annotation cert-manager.io/cluster-issuer
 
-# Eigener Redis statt des mitgelieferten:
+# Eigener Redis statt des mitgelieferten (URL ohne Passwort; mit Passwort siehe redis.existingSecret unten):
 redis:
   enabled: false
   externalUrl: redis://redis.example.internal:6379
@@ -345,9 +345,21 @@ passenden Befehl).
 **Redis:** Mit `redis.enabled: true` (Standard) startet das Chart einen einzelnen Redis (`redis:7-alpine`) ohne
 Authentifizierung und ohne Persistenz. Fällt er aus, gehen laufende Räume verloren. Mit
 `redis.persistence.enabled=true` entsteht ein PVC (`redis.persistence.size`, `storageClass`). Mit
-`redis.enabled: false` ist `redis.externalUrl` Pflicht, sonst bricht `helm template` mit einer klaren Meldung
-ab. Die URL steht im Klartext in der Deployment-Umgebung, ein Passwort in der URL liegt also im Manifest, das
-Chart kann derzeit keine Secret-Referenz einbinden.
+`redis.enabled: false` ist `redis.externalUrl` oder `redis.existingSecret` Pflicht, sonst bricht `helm template`
+mit einer klaren Meldung ab. `redis.externalUrl` steht im Klartext in der Deployment-Umgebung (und in
+`helm get values`), taugt also nur für eine URL ohne Passwort. Mit Passwort legt man die URL in ein eigenes Secret
+und verweist darauf:
+
+```bash
+kubectl --namespace rps create secret generic rps-redis \
+  --from-literal=redis-url='rediss://user:passwort@redis.example.internal:6379'
+helm upgrade --install rps ... --set redis.enabled=false --set redis.existingSecret=rps-redis
+```
+
+`REDIS_URL` kommt dann per `secretKeyRef` aus dem Secret (Schlüssel `redis.existingSecretKey`, Standard
+`redis-url`), `redis.externalUrl` wird nicht gebraucht und das Secret gewinnt, falls beides gesetzt ist. Die
+Hinweise nach `helm install` und `upgrade` (und damit die CI-Logs) nennen die URL nie, nur ob ein externer
+Redis konfiguriert ist.
 
 **Anforderungen an den Ingress:**
 

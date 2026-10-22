@@ -17,5 +17,11 @@ and open http://localhost:8080
 Redis: in-chart instance "{{ include "rps-arena.redisName" . }}" ({{ if .Values.redis.persistence.enabled }}persistent{{ else }}ephemeral, game state is lost when it restarts{{ end }}).
 {{- else }}
 
-Redis: external at {{ .Values.redis.externalUrl }}.
+{{- if include "rps-arena.redisFromSecret" . }}
+
+Redis: external, URL read from the Secret "{{ .Values.redis.existingSecret }}" (key "{{ .Values.redis.existingSecretKey | default "redis-url" }}").
+{{- else }}
+
+Redis: external (redis.externalUrl; the URL is not shown here because it may contain credentials, use redis.existingSecret for a password).
+{{- end }}
 {{- end }}

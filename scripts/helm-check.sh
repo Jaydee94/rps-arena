@@ -62,6 +62,8 @@ helm lint "$CHART" --set ingress.enabled=true --set ingress.host=rps.example.com
   || fail "helm lint (ingress)"
 helm lint "$CHART" --set redis.enabled=false --set redis.externalUrl=redis://ext:6379 \
   || fail "helm lint (external redis)"
+helm lint "$CHART" --set redis.enabled=false --set redis.existingSecret=rps-redis \
+  || fail "helm lint (external redis from a Secret)"
 pass "helm lint"
 
 echo "== defaults =="
@@ -108,9 +110,51 @@ if MISSING="$(helm template rps "$CHART" --set redis.enabled=false 2>&1)"; then
   fail "helm template must fail when redis.enabled=false without redis.externalUrl"
 fi
 case "$MISSING" in
-  *"redis.externalUrl"*) pass "missing externalUrl fails with a clear message" ;;
-  *) fail "error message does not mention redis.externalUrl: $MISSING" ;;
+  *"redis.externalUrl"*"redis.existingSecret"*) pass "missing externalUrl fails with a clear message" ;;
+  *) fail "error message does not mention redis.externalUrl and redis.existingSecret: $MISSING" ;;
 esac
+
+echo "== external redis credentials stay out of the output =="
+SECRET_URL="redis://user:s3cret@redis.example.internal:6379"
+# NOTES.txt is part of every `helm install/upgrade` output (and so of CI logs).
+notes_of() {
+  local out
+  out="$(helm install rps "$CHART" --dry-run=client "$@" 2>&1)" || fail "helm install --dry-run failed ($*): $out"
+  printf '%s\n' "${out#*NOTES:}"
+}
+NOTES_URL="$(notes_of --set redis.enabled=false --set "redis.externalUrl=$SECRET_URL")"
+case "$NOTES_URL" in
+  *s3cret* | *user:* | *redis://* | *redis.example.internal*) fail "NOTES.txt prints the external Redis URL: $NOTES_URL" ;;
+  *) pass "NOTES.txt does not print redis.externalUrl" ;;
+esac
+case "$NOTES_URL" in
+  *"external"*) pass "NOTES.txt still says that an external Redis is used" ;;
+  *) fail "NOTES.txt does not mention the external Redis: $NOTES_URL" ;;
+esac
+SECRET_OUT="$(helm install rps "$CHART" --dry-run=client --set redis.enabled=false --set redis.existingSecret=rps-redis 2>&1)" \
+  || fail "helm install --dry-run with redis.existingSecret failed: $SECRET_OUT"
+case "$SECRET_OUT" in
+  *rps-redis*) pass "NOTES.txt names the Secret (not its content)" ;;
+  *) fail "NOTES.txt does not mention the Secret" ;;
+esac
+
+echo "== external redis from an existing Secret =="
+FROM_SECRET="$(render --set redis.enabled=false --set redis.existingSecret=rps-redis)"
+REDIS_ENV="$CONTAINER | .env[] | select(.name == \"REDIS_URL\")"
+assert_eq "REDIS_URL comes from the Secret name" "rps-redis" "$FROM_SECRET" "$REDIS_ENV | .valueFrom.secretKeyRef.name"
+assert_eq "REDIS_URL Secret key defaults to redis-url" "redis-url" "$FROM_SECRET" "$REDIS_ENV | .valueFrom.secretKeyRef.key"
+assert_eq "no plain REDIS_URL value with a Secret" "null" "$FROM_SECRET" "$REDIS_ENV | .value"
+assert_eq "exactly one REDIS_URL variable" "1" "$FROM_SECRET" "[$CONTAINER | .env[] | select(.name == \"REDIS_URL\")] | length"
+assert_eq "no in-chart redis with an external one" "0" "$FROM_SECRET" '[select(.kind == "Deployment" and .metadata.name == "rps-rps-arena-redis")] | length'
+CUSTOM_KEY="$(render --set redis.enabled=false --set redis.existingSecret=rps-redis --set redis.existingSecretKey=url)"
+assert_eq "custom Secret key" "url" "$CUSTOM_KEY" "$REDIS_ENV | .valueFrom.secretKeyRef.key"
+BOTH="$(render --set redis.enabled=false --set redis.existingSecret=rps-redis --set "redis.externalUrl=$SECRET_URL")"
+assert_eq "the Secret wins over redis.externalUrl" "null" "$BOTH" "$REDIS_ENV | .value"
+case "$BOTH" in
+  *s3cret*) fail "rendered manifests contain the password although redis.existingSecret is set" ;;
+  *) pass "no password in the manifests when the Secret is used" ;;
+esac
+validate_schema "$FROM_SECRET"
 
 echo "== ingress =="
 INGRESS="$(render --set ingress.enabled=true --set ingress.host=rps.example.com \

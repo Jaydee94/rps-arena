@@ -38,7 +38,14 @@ spec:
             - name: PORT
               value: "8080"
             - name: REDIS_URL
+              {{- if include "rps-arena.redisFromSecret" . }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.existingSecret | quote }}
+                  key: {{ .Values.redis.existingSecretKey | default "redis-url" | quote }}
+              {{- else }}
               value: {{ include "rps-arena.redisUrl" . | quote }}
+              {{- end }}
             {{- range $name, $value := .Values.env }}
             - name: {{ $name }}
               value: {{ $value | quote }}

@@ -32,11 +32,16 @@ app.kubernetes.io/name: {{ include "rps-arena.name" . }}-redis
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
-{{/* REDIS_URL: internal service, or the required external URL */}}
+{{/* True ("true") when REDIS_URL is read from an existing Secret instead of being a plain value. */}}
+{{- define "rps-arena.redisFromSecret" -}}
+{{- if and (not .Values.redis.enabled) .Values.redis.existingSecret -}}true{{- end -}}
+{{- end }}
+
+{{/* REDIS_URL value: internal service, or the required external URL (not used with a Secret) */}}
 {{- define "rps-arena.redisUrl" -}}
 {{- if .Values.redis.enabled -}}
 redis://{{ include "rps-arena.redisName" . }}:6379
 {{- else -}}
-{{- required "redis.externalUrl is required when redis.enabled=false" .Values.redis.externalUrl -}}
+{{- required "redis.externalUrl (or redis.existingSecret) is required when redis.enabled=false" .Values.redis.externalUrl -}}
 {{- end -}}
 {{- end }}
