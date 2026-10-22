@@ -76,6 +76,8 @@ export const lastError: Readable<LastError | null> = { subscribe: lastErrorStore
 export const status: Readable<ConnectionStatus> = { subscribe: statusStore.subscribe };
 
 let socket: Socket | null = null;
+// True while the last thing we sent was the automatic room:rejoin and the server has not answered yet.
+let pendingRejoin = false;
 
 /** Opens the websocket (once). Call from main.ts; importing this module has no side effects. */
 export function connect(): void {
@@ -86,16 +88,30 @@ export function connect(): void {
   s.on('connect', () => {
     statusStore.set('connected');
     const session = loadSession();
-    if (session) s.emit('room:rejoin', session satisfies ClientEventPayloads['room:rejoin']);
+    if (session) {
+      pendingRejoin = true;
+      s.emit('room:rejoin', session satisfies ClientEventPayloads['room:rejoin']);
+    }
   });
   s.on('disconnect', () => statusStore.set('disconnected'));
   s.on('connect_error', () => statusStore.set('disconnected'));
 
-  s.on('room:state', (view: ServerEvents['room:state']) => roomStore.set(view));
-  s.on('room:joined', (joined: RoomJoined) => saveSession({ code: joined.code, token: joined.token }));
+  s.on('room:state', (view: ServerEvents['room:state']) => {
+    pendingRejoin = false;
+    roomStore.set(view);
+  });
+  s.on('room:joined', (joined: RoomJoined) => {
+    pendingRejoin = false;
+    saveSession({ code: joined.code, token: joined.token });
+  });
   s.on('room:error', (error: ServerEvents['room:error']) => {
     lastErrorStore.set({ code: error.code, message: error.message });
-    if (error.code === 'bad_token' || error.code === 'room_not_found') clearSession();
+    // Only a rejected automatic rejoin invalidates the saved session; a mistyped join must not.
+    if (pendingRejoin && (error.code === 'bad_token' || error.code === 'room_not_found')) {
+      clearSession();
+      roomStore.set(null);
+    }
+    pendingRejoin = false;
   });
 }
 
@@ -105,6 +121,7 @@ export function clearError(): void {
 
 function send<K extends ClientEventName>(event: K, payload: ClientEventPayloads[K]): void {
   connect();
+  pendingRejoin = false;
   socket?.emit(event, payload);
 }
 

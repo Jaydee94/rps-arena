@@ -11,27 +11,25 @@
 
 <!-- Placeholder: the real screens arrive in Task 10. -->
 <main>
-  {#key $locale}
-    <h1>{t('app.title')}</h1>
-    <p>
-      <span class="badge" data-status={$status}>{t(`app.status.${$status}`)}</span>
-      <span>{t('app.language')}: {$locale}</span>
-    </p>
-    <p class="lang" role="group" aria-label={t('app.language')}>
-      {#each LOCALES as l (l)}
-        <button type="button" aria-pressed={$locale === l} onclick={() => setLocale(l)}>
-          {l.toUpperCase()}
-        </button>
-      {/each}
-    </p>
-    {#if $lastError}
-      <p class="error" role="alert">{t(`errors.${$lastError.code}`)}</p>
-    {/if}
-    {#if $room}
-      <p>{t('lobby.code', { code: $room.code })}</p>
-      <pre>{JSON.stringify($room, null, 2)}</pre>
-    {/if}
-  {/key}
+  <h1>{t('app.title')}</h1>
+  <p>
+    <span class="badge" data-status={$status}>{t(`app.status.${$status}`)}</span>
+    <span>{t('app.language')}: {$locale}</span>
+  </p>
+  <p class="lang" role="group" aria-label={t('app.language')}>
+    {#each LOCALES as l (l)}
+      <button type="button" aria-pressed={$locale === l} onclick={() => setLocale(l)}>
+        {l.toUpperCase()}
+      </button>
+    {/each}
+  </p>
+  {#if $lastError}
+    <p class="error" role="alert">{t(`errors.${$lastError.code}`)}</p>
+  {/if}
+  {#if $room}
+    <p>{t('lobby.code', { code: $room.code })}</p>
+    <pre>{JSON.stringify($room, null, 2)}</pre>
+  {/if}
 </main>
 
 <style>

@@ -126,12 +126,45 @@ describe('connection', () => {
     expect(get(lastError)).toBeNull();
   });
 
-  it('drops stored credentials when the server rejects the token', async () => {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code: 'ABCD', token: 'old' }));
-    const { connect } = await load();
+  it.each(['bad_token', 'room_not_found'] as const)(
+    'drops credentials and the stale room when a rejoin is rejected with %s',
+    async (code) => {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code: 'ABCD', token: 'old' }));
+      const { connect, room } = await load();
+      connect();
+      fake.trigger('room:state', VIEW);
+      expect(get(room)).toEqual(VIEW);
+      fake.trigger('connect');
+      fake.trigger('room:error', { code, message: 'rejected' });
+      expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+      expect(get(room)).toBeNull();
+    },
+  );
+
+  it('keeps the session and room when a user-initiated join fails with room_not_found', async () => {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code: 'ABCD', token: 'valid' }));
+    const { connect, room, joinRoom } = await load();
     connect();
-    fake.trigger('room:error', { code: 'bad_token', message: 'bad token' });
-    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+    fake.trigger('connect');
+    fake.trigger('room:state', VIEW);
+    joinRoom({ code: 'TYPO', nickname: 'Bob', avatar: 'cat' });
+    fake.trigger('room:error', { code: 'room_not_found', message: 'nope' });
+    expect(JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? 'null')).toEqual({
+      code: 'ABCD',
+      token: 'valid',
+    });
+    expect(get(room)).toEqual(VIEW);
+  });
+
+  it('does not treat a later error as a rejoin rejection once the rejoin succeeded', async () => {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code: 'ABCD', token: 'valid' }));
+    const { connect, room } = await load();
+    connect();
+    fake.trigger('connect');
+    fake.trigger('room:state', VIEW);
+    fake.trigger('room:error', { code: 'room_not_found', message: 'later' });
+    expect(sessionStorage.getItem(SESSION_KEY)).not.toBeNull();
+    expect(get(room)).toEqual(VIEW);
   });
 
   it('stores code and token on room:joined', async () => {
