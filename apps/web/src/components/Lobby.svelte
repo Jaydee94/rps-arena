@@ -86,10 +86,15 @@
 <style>
   .lobby {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
     max-width: 48rem;
     margin: 0 auto;
     width: 100%;
+  }
+
+  .lobby > :global(*) {
+    min-width: 0;
   }
 
   h2 {
@@ -117,6 +122,7 @@
 
   .share {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
   }
 
@@ -129,6 +135,7 @@
 
   .team {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
     gap: var(--space-3);
   }
