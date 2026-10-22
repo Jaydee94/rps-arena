@@ -15,6 +15,10 @@ export const ERROR_CODES = [
   'already_picked',
   'not_host',
   'bad_token',
+  /** Too many events from one connection in a short time; the event was dropped. */
+  'rate_limited',
+  /** Unexpected server-side failure (e.g. no free room code); retrying may help. */
+  'internal',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -120,7 +124,18 @@ export interface RoomView {
   deadline: number | null;
 }
 
+/**
+ * Sent only to the socket that just created, joined or rejoined a room. The token is the secret
+ * session credential for `room:rejoin`; it never appears in `room:state`.
+ */
+export interface RoomJoined {
+  code: string;
+  token: string;
+  seat: SeatId;
+}
+
 export type ServerEvents = {
+  'room:joined': RoomJoined;
   'room:state': RoomView;
   'room:error': { code: ErrorCode; message: string };
 };
