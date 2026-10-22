@@ -220,11 +220,19 @@ function wakeUp(room: Room, phaseDeadline: number | null): number | null {
  * - Nobody (not out) is connected: the room is abandoned once the last grace runs out, so wake up
  *   then for the ticker to delete it; with nobody left at all that is now (0 = due at once). Either
  *   time is only reached by an abandoned room, which the ticker deletes, so it cannot go stale.
+ * - In the lobby instead: the earliest grace end of a disconnected participant (it is dropped then).
  * Waiting and eliminated participants who merely drop out never need a wake-up of their own.
  */
 function tournamentPeopleWakeUp(room: Room): number | null {
   const t = room.tournament;
   if (!t) return null;
+  if (t.phase === 'lobby') {
+    // Lobby ghosts are dropped at their grace end (`dropLobbyGhosts` in tick); that also covers the
+    // host role and abandonment. An empty lobby is due at once (abandoned).
+    if (t.participants.length === 0) return 0;
+    const ends = t.participants.map(participantGraceEnd).filter((e): e is number => e !== null);
+    return ends.length > 0 ? Math.min(...ends) : null;
+  }
   const present = t.participants.filter((p) => !participantOut(room, p));
   if (present.some((p) => p.connected)) {
     const host = present.find((p) => p.id === t.hostId);

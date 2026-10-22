@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DRAW_MS,
   INTERMISSION_MS,
+  MAX_SPECTATORS,
   PICK_TIMEOUT_MS,
   ProtocolError,
   RECONNECT_GRACE_MS,
@@ -851,7 +852,7 @@ describe('(e) host change', () => {
     expect(tour(room).state!.forfeited).toContain(ps[0]!.id);
   });
 
-  it('a host gone past the grace in the lobby is replaced at the grace end (tick, idempotent)', () => {
+  it('a host gone past the grace in the lobby is dropped and replaced at the grace end (tick, idempotent)', () => {
     let room = lobby(4);
     const ps = tour(room).participants;
     room = markParticipantDisconnected(room, ps[0]!.id, T0 + 1);
@@ -860,12 +861,14 @@ describe('(e) host change', () => {
     expect(tick(room, T0 + RECONNECT_GRACE_MS)).toBe(room);
     const next = tick(room, T0 + 1 + RECONNECT_GRACE_MS);
     expect(hostOf(next)).toBe(ps[1]!.id);
+    expect(tour(next).participants.map((p) => p.id)).toEqual(ps.slice(1).map((p) => p.id));
     expect(next.deadline).toBeNull();
     expect(tick(next, T0 + 1 + RECONNECT_GRACE_MS)).toBe(next);
-    // the old host comes back as an ordinary participant
-    const back = markParticipantConnected(next, ps[0]!.id, T0 + 2 * RECONNECT_GRACE_MS, 's-0b');
-    expect(hostOf(back)).toBe(ps[1]!.id);
-    expect(person(back, ps[0]!.id)).toMatchObject({ connected: true, socketId: 's-0b', disconnectedAt: null });
+    // the old host's token is gone with it; joining again makes an ordinary participant
+    expect(errorCode(() => rejoinTournament(next, ps[0]!.token, T0 + 2 * RECONNECT_GRACE_MS, 's-0b'))).toBe('bad_token');
+    const again = joinTournamentRoom(next, 'P0', 'fox', T0 + 2 * RECONNECT_GRACE_MS, 's-0b');
+    expect(again.who.role).toBe('participant');
+    expect(hostOf(again.room)).toBe(ps[1]!.id);
   });
 
   it('a host back within the grace stays host', () => {
@@ -905,15 +908,18 @@ describe('(e) host change', () => {
     for (const p of ps.slice(1)) if (p.id !== ps[3]!.id) room = markParticipantDisconnected(room, p.id, T0 + 1);
     room = markParticipantDisconnected(room, host, T0 + 2);
     room = markParticipantDisconnected(room, ps[3]!.id, T0 + 10);
-    // nobody connected: the only wake-up is the moment the room is abandoned
-    expect(room.deadline).toBe(T0 + 10 + RECONNECT_GRACE_MS);
+    // lobby ghosts are dropped one grace end after the other
+    expect(room.deadline).toBe(T0 + 1 + RECONNECT_GRACE_MS);
+    room = tickUntil(room, T0 + 2 + RECONNECT_GRACE_MS);
+    expect(tour(room).participants.map((p) => p.id)).toEqual([ps[3]!.id]);
     expect(hostOf(room)).toBe(host);
-    // P3 comes back after the host's grace: P3 becomes host, never the spectator
-    const back = markParticipantConnected(room, ps[3]!.id, T0 + 2 + RECONNECT_GRACE_MS, 's-3b');
+    expect(room.deadline).toBe(T0 + 10 + RECONNECT_GRACE_MS);
+    // P3 comes back: P3 becomes host, never the spectator
+    const back = markParticipantConnected(room, ps[3]!.id, T0 + 3 + RECONNECT_GRACE_MS, 's-3b');
     expect(hostOf(back)).toBe(ps[3]!.id);
     // nobody comes back: abandoned at the last grace end
     const gone = tick(room, T0 + 10 + RECONNECT_GRACE_MS);
-    expect(hostOf(gone)).toBe(host);
+    expect(tour(gone).participants).toEqual([]);
     expect(isAbandoned(gone, T0 + 10 + RECONNECT_GRACE_MS)).toBe(true);
   });
 
@@ -987,8 +993,11 @@ describe('(e) host change', () => {
   it('a lobby where everyone dropped out is deleted at the last grace end', () => {
     let room = lobby(4);
     for (const [i, p] of tour(room).participants.entries()) room = markParticipantDisconnected(room, p.id, T0 + i);
-    expect(room.deadline).toBe(T0 + 3 + RECONNECT_GRACE_MS);
+    expect(room.deadline).toBe(T0 + RECONNECT_GRACE_MS);
     expect(isAbandoned(room, T0 + 2 + RECONNECT_GRACE_MS)).toBe(false);
+    expect(isAbandoned(room, T0 + 3 + RECONNECT_GRACE_MS)).toBe(true);
+    room = tickUntil(room, T0 + 3 + RECONNECT_GRACE_MS);
+    expect(tour(room).participants).toEqual([]);
     expect(isAbandoned(room, T0 + 3 + RECONNECT_GRACE_MS)).toBe(true);
   });
 });
@@ -1228,5 +1237,117 @@ describe('knockout byes and tie-breaks through the engine', () => {
     }
     expect(tiebreaks).toBeGreaterThan(0);
     expect(podiumOf(room)[0]).toEqual({ rank: 1, ids: [A] });
+  });
+});
+
+describe('fix round 1: leave forfeits, lobby ghosts, current host, rematch cap', () => {
+  it('M1: the host leaving the final while the opponent is away within grace records the forfeit win', () => {
+    let room = running();
+    let now = T0 + 1_000;
+    const host = hostOf(room);
+    // play until the host is in the final
+    for (let i = 0; i < 6 && !(currentPairing(room).round === 2); i++) {
+      const p = currentPairing(room);
+      room = playMatch(room, now, p.a === host ? 'a0' : p.b === host ? 'b0' : 'a0');
+      now += 1_000;
+      room = skipTournamentWait(room, host, now, fixed(0.3));
+    }
+    const final = currentPairing(room);
+    expect(final.round).toBe(2);
+    expect([final.a, final.b]).toContain(host);
+    const opponent = final.a === host ? final.b! : final.a!;
+    // everyone but the host is away (the opponent within its grace): no heir for the host role
+    for (const p of tour(room).participants) if (p.id !== host) room = markParticipantDisconnected(room, p.id, now + 1);
+    room = leaveParticipant(room, host, now + 2, fixed(0.3));
+    expect(pairingById(room, final.id).result).toMatchObject({ winner: opponent, decidedBy: 'forfeit' });
+    expect(tour(room).phase).toBe('finished');
+    expect(podiumOf(room)[0]).toEqual({ rank: 1, ids: [opponent] });
+  });
+
+  it('M2: three lobby ghosts are gone after 10 minutes and their places are free again', () => {
+    let room = lobby(8);
+    const ps = tour(room).participants;
+    for (const p of ps.slice(5)) room = markParticipantDisconnected(room, p.id, T0 + 1);
+    room = tickUntil(room, T0 + 600_000);
+    expect(tour(room).participants.map((p) => p.id)).toEqual(ps.slice(0, 5).map((p) => p.id));
+    expect(room.deadline).toBeNull();
+    const joined = joinTournamentRoom(room, 'Ninth', 'owl', T0 + 600_000, 's-9');
+    expect(joined.who.role).toBe('participant');
+    expect(tour(joined.room).participants).toHaveLength(6);
+  });
+
+  it('M2: lobby ghosts do not count at the start; the host role leaves a ghost host', () => {
+    let room = lobby(4);
+    const ps = tour(room).participants;
+    room = markParticipantDisconnected(room, ps[3]!.id, T0 + 1);
+    // no tick has dropped the ghost yet
+    expect(errorCode(() => startTournament(room, hostOf(room), T0 + 1 + RECONNECT_GRACE_MS, fixed(0.3)))).toBe('not_enough_players');
+    // within its grace it still counts
+    expect(tour(startTournament(room, hostOf(room), T0 + RECONNECT_GRACE_MS, fixed(0.3))).phase).toBe('draw');
+    // a ghost host is dropped and its role moves on (tick)
+    let five = lobby(5);
+    const host = hostOf(five);
+    five = markParticipantDisconnected(five, host, T0 + 1);
+    five = tick(five, T0 + 1 + RECONNECT_GRACE_MS);
+    const heir = tour(five).participants[0]!.id;
+    expect(hostOf(five)).toBe(heir);
+    expect(tour(startTournament(five, heir, T0 + 2 + RECONNECT_GRACE_MS, fixed(0.3))).state!.participants).toHaveLength(4);
+  });
+
+  it('M3: a lobby joiner takes over a host gone past its grace at once', () => {
+    let room = lobby(2);
+    const ps = tour(room).participants;
+    // straight from a store without a tick: both gone, the host long past its grace, P1 within it
+    const t = tour(room);
+    room = {
+      ...room,
+      tournament: {
+        ...t,
+        participants: t.participants.map((p, i) => ({
+          ...p,
+          connected: false,
+          socketId: null,
+          disconnectedAt: i === 0 ? T0 - 2 * RECONNECT_GRACE_MS : T0 - 1,
+        })),
+      },
+    };
+    const joined = joinTournamentRoom(room, 'New', 'owl', T0, 's-new');
+    expect(joined.who.role).toBe('participant');
+    expect(hostOf(joined.room)).toBe(joined.who.role === 'participant' ? joined.who.id : '');
+    expect(hostOf(joined.room)).not.toBe(ps[0]!.id);
+  });
+
+  it('M5: the rematch drops people past their grace and never exceeds MAX_SPECTATORS', () => {
+    let room = started(8);
+    for (let i = 0; i < MAX_SPECTATORS; i++) room = joinTournamentRoom(room, `S${i}`, 'owl', T0, `x-${i}`).room;
+    const ps = tour(room).participants;
+    const host = ps[0]!.id;
+    for (const p of ps.slice(1)) room = leaveParticipant(room, p.id, T0 + 5, fixed(0.3));
+    room = tickUntil(room, T0 + 60_000);
+    expect(tour(room).phase).toBe('finished');
+    // the leavers are past their grace by now; one spectator dropped out recently
+    const recent = spectatorsOf(room)[0]!.id;
+    room = { ...room, spectators: spectatorsOf(room).map((s) => (s.id === recent ? { ...s, connected: false, socketId: null, disconnectedAt: T0 + 59_000 } : s)) };
+    const after = tournamentRematch(room, host, T0 + 60_000, fixed(0.3));
+    expect(tour(after).participants).toHaveLength(8);
+    expect(spectatorsOf(after).length).toBeLessThanOrEqual(MAX_SPECTATORS);
+    expect(spectatorsOf(after).map((s) => s.id)).toContain(recent);
+    for (const p of ps.slice(1)) expect(spectatorsOf(after).map((s) => s.id)).not.toContain(p.id);
+
+    // within their grace: kept, but trimmed (earliest grace end first) to MAX_SPECTATORS.
+    // 12 spectators drop out (at T0 + 10 + i): only host + 4 are connected → 5 participants, 19 others
+    const specs = spectatorsOf(room);
+    const out = specs.slice(0, 12).map((s) => s.id);
+    room = {
+      ...room,
+      spectators: specs.map((s, i) => (i < 12 ? { ...s, connected: false, socketId: null, disconnectedAt: T0 + 10 + i } : s)),
+    };
+    const early = tournamentRematch(room, host, T0 + 20, fixed(0.3));
+    expect(tour(early).participants).toHaveLength(5);
+    expect(spectatorsOf(early)).toHaveLength(MAX_SPECTATORS);
+    // 3 must go: the earliest grace ends are the leavers' (gone at T0 + 5), in list order
+    const kept = spectatorsOf(early).map((s) => s.id);
+    for (const p of ps.slice(1, 4)) expect(kept).not.toContain(p.id);
+    for (const id of out) expect(kept).toContain(id);
   });
 });

@@ -31,7 +31,7 @@ import {
   spectatorGraceEnd,
 } from './settle';
 import type { Rng } from './settle';
-import { advanceTournament, updateSeatParticipant } from './tournament';
+import { advanceTournament, dropLobbyGhosts, updateSeatParticipant } from './tournament';
 
 /**
  * Pure room operations. Every function takes a room and returns a new one (never mutating its
@@ -456,7 +456,7 @@ export function rejoinSpectator(
 export function tick(room: Room, now: number, rng: Rng = Math.random): Room {
   if (room.deadline === null || room.deadline > now) return room;
   const prev = room.match;
-  let next = dropExpiredSpectators(room, now);
+  let next = dropLobbyGhosts(dropExpiredSpectators(room, now), now);
   for (const player of humans(room)) {
     const end = graceEnd(room, player);
     if (end !== null && end <= now) next = leave(next, player.seat);
