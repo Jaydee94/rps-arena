@@ -24,6 +24,10 @@
   --danger: var(--red);
   --focus: var(--blue);
 
+  /* Text on bright backgrounds (the ink flips in dark mode, these must not) */
+  --on-bright: #111111;
+  --on-blue: #ffffff;
+
   /* Outline, radii and hard offset shadows */
   --outline: 4px;
   --border: var(--outline) solid var(--ink);
@@ -80,5 +84,7 @@
     --blue: #4d8dff;
     --pink: #ff6fb5;
     --teal: #22d3c8;
+
+    --on-blue: #111111;
   }
 }

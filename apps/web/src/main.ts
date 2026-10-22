@@ -1,6 +1,7 @@
 import { mount } from 'svelte';
 import './styles/tokens.css';
 import './styles/base.css';
+import './styles/ui.css';
 import App from './App.svelte';
 import { connect } from './lib/connection';
 

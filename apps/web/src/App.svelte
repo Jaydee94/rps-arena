@@ -1,65 +1,84 @@
 <script lang="ts">
-  import { lastError, room, status } from './lib/connection';
+  import Board from './components/Board.svelte';
+  import ErrorBanner from './components/ErrorBanner.svelte';
+  import Home from './components/Home.svelte';
+  import Lobby from './components/Lobby.svelte';
+  import Result from './components/Result.svelte';
+  import { room, status } from './lib/connection';
   import { locale, setLocale, t, type Locale } from './lib/i18n';
 
   const LOCALES: Locale[] = ['de', 'en'];
+
+  const screen = $derived.by(() => {
+    if (!$room) return 'home';
+    if (!$room.match) return 'lobby';
+    return $room.match.phase === 'finished' ? 'result' : 'board';
+  });
 
   $effect(() => {
     document.documentElement.lang = $locale;
   });
 </script>
 
-<!-- Placeholder: the real screens arrive in Task 10. -->
-<main>
-  <h1>{t('app.title')}</h1>
-  <p>
-    <span class="badge" data-status={$status}>{t(`app.status.${$status}`)}</span>
-    <span>{t('app.language')}: {$locale}</span>
-  </p>
-  <p class="lang" role="group" aria-label={t('app.language')}>
-    {#each LOCALES as l (l)}
-      <button type="button" aria-pressed={$locale === l} onclick={() => setLocale(l)}>
-        {l.toUpperCase()}
-      </button>
-    {/each}
-  </p>
-  {#if $lastError}
-    <p class="error" role="alert">{t(`errors.${$lastError.code}`)}</p>
+<div class="app">
+  <header>
+    <h1>{t('app.title')}</h1>
+    <p class="meta">
+      <span class="badge" data-status={$status}>{t(`app.status.${$status}`)}</span>
+    </p>
+    <div class="lang" role="group" aria-label={t('app.language')}>
+      {#each LOCALES as l (l)}
+        <button type="button" class="btn btn-small" aria-pressed={$locale === l} onclick={() => setLocale(l)}>
+          {l.toUpperCase()}
+        </button>
+      {/each}
+    </div>
+  </header>
+
+  <ErrorBanner />
+
+  {#if screen === 'home'}
+    <Home />
+  {:else if screen === 'lobby'}
+    <Lobby />
+  {:else if screen === 'board'}
+    <Board />
+  {:else}
+    <Result />
   {/if}
-  {#if $room}
-    <p>{t('lobby.code', { code: $room.code })}</p>
-    <pre>{JSON.stringify($room, null, 2)}</pre>
-  {/if}
-</main>
+</div>
 
 <style>
-  main {
-    max-width: 40rem;
-    margin: 0 auto;
-    padding: var(--space-6) var(--space-4);
+  .app {
     display: grid;
     gap: var(--space-4);
+    max-width: 56rem;
+    margin: 0 auto;
+    padding: var(--space-5) var(--space-4) var(--space-7);
+  }
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3) var(--space-4);
   }
 
   h1 {
+    margin-right: auto;
     font-size: var(--text-hero);
     text-shadow: var(--shadow-sm);
   }
 
-  p {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-3);
-  }
-
   .badge {
+    display: inline-block;
     padding: var(--space-1) var(--space-3);
     border: var(--border);
     border-radius: var(--radius-pill);
     background: var(--yellow);
-    color: #111;
+    color: var(--on-bright);
     box-shadow: var(--shadow-sm);
+    font-size: var(--text-sm);
     font-weight: 700;
   }
 
@@ -71,35 +90,13 @@
     background: var(--danger);
   }
 
-  .lang button {
-    padding: var(--space-1) var(--space-4);
-    border: var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
-    font-weight: 700;
+  .lang {
+    display: flex;
+    gap: var(--space-2);
   }
 
-  .lang button[aria-pressed='true'] {
+  .lang .btn[aria-pressed='true'] {
     background: var(--blue);
-    color: #fff;
-  }
-
-  .error {
-    padding: var(--space-3) var(--space-4);
-    border: var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    box-shadow: var(--shadow);
-  }
-
-  pre {
-    padding: var(--space-4);
-    overflow: auto;
-    border: var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
+    color: var(--on-blue);
   }
 </style>
