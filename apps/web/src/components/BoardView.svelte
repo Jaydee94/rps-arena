@@ -11,6 +11,7 @@
   import GesturePad from './GesturePad.svelte';
   import PlayerCard from './PlayerCard.svelte';
   import Scoreboard from './Scoreboard.svelte';
+  import ThinkBubble from './ThinkBubble.svelte';
   import TimerBar from './TimerBar.svelte';
 
   interface Props {
@@ -76,10 +77,14 @@
 
   const roundOutcome = $derived(match.lastRound ? outcomeFor(match.lastRound.winner, myTeam) : 'draw');
 
+  // Once the opponent has locked in, the thought bubble gives way to the ZACK star.
+  const opponentLocked = $derived(match.phase !== 'announce' && match.lockedSeats.includes(opponent));
+  const modeName = $derived(t(`mode.${room.config.mode}.name`));
+
   function opponentNotes(): string[] {
     const notes: string[] = [];
     if (match.phase !== 'announce') {
-      notes.push(t(match.lockedSeats.includes(opponent) ? 'board.opponent_locked' : 'board.opponent_thinking'));
+      notes.push(t(opponentLocked ? 'board.opponent_locked' : 'board.opponent_thinking'));
     }
     const said = match.announces[opponent];
     if (said) notes.push(t('board.opponent_announced', { gesture: t(gestureKey(said)) }));
@@ -95,9 +100,10 @@
   });
 </script>
 
-<main class="board">
-  <Scoreboard {left} {right} round={match.round} bestOf={match.config.bestOf} />
+<main class="board" class:picking={match.phase !== 'reveal'}>
+  <Scoreboard {left} {right} round={match.round} bestOf={match.config.bestOf} {modeName} />
   <TimerBar deadline={room.deadline} phase={match.phase} />
+  <!-- One persistent live region at one fixed position; where it shows is decided by CSS only. -->
   <p class="status bubble-status" role="status" tabindex="-1" bind:this={statusEl}>{prompt}</p>
 
   {#if match.phase === 'reveal'}
@@ -115,11 +121,13 @@
     {/each}
     <button type="button" class="btn btn-primary" onclick={() => next()}>{t('board.next')}</button>
   {:else}
-    <div class="duel">
-      <PlayerCard label={label(you)} nickname={nick(you)} avatar={avatar(you)} gesture={picked} />
-      <PlayerCard label={label(opponent)} nickname={nick(opponent)} avatar={avatar(opponent)}
-        notes={opponentNotes()} />
-    </div>
+    <section class="who you" aria-label={label(you)}>
+      <span class="nametag">{nick(you)}</span>
+    </section>
+    <section class="who them" aria-label={label(opponent)}>
+      <ThinkBubble notes={opponentNotes()} locked={opponentLocked} />
+      <span class="nametag">{nick(opponent)}</span>
+    </section>
     {#if match.phase === 'announce'}
       <AnnouncePanel done={announced} {onannounce} />
     {:else}
@@ -132,6 +140,7 @@
 <style>
   .board {
     display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
     gap: var(--space-4);
     max-width: 48rem;
     margin: 0 auto;
@@ -149,9 +158,69 @@
     color: var(--on-bright);
     box-shadow: var(--shadow-sm);
     text-align: center;
+    overflow-wrap: anywhere;
     font-family: var(--font-display);
-    font-size: var(--text-xl);
+    font-size: 1.625rem;
     letter-spacing: 0.04em;
+    line-height: 1.15;
+    text-shadow: 2px 2px 0 var(--yellow);
+  }
+
+  /* :global, so the root elements of the child components span the board too. */
+  .board > :global(*) {
+    grid-column: 1 / -1;
+  }
+
+  /*
+   * Pick phase, placed by CSS only: your status bubble above your nametag on the left, the opponent's
+   * thought bubble and nametag on the right (rows: 1 scoreboard, 2 timer, 3 status, 4 nametag, 5 pad).
+   */
+  .picking > .status {
+    grid-column: 1;
+    grid-row: 3;
+    align-self: end;
+    justify-self: stretch;
+    padding-inline: var(--space-3);
+    text-align: start;
+  }
+
+  .picking > .you {
+    grid-column: 1;
+    grid-row: 4;
+    align-self: start;
+  }
+
+  .picking > .them {
+    grid-column: 2;
+    grid-row: 3 / span 2;
+  }
+
+  .who {
+    display: grid;
+    align-content: start;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .nametag {
+    justify-self: start;
+    max-width: 100%;
+    padding: 0 var(--space-3);
+    border: var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--yellow);
+    color: var(--on-bright);
+    box-shadow: var(--shadow-sm);
+    overflow-wrap: anywhere;
+    font-weight: 700;
+    line-height: 1.4;
+    rotate: var(--tilt-1);
+  }
+
+  .them .nametag {
+    justify-self: end;
+    background: var(--sky);
+    rotate: var(--tilt-2);
   }
 
   .duel {

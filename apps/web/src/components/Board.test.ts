@@ -229,6 +229,76 @@ describe('Board', () => {
     });
   });
 
+  describe('comic pick screen', () => {
+    it('swaps the thinking bubble for a ZACK star once the opponent has chosen', () => {
+      feed(makeRoom());
+      const { unmount } = render(Board);
+      expect(opponentPanel().querySelector('.burst--zack')).toBeNull();
+      unmount();
+
+      feed(makeRoom({ match: { lockedSeats: ['b0'] } }));
+      render(Board);
+      const panel = within(opponentPanel());
+      expect(panel.getByText('Gegner hat gewählt')).toBeInTheDocument();
+      expect(opponentPanel().querySelector('.burst--zack')).toHaveTextContent('ZACK!');
+    });
+
+    it('puts the seconds inside the timer track', () => {
+      feed(makeRoom({ deadline: Date.now() + 5_000 }));
+      render(Board);
+      const track = screen.getByRole('timer').querySelector('.track');
+      expect(track).not.toBeNull();
+      expect(within(track as HTMLElement).getByText(/^\d+ s$/)).toBeInTheDocument();
+    });
+
+    it('gives each of the 15 wheel gestures a tile tone', () => {
+      feed(makeRoom({ config: { mode: 'wheel15', bestOf: 3 } }));
+      render(Board);
+      const radios = screen.getAllByRole('radio');
+      expect(radios).toHaveLength(15);
+      for (const radio of radios) expect(radio.className).toMatch(/\btone-[0-6]\b/);
+    });
+
+    it('keeps the own nickname in the "Du" region during the pick phase', () => {
+      feed(makeRoom());
+      render(Board);
+      const mine = screen.getByRole('region', { name: 'Du' });
+      expect(mine).toHaveTextContent('Spieler-a0');
+      expect(screen.getByRole('status')).toHaveTextContent('Wähle deine Geste!');
+      expect(opponentPanel()).toHaveTextContent('Spieler-b0');
+    });
+
+    it('keeps one status node, and its focus, from the pick to the reveal', async () => {
+      feed(makeRoom());
+      render(Board);
+      const status = screen.getByRole('status');
+      status.focus();
+      expect(status).toHaveFocus();
+
+      feed(
+        makeRoom({
+          match: {
+            phase: 'reveal',
+            score: { a: 1, b: 0 },
+            lastRound: { picks: { a0: 'rock', b0: 'scissors' }, duels: [{ seats: ['a0', 'b0'], result: 'a' }], winner: 'a' },
+          },
+        }),
+      );
+      await tick();
+
+      expect(screen.getByRole('status')).toBe(status);
+      expect(status).toHaveTextContent('Runde gewonnen!');
+      expect(status).toHaveFocus();
+    });
+
+    it('shows team dots instead of avatars in the 2v2 scoreboard', () => {
+      feed(makeRoom({ config: { mode: 'team2v2', bestOf: 3 } }));
+      const { container } = render(Board);
+      expect(container.querySelectorAll('.scoreboard .team-dot')).toHaveLength(2);
+      expect(container.querySelector('.scoreboard [data-avatar]')).toBeNull();
+    });
+  });
+
   describe('scoreboard and timer', () => {
     afterEach(() => vi.useRealTimers());
 

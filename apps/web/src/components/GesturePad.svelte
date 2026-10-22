@@ -37,6 +37,7 @@
       selected={picked === gesture}
       disabled={picked !== null}
       tabindex={index === active ? 0 : -1}
+      tone={index}
       large={gestures.length <= 5}
       {onpick}
       {onkeydown}
@@ -47,9 +48,11 @@
 
 <style>
   .pad {
+    --pad-gap: var(--space-3);
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: var(--space-2);
+    gap: var(--space-3);
+    padding-top: 8px; /* room for the raised middle tile */
   }
 </style>

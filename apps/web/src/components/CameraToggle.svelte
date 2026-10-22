@@ -113,16 +113,15 @@
 <svelte:document {onvisibilitychange} />
 
 <section class="camera" aria-label={t('camera.title')}>
-  <div class="head">
-    <button type="button" class="btn btn-small" aria-pressed={enabled} onclick={toggle}>
-      <svg class="cam-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 7h3l1.5-2h7L17 7h3v12H4z" />
-        <circle cx="12" cy="13" r="3.5" />
-      </svg>
-      {t('camera.title')}
-    </button>
-    <span class="badge">{t('camera.badge')}</span>
-  </div>
+  <button type="button" class="row" aria-pressed={enabled} onclick={toggle}>
+    <svg class="cam-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 7h3l1.5-2h7L17 7h3v12H4z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </svg>
+    <span class="title">{t('camera.title')}</span>
+    <span class="knob" aria-hidden="true"></span>
+  </button>
+  <p class="sub"><span class="badge">{t('camera.badge')}</span><span class="dot" aria-hidden="true">·</span><span>{t('camera.privacy')}</span></p>
 
   <div class="problem" role="alert">
     {#if error}<p>{t(`camera.${error}`)}</p>{/if}
@@ -152,37 +151,90 @@
   {/if}
 
   <p class="note">{t('camera.experimental')}</p>
-  <p class="note">{t('camera.privacy')}</p>
 </section>
 
 <style>
+  /* One row on a white sticker panel: icon, title, switch; the privacy line hangs underneath. */
   .camera {
     display: grid;
-    justify-items: center;
     gap: var(--space-2);
+    min-width: 0;
     padding: var(--space-3);
     border: var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--text);
+    border-radius: var(--radius-panel);
+    background: var(--sticker);
+    color: var(--on-bright);
+    box-shadow: var(--shadow-sm);
   }
 
-  .head {
+  .row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: start;
+  }
+
+  .title {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    letter-spacing: 0.04em;
+    line-height: 1.15;
+  }
+
+  /* The switch is decorative; the button state is aria-pressed. */
+  .knob {
+    position: relative;
+    flex: none;
+    width: 58px;
+    height: 34px;
+    border: var(--border);
+    border-radius: var(--radius-pill);
+    background: var(--grey);
+  }
+
+  .knob::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    border: calc(var(--outline) / 2) solid var(--edge);
+    border-radius: 50%;
+    background: var(--sticker);
+    translate: 0 -50%;
+  }
+
+  .row[aria-pressed='true'] .knob {
+    background: var(--teal);
+  }
+
+  .row[aria-pressed='true'] .knob::before {
+    left: auto;
+    right: 2px;
+  }
+
+  .sub {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
+    align-items: baseline;
+    gap: 0 var(--space-2);
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: 1.3;
   }
 
   .badge {
-    padding: var(--space-1) var(--space-2);
-    border: var(--border);
-    border-radius: var(--radius-pill);
-    background: var(--pink);
-    color: var(--on-bright);
-    font-size: var(--text-sm);
     font-weight: 700;
+    color: var(--on-bright);
   }
 
   .problem:not(:empty) {
@@ -196,6 +248,7 @@
 
   .stage {
     position: relative;
+    justify-self: center;
     width: 11rem;
     aspect-ratio: 1;
   }
@@ -222,7 +275,7 @@
   }
 
   .track {
-    stroke: var(--ink);
+    stroke: var(--line);
     opacity: 0.25;
   }
 
@@ -232,9 +285,9 @@
   }
 
   .cam-icon {
-    width: 1.25em;
-    height: 1.25em;
-    vertical-align: -0.2em;
+    flex: none;
+    width: 1.75rem;
+    height: 1.75rem;
     fill: none;
     stroke: currentColor;
     stroke-width: 2;
@@ -244,6 +297,7 @@
   .pose {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--space-2);
     margin: 0;
     font-family: var(--font-display);
@@ -252,9 +306,7 @@
 
   .note {
     margin: 0;
-    max-width: 28rem;
-    text-align: center;
     font-size: var(--text-sm);
-    color: var(--ink-soft);
+    opacity: 0.8;
   }
 </style>
