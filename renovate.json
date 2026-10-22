@@ -63,7 +63,7 @@
       "versionCompatibility": "^(?<version>.+)$"
     },
     {
-      "description": "The Node major is pinned by .nvmrc and engines (24); the Dockerfile image follows it. Newer majors are bumped by hand together with those.",
+      "description": "The Node major is pinned by .nvmrc and engines (24); the Dockerfile image follows it. Newer majors are not proposed: a Node major bump is done by hand in .nvmrc, the root package.json engines field and the NODE_IMAGE default in the Dockerfile.",
       "matchManagers": ["custom.regex"],
       "matchDepNames": ["node"],
       "matchUpdateTypes": ["major"],
@@ -79,6 +79,13 @@
       ],
       "groupName": "semantic-release",
       "automerge": false,
+      "semanticCommitType": "build",
+      "semanticCommitScope": "deps"
+    },
+    {
+      "description": "The pinned renovate version in the renovate-config job of ci.yml is a CI-only validator: its updates ship nothing and the package releases almost daily, so they must not trigger a game release. build(deps) is not released by semantic-release; automerge stays as the generic rule says. Scoped by depName, so the Node image (which ships and stays fix(deps)) is not affected.",
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["renovate"],
       "semanticCommitType": "build",
       "semanticCommitScope": "deps"
     },
