@@ -100,7 +100,6 @@
 
   h2 {
     font-size: var(--text-hero);
-    text-shadow: 3px 3px 0 var(--pink);
     text-wrap: balance;
   }
 
