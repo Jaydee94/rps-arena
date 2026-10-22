@@ -20,6 +20,8 @@ export default defineConfig({
   use: {
     baseURL,
     locale: 'en-US',
+    // The functional tests run without the reveal countdown; the countdown tests opt back in per player.
+    reducedMotion: 'reduce',
     trace: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
