@@ -337,6 +337,8 @@
   }
 
   .duel.team {
+    /* Width the result chip may take; PlayerCard keeps the own name tag clear of it. */
+    --chip-w: 7.5rem;
     height: 17rem;
   }
 
@@ -397,7 +399,7 @@
     top: var(--space-4);
     right: var(--space-4);
     z-index: 5;
-    max-width: 38%;
+    max-width: var(--chip-w);
     padding: 0 var(--space-2);
     border: var(--border);
     border-radius: var(--radius-sm);
