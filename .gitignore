@@ -6,5 +6,5 @@ coverage
 apps/web/public/models
 apps/web/public/mediapipe-wasm
 .playwright-mcp/
-e2e/playwright-report
+playwright-report
 e2e/test-results
