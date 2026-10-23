@@ -1047,7 +1047,7 @@
     animation: fx-wrap-swoop var(--fx-dur) linear var(--fx-delay) both;
   }
 
-  /* A ruled sheet swoops in behind the struck sticker and closes round it; string winds round the parcel. */
+  /* A ruled sheet sails in from the attacker and lands on the struck sticker; string winds round it. */
   .fx--wrap .wrap-sheet {
     animation: fx-wrap-sheet calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
   }
@@ -1067,6 +1067,19 @@
 
   .react-fold .fold-tape {
     animation: fx-fold-tape calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  /* Cover (paper>rock and the other paper wins): a sheet drops onto the loser, its corners curl up; it sinks, greyed. */
+  .player.loser .reveal-art.react-cover {
+    animation: fx-cover-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-cover .cover-sheet {
+    animation: fx-cover-sheet calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-cover .cover-curl {
+    animation: fx-cover-curl calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
   }
 
   @keyframes fx-wrap-swoop {
@@ -1114,31 +1127,31 @@
     }
   }
 
+  /* Small, from the attacker's corner, landing on the sticker; gone as the reaction's paper settles on it. */
   @keyframes fx-wrap-sheet {
     0% {
       opacity: 0;
-      scale: 0.3;
-      rotate: -60deg;
+      translate: calc(46% * var(--from)) calc(46% * var(--from));
+      scale: 0.42;
+      rotate: -50deg;
+      animation-timing-function: ease-in;
     }
-    6% {
+    5% {
       opacity: 1;
     }
-    16% {
-      scale: 1.08;
-      rotate: 6deg;
-    }
-    26% {
-      scale: 1;
-      rotate: 0deg;
-    }
-    58% {
+    14% {
       opacity: 1;
-      scale: 0.96;
+      translate: calc(8% * var(--from)) calc(8% * var(--from));
+      scale: 0.66;
+      rotate: 4deg;
+      animation-timing-function: ease-out;
     }
+    24%,
     100% {
       opacity: 0;
-      scale: 0.7;
-      rotate: -4deg;
+      translate: 0 0;
+      scale: 0.56;
+      rotate: 0deg;
     }
   }
 
@@ -1234,6 +1247,88 @@
       opacity: 1;
     }
     32%,
+    100% {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
+  /* The loser ducks as the sheet lands on it, then settles under it, tipped and greyed. */
+  @keyframes fx-cover-sticker {
+    0%,
+    12% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+      filter: none;
+    }
+    18% {
+      translate: 0 3%;
+      scale: 1.06 0.9;
+      rotate: 0deg;
+    }
+    26% {
+      translate: 0 0;
+      scale: 0.97 1.02;
+      rotate: -3deg;
+      filter: saturate(0.6);
+      animation-timing-function: ease-out;
+    }
+    50%,
+    100% {
+      translate: 0 6px;
+      scale: 0.94;
+      rotate: -6deg;
+      filter: saturate(0.4);
+    }
+  }
+
+  /* From the attacker's side (+x, y towards the other sticker), sailing down onto the face and flattening. */
+  @keyframes fx-cover-sheet {
+    0% {
+      opacity: 0;
+      translate: 34% calc(40% * var(--fx-toward));
+      scale: 1.3;
+      rotate: 28deg;
+      animation-timing-function: ease-in;
+    }
+    6% {
+      opacity: 1;
+    }
+    16% {
+      translate: 4% calc(5% * var(--fx-toward));
+      scale: 1.06;
+      rotate: -8deg;
+      animation-timing-function: ease-out;
+    }
+    24% {
+      translate: -2% 0;
+      scale: 0.98;
+      rotate: 4deg;
+    }
+    34%,
+    100% {
+      opacity: 1;
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  /* Flat while it lands, then the two corners spring up and settle curled. */
+  @keyframes fx-cover-curl {
+    0%,
+    22% {
+      opacity: 0;
+      scale: 0.2;
+    }
+    26% {
+      opacity: 1;
+    }
+    38% {
+      scale: 1.2;
+    }
+    48%,
     100% {
       opacity: 1;
       scale: 1;
@@ -3950,6 +4045,20 @@
 
 .react-fold .fold-flap,
 .react-fold .fold-tape {
+  opacity: 1;
+  scale: 1;
+}
+
+/* Covered: a sheet lies over the sticker, two corners curled up; underneath it sits a little lower, tipped and greyed. */
+.player.loser .reveal-art.react-cover {
+  translate: 0 6px;
+  scale: 0.94;
+  rotate: -6deg;
+  filter: saturate(0.4);
+}
+
+.react-cover .cover-sheet,
+.react-cover .cover-curl {
   opacity: 1;
   scale: 1;
 }

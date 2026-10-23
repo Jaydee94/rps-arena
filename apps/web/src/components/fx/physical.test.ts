@@ -63,6 +63,29 @@ describe('physical matchup scenes', () => {
   }
 });
 
+// The cover reaction (paper's wins): drawn in the wrap / fold sub-sections, with motion and a static pose.
+describe('cover reaction', () => {
+  it('lays a decorative sheet over the sticker', () => {
+    const Art = reactionArt('cover');
+    if (!Art) throw new Error('react-cover missing');
+    const { container } = render(Art, { gesture: 'rock', size: 138 });
+    expect(container.querySelector('.cover')).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('.cover .cover-sheet')).not.toBeNull();
+    expect(container.querySelectorAll('.cover .cover-curl')).toHaveLength(2);
+    expect(container.querySelector('[data-gesture]')).toBeNull();
+  });
+
+  it('moves only with motion allowed, and rests covered in a static end pose', () => {
+    const scene = section(motion, '/* ---- fx: wrap / fold ---- */');
+    expect(scene).toMatch(/\.player\.loser \.reveal-art\.react-cover\s*\{[^}]*animation:/);
+    expect(scene).toMatch(/\.react-cover \.cover-sheet\s*\{[^}]*animation:/);
+    expect(scene).toMatch(/@keyframes fx-cover-sheet/);
+    const pose = section(statics, '/* ---- fx static: wrap / fold ---- */');
+    expect(pose).toMatch(/\.player\.loser \.reveal-art\.react-cover\s*\{[^}]*rotate:/);
+    expect(pose).toMatch(/\.react-cover \.cover-sheet/);
+  });
+});
+
 /** The numbers of an SVG `transform` function, e.g. `translate(-47 17)` -> [-47, 17]. */
 const fn = (el: Element | null, name: string): number[] => {
   const m = new RegExp(`${name}\\(([^)]*)\\)`).exec(el?.getAttribute('transform') ?? '');

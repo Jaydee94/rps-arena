@@ -18,7 +18,7 @@ export type Attack =
   | 'curse'
   | 'poison';
 
-/** How the losing gesture reacts: one per attack, plus `extinguish` which only overrides use. */
+/** How the losing gesture reacts: one per attack, plus `extinguish` and `cover` which only overrides use. */
 export type Reaction =
   | 'crumble'
   | 'split'
@@ -34,7 +34,8 @@ export type Reaction =
   | 'squeeze'
   | 'hexed'
   | 'wobble'
-  | 'extinguish';
+  | 'extinguish'
+  | 'cover';
 
 export interface Matchup {
   attack: Attack;
