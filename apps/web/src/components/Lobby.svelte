@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { SeatId } from '@rps/shared';
-  import { moveSeat, playerRoom, startMatch } from '../lib/connection';
+  import { leaveRoom, moveSeat, playerRoom, startMatch } from '../lib/connection';
   import { t } from '../lib/i18n';
   import { canStart, isHost } from '../lib/seats';
   import CopyRow from './CopyRow.svelte';
@@ -27,6 +27,12 @@
     moveSeat(selected, to);
     selected = null;
   }
+
+  function leave() {
+    // Without the stored credentials the reload cannot silently rejoin this room.
+    leaveRoom();
+    location.assign('/');
+  }
 </script>
 
 {#if $playerRoom}
@@ -46,7 +52,10 @@
     />
   {/snippet}
   <main class="lobby">
-    <h2>{t('lobby.title')}</h2>
+    <div class="head">
+      <h2>{t('lobby.title')}</h2>
+      <button type="button" class="btn btn-small" onclick={leave}>{t('lobby.leave')}</button>
+    </div>
     <p>{t('lobby.mode', { mode: t(`mode.${view.config.mode}.name`), n: view.config.bestOf })}</p>
     <SpectatorBadge spectators={view.spectators} />
 
@@ -97,6 +106,14 @@
 
   .lobby > :global(*) {
     min-width: 0;
+  }
+
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
   }
 
   h2 {

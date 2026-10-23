@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { gestureKey, gestureNames } from '../lib/gestures-ui';
+  import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
+  import { actionsOf } from '../lib/matchup-fx';
   import GestureIcon from './GestureIcon.svelte';
 
   interface Props {
@@ -12,7 +13,7 @@
     tone: number;
     /** Few gestures (classic, lizard-spock): bigger buttons. */
     large?: boolean;
-    /** The gestures this one beats; shown as a speech bubble on hover/focus and read as the description. */
+    /** The gestures this one beats; shown as a speech bubble on hover/focus (what it does to each) and read as the description. */
     beats?: readonly string[];
     onpick: (gesture: string) => void;
     onkeydown: (event: KeyboardEvent) => void;
@@ -48,7 +49,7 @@
     <!-- A speech bubble above the tile, shown on hover and focus. Its text is the description of the radio. -->
     <span class="hint">
       <span class="bubble">
-        <span class="hint-text" id={hintId}>{t('rules.hint', { list: gestureNames(beats) })}</span>
+        <span class="hint-text" id={hintId}>{actionsOf(gesture, beats)}</span>
         <span class="hint-icons">
           {#each beats as id (id)}<GestureIcon {id} size={24} sticker={false} />{/each}
         </span>

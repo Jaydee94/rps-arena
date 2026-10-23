@@ -238,10 +238,11 @@ describe('connection', () => {
     });
   });
 
-  it('forgetSession removes the stored credentials so a reload does not rejoin', async () => {
+  it('leaveRoom tells the server and removes the stored credentials so a reload does not rejoin', async () => {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code: 'WXYZ', token: 'tok' }));
-    const { forgetSession } = await load();
-    forgetSession();
+    const { leaveRoom } = await load();
+    leaveRoom();
+    expect(fake.socket.emit).toHaveBeenCalledWith('room:leave', {});
     expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
   });
 

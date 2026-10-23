@@ -14,7 +14,10 @@ import {
   applyNext,
   applyPick,
   createRoom,
+  isAbandoned,
   joinRoom,
+  leaveNow,
+  leaveSpectator,
   markDisconnected,
   markSpectatorDisconnected,
   moveSeat,
@@ -32,6 +35,7 @@ import type { RoomStore } from './store';
 import {
   createTournamentRoom,
   joinTournamentRoom,
+  leaveParticipant,
   markParticipantDisconnected,
   participantIdOfSeat,
   rejoinTournament,
@@ -90,6 +94,7 @@ const EMPTY_PAYLOAD_EVENTS = new Set<ClientEventName>([
   'room:start',
   'game:next',
   'room:rematch',
+  'room:leave',
   'tournament:skip',
 ]);
 
@@ -169,6 +174,20 @@ function markGone(room: Room, who: TournamentWho, now: number, rng: Rng): Room {
   return who.role === 'player'
     ? markDisconnected(room, who.seat, now)
     : markSpectatorDisconnected(room, (who as Who & { role: 'spectator' }).id, now);
+}
+
+/**
+ * Takes a seat, participant or spectator out of the room for good, right now (`room:leave`), where
+ * `markGone` only starts the reconnect grace. A tournament person is a participant (it forfeits, or
+ * is removed in the lobby) or a plain spectator.
+ */
+function leaveFor(room: Room, who: TournamentWho, now: number, rng: Rng): Room {
+  if (room.tournament) {
+    const person = personOf(room, who);
+    if (!person) return room;
+    return person.kind === 'participant' ? leaveParticipant(room, person.id, now, rng) : leaveSpectator(room, person.id);
+  }
+  return who.role === 'player' ? leaveNow(room, who.seat, now, rng) : leaveSpectator(room, (who as Who & { role: 'spectator' }).id);
 }
 
 /**
@@ -368,6 +387,34 @@ export function createGateway(
     }
 
     /**
+     * `room:leave`: the bound person leaves the room for good, at once (a seat forfeits a running
+     * match, the host role moves on). A socket in no room has nothing to leave. The leaver is cut off
+     * before the broadcast, so only the others get the new state; a room nobody can return to is
+     * deleted here, since its wake-up may be gone with the leaver.
+     */
+    async function leaveRoom(): Promise<void> {
+      const code = socket.data.code;
+      if (!code) return;
+      socket.data.code = undefined;
+      for (const channel of socket.rooms) if (channel !== socket.id) await socket.leave(channel);
+      let changed = false;
+      const now = clock();
+      const room = await store.update(code, (current) => {
+        const who = whoOf(current, socket.id);
+        if (!who) return null;
+        changed = true;
+        return leaveFor(current, who, now, rngFor(current));
+      });
+      if (!room || !changed) return;
+      if (isAbandoned(room, now)) {
+        await store.delete(code);
+        dropRoom(code, room);
+      } else {
+        broadcast(room);
+      }
+    }
+
+    /**
      * Runs `fn` for whoever this socket is bound as, atomically, then broadcasts (after
      * `beforeBroadcast`, e.g. moving sockets to new channels). An unbound socket gets `bad_token`.
      */
@@ -461,6 +508,7 @@ export function createGateway(
         });
         await bind(room, who);
       },
+      'room:leave': () => leaveRoom(),
       'tournament:skip': () =>
         asHost(
           (room, byId, now) => skipTournamentWait(room, byId, now, tournamentRng),

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { activeSeats, type PublicMatch, type SeatId, type SpectatorView, type Team } from '@rps/shared';
-  import { forgetSession } from '../lib/connection';
+  import { leaveRoom } from '../lib/connection';
   import { duelViews, type Side } from '../lib/board';
   import { emitCountdownEnded, shouldCountDown } from '../lib/countdown';
   import { gestureKey } from '../lib/gestures-ui';
@@ -109,7 +109,7 @@
 
   function leave() {
     // Without the stored credentials the reload cannot silently rejoin this room.
-    forgetSession();
+    leaveRoom();
     location.assign('/');
   }
 </script>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { gestureBeats, gestureSetFor, type ModeId } from '@rps/shared';
-  import { gestureKey, gestureNames } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
+  import { doesSentence } from '../lib/matchup-fx';
   import GestureIcon from './GestureIcon.svelte';
 
   interface Props {
@@ -22,7 +22,7 @@
       {@const beaten = gestureBeats(set, gesture)}
       <li class="line">
         <GestureIcon id={gesture} size={32} />
-        <span class="sentence">{t('rules.beats', { gesture: t(gestureKey(gesture)), list: gestureNames(beaten) })}</span>
+        <span class="sentence">{doesSentence(gesture, beaten)}</span>
         <span class="beaten">
           {#each beaten as id (id)}<GestureIcon {id} size={24} sticker={false} />{/each}
         </span>

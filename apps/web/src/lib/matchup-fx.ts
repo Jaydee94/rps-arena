@@ -45,14 +45,31 @@ export function sceneFor(duel: DuelView, picks: Picks): DuelScene | null {
   }
 }
 
+function ruleSentence(winner: string, loser: string, winnerName: string): string {
+  const key = `rule.${winner}.${loser}`;
+  return t(hasKey(key) ? key : 'rule.generic', { winner: winnerName, loser: t(gestureKey(loser)) });
+}
+
 /** "Rock crushes Scissors" for a decided duel, the generic sentence for a pair without a verb; else null. */
 export function ruleFor(duel: DuelView, picks: Picks): string | null {
   const mine = picks[duel.mine];
   const theirs = picks[duel.theirs];
   if (duel.outcome === 'draw' || !mine || !theirs) return null;
   const [winner, loser] = duel.outcome === 'win' ? [mine, theirs] : [theirs, mine];
-  const key = `rule.${winner}.${loser}`;
-  return t(hasKey(key) ? key : 'rule.generic', { winner: t(gestureKey(winner)), loser: t(gestureKey(loser)) });
+  return ruleSentence(winner, loser, t(gestureKey(winner)));
+}
+
+/**
+ * What `gesture` does to each of `targets`, as the verbs of the reveal rule lines without their subject:
+ * "crushes Scissors, scares Wolf". The subject stays the same, so the verbs agree with it.
+ */
+export function actionsOf(gesture: string, targets: readonly string[]): string {
+  return targets.map((target) => ruleSentence(gesture, target, '').trim()).join(', ');
+}
+
+/** "Rock crushes Scissors, scares Wolf": the gesture's name followed by what it does. */
+export function doesSentence(gesture: string, targets: readonly string[]): string {
+  return `${t(gestureKey(gesture))} ${actionsOf(gesture, targets)}`;
 }
 
 /** The effect hooks of one reveal sticker: `data-fx` and its class (`attack-*`, `react-*` or `fx-clash`). */

@@ -140,4 +140,14 @@ describe('Lobby', () => {
     expect(field.selectionStart).toBe(0);
     expect(field.selectionEnd).toBe(field.value.length);
   });
+
+  it('leaves the room: forgets the session and reloads the start page', async () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { assign, origin: location.origin });
+    roomStore.set(lobby(['a0']));
+    render(Lobby);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Raum verlassen' }));
+    expect(actions.leaveRoom).toHaveBeenCalledTimes(1);
+    expect(assign).toHaveBeenCalledWith('/');
+  });
 });

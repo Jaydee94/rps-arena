@@ -98,4 +98,13 @@ describe('TournamentDraw', () => {
     render(TournamentDraw);
     expect(screen.getByText('Spieler-p4')).toBeInTheDocument();
   });
+
+  it('lets everyone leave while waiting', async () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { assign });
+    draw({ host: false });
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Leave room' }));
+    expect(actions.leaveRoom).toHaveBeenCalledTimes(1);
+    expect(assign).toHaveBeenCalledWith('/');
+  });
 });

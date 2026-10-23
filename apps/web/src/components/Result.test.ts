@@ -124,7 +124,7 @@ describe('Result', () => {
     roomStore.set(makeRoom({ match: { phase: 'finished', winner: 'a' } }));
     render(Result);
     await userEvent.setup().click(screen.getByRole('button', { name: 'Zum Start' }));
-    expect(actions.forgetSession).toHaveBeenCalledTimes(1);
+    expect(actions.leaveRoom).toHaveBeenCalledTimes(1);
     expect(assign).toHaveBeenCalledWith('/');
   });
 });

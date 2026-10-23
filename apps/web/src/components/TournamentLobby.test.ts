@@ -177,4 +177,19 @@ describe('TournamentLobby', () => {
     const { container } = render(TournamentLobby);
     expect(container.querySelector('main')).toBeNull();
   });
+
+  it.each([
+    ['the host', { host: true }],
+    ['a participant', { host: false }],
+    ['a spectator', { spectator: true }],
+  ])('lets %s leave the room', async (_who, opts) => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { assign, origin: location.origin });
+    roomStore.set(lobby(5, opts));
+    render(TournamentLobby);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Leave room' }));
+    expect(actions.leaveRoom).toHaveBeenCalledTimes(1);
+    expect(assign).toHaveBeenCalledWith('/');
+    vi.unstubAllGlobals();
+  });
 });

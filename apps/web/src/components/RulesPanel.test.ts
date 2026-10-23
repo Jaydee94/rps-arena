@@ -3,9 +3,8 @@ import { render, screen, within } from '@testing-library/svelte';
 import { gestureBeats, gestureSetFor, type ModeId } from '@rps/shared';
 import RulesPanel from './RulesPanel.svelte';
 import { setLocale, t } from '../lib/i18n';
-import { gestureKey } from '../lib/gestures-ui';
+import { doesSentence } from '../lib/matchup-fx';
 
-const names = (ids: readonly string[]) => ids.map((id) => t(gestureKey(id))).join(', ');
 const lines = () => screen.getAllByRole('listitem');
 
 describe('RulesPanel', () => {
@@ -30,16 +29,16 @@ describe('RulesPanel', () => {
     expect(screen.getByText(t('mode.classic.desc'))).toBeInTheDocument();
     expect(lines()).toHaveLength(3);
     expect(lines().map((li) => li.textContent?.trim())).toEqual([
-      'Stein schlägt Schere',
-      'Schere schlägt Papier',
-      'Papier schlägt Stein',
+      'Stein zerquetscht Schere',
+      'Schere zerschneidet Papier',
+      'Papier bedeckt Stein',
     ]);
   });
 
   it('writes the lines in English', () => {
     setLocale('en');
     render(RulesPanel, { mode: 'lizard-spock' });
-    expect(lines()[0]).toHaveTextContent('Rock beats Scissors, Lizard');
+    expect(lines()[0]).toHaveTextContent('Rock crushes Scissors, crushes Lizard');
   });
 
   it('shows 15 lines with 7 names each in wheel15', () => {
@@ -49,7 +48,7 @@ describe('RulesPanel', () => {
     set.gestures.forEach((gesture, i) => {
       const beaten = gestureBeats(set, gesture);
       expect(beaten).toHaveLength(7);
-      expect(lines()[i]).toHaveTextContent(t('rules.beats', { gesture: t(gestureKey(gesture)), list: names(beaten) }));
+      expect(lines()[i]).toHaveTextContent(doesSentence(gesture, beaten));
     });
   });
 

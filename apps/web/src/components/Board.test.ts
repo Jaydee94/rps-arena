@@ -19,6 +19,48 @@ describe('Board', () => {
     resetConnectionMock();
   });
 
+  describe('pick feedback', () => {
+    it('tells what the chosen gesture does to the others', () => {
+      feed(makeRoom({ match: { yourPick: 'rock' } }));
+      render(Board);
+      expect(screen.getByText('Deine Wahl: Stein zerquetscht Schere')).toBeInTheDocument();
+    });
+
+    it('says nothing before a gesture is chosen', () => {
+      feed(makeRoom());
+      render(Board);
+      expect(screen.queryByText(/Deine Wahl/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('leaving', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('asks before giving up and only then forgets the session and reloads the start page', async () => {
+      const assign = vi.fn();
+      vi.stubGlobal('location', { assign });
+      feed(makeRoom());
+      render(Board);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: 'Match verlassen' }));
+      expect(actions.leaveRoom).not.toHaveBeenCalled();
+      expect(screen.getByText(/Wirklich aufgeben\?/)).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Ja, verlassen' }));
+      expect(actions.leaveRoom).toHaveBeenCalledTimes(1);
+      expect(assign).toHaveBeenCalledWith('/');
+    });
+
+    it('keeps playing when the question is declined', async () => {
+      feed(makeRoom());
+      render(Board);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: 'Match verlassen' }));
+      await user.click(screen.getByRole('button', { name: 'Weiterspielen' }));
+      expect(screen.queryByText(/Wirklich aufgeben\?/)).not.toBeInTheDocument();
+      expect(actions.leaveRoom).not.toHaveBeenCalled();
+    });
+  });
+
   describe('gesture pad', () => {
     it('shows 3 gesture buttons in classic and 15 in wheel15', () => {
       feed(makeRoom({ config: { mode: 'classic', bestOf: 3 } }));
@@ -115,11 +157,11 @@ describe('Board', () => {
     const described = (radio: HTMLElement) =>
       document.getElementById(radio.getAttribute('aria-describedby') ?? '')?.textContent?.trim();
 
-    it('gives every tile a description "schlägt: …" and Rock names Schere', () => {
+    it('describes for every tile what it does to the others; Rock crushes Schere', () => {
       feed(makeRoom());
       render(Board);
-      for (const radio of screen.getAllByRole('radio')) expect(described(radio)).toMatch(/^schlägt: .+/);
-      expect(described(screen.getByRole('radio', { name: 'Stein' }))).toBe('schlägt: Schere');
+      for (const radio of screen.getAllByRole('radio')) expect(described(radio)).toMatch(/^\S+ .+/);
+      expect(described(screen.getByRole('radio', { name: 'Stein' }))).toBe('zerquetscht Schere');
     });
 
     it('gives each wheel15 tile a description with 7 names', () => {

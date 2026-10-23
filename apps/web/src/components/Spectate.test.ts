@@ -121,7 +121,7 @@ describe('Spectate', () => {
       expect(screen.queryByTestId('duel')).not.toBeInTheDocument();
 
       await userEvent.setup().click(screen.getByRole('button', { name: 'Back to start' }));
-      expect(actions.forgetSession).toHaveBeenCalledTimes(1);
+      expect(actions.leaveRoom).toHaveBeenCalledTimes(1);
       expect(assign).toHaveBeenCalledWith('/');
       vi.unstubAllGlobals();
     });
@@ -154,7 +154,7 @@ describe('Spectate', () => {
       expect(screen.queryByTestId('duel')).not.toBeInTheDocument();
 
       await userEvent.setup().click(screen.getByRole('button', { name: 'Back to start' }));
-      expect(actions.forgetSession).toHaveBeenCalledTimes(1);
+      expect(actions.leaveRoom).toHaveBeenCalledTimes(1);
       expect(assign).toHaveBeenCalledWith('/');
       vi.unstubAllGlobals();
     });

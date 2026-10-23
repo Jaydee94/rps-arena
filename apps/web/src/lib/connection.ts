@@ -133,8 +133,12 @@ export function clearError(): void {
   lastErrorStore.set(null);
 }
 
-/** Drops the stored room credentials, so the next page load starts fresh instead of rejoining. */
-export function forgetSession(): void {
+/**
+ * Leaves the room for good: the server frees the seat (or forfeits the match) at once instead of waiting
+ * out the reconnect grace, and the stored credentials go, so a reload does not rejoin.
+ */
+export function leaveRoom(): void {
+  send('room:leave', {});
   clearSession();
 }
 

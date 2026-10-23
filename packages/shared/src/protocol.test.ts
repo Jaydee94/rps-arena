@@ -144,8 +144,8 @@ describe('ClientEvents', () => {
     expect(ClientEvents['game:pick'].safeParse({}).success).toBe(false);
   });
 
-  it('accepts empty payloads for room:start, game:next and room:rematch', () => {
-    for (const name of ['room:start', 'game:next', 'room:rematch'] as const) {
+  it('accepts empty payloads for room:start, game:next, room:rematch and room:leave', () => {
+    for (const name of ['room:start', 'game:next', 'room:rematch', 'room:leave'] as const) {
       expect(ClientEvents[name].safeParse({}).success).toBe(true);
     }
   });

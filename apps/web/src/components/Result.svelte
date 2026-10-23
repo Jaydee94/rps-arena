@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { forgetSession, playerRoom, rematch } from '../lib/connection';
+  import { leaveRoom, playerRoom, rematch } from '../lib/connection';
   import { t } from '../lib/i18n';
   import { teamOf } from '../lib/seats';
   import Avatar from './Avatar.svelte';
@@ -8,7 +8,7 @@
 
   function leave() {
     // Without the stored credentials the reload cannot silently rejoin this room.
-    forgetSession();
+    leaveRoom();
     location.assign('/');
   }
 </script>

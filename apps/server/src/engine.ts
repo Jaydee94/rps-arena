@@ -306,6 +306,18 @@ export function leave(room: Room, seat: SeatId): Room {
   return withHost({ ...room, players });
 }
 
+/**
+ * A seated human leaves right now, without waiting for the reconnect grace: it disconnects and then
+ * leaves for good, exactly as the grace expiry in `tick` would do it, and `settle` brings the rest
+ * (the opponent's win, the host role, the wake-up) up to date.
+ */
+export function leaveNow(room: Room, seat: SeatId, now: number, rng: Rng = Math.random): Room {
+  const player = room.players[seat];
+  if (!player || player.isBot) return room;
+  const gone = markDisconnected(room, seat, now, rng);
+  return settle(room.match, leave(gone, seat), now, rng);
+}
+
 export function seatOfSocket(room: Room, socketId: string): SeatId | null {
   const player = Object.values(room.players).find((p) => p && !p.isBot && p.socketId === socketId);
   return player?.seat ?? null;

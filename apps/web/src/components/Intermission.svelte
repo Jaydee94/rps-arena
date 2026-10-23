@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PublicPairing, PublicTournament } from '@rps/shared';
-  import { room, skipWait } from '../lib/connection';
+  import { leaveRoom, room, skipWait } from '../lib/connection';
   import { t } from '../lib/i18n';
   import { currentPairing, participantById, participantName, roundLabel, upcomingPairing } from '../lib/tournament-ui';
   import Avatar from './Avatar.svelte';
@@ -25,6 +25,12 @@
   function roundName(tournament: PublicTournament, p: PublicPairing): string {
     const label = roundLabel(tournament, p);
     return t(label.key, label.vars);
+  }
+
+  function leave() {
+    // Without the stored credentials the reload cannot silently rejoin this room.
+    leaveRoom();
+    location.assign('/');
   }
 </script>
 
@@ -97,6 +103,7 @@
         <StandingsTable {tournament} />
       {/if}
     </div>
+    <button type="button" class="btn leave" onclick={leave}>{t('lobby.leave')}</button>
   </main>
 {/if}
 
@@ -265,6 +272,10 @@
 
   .next > .how {
     justify-self: start;
+  }
+
+  .leave {
+    justify-self: center;
   }
 
   .skip {
