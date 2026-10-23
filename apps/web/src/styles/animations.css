@@ -2992,16 +2992,23 @@
     animation: fx-absorb-soak var(--fx-dur) linear var(--fx-delay) both;
   }
 
-  /* Dashed suction rings close in on the struck sticker; drops stream off it towards the sponge. */
+  /*
+   * A dashed suction ring closes in on the struck sticker; two dashed juice streams arc from it round the burst
+   * towards the sponge, big drops running along them.
+   */
   .fx--absorb .absorb-ring {
-    animation: fx-absorb-ring calc(var(--fx-dur) - var(--fx-hit)) ease-in calc(var(--fx-delay) + var(--fx-hit) + var(--d)) both;
+    animation: fx-absorb-ring calc(var(--fx-dur) - var(--fx-hit)) ease-in calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .fx--absorb .absorb-stream {
+    animation: fx-absorb-stream calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
   }
 
   .fx--absorb .absorb-drop {
-    animation: fx-absorb-drop 900ms ease-in calc(var(--fx-delay) + var(--fx-hit) + 120ms + var(--d)) both;
+    animation: fx-absorb-drop 640ms linear calc(var(--fx-delay) + var(--fx-hit) + 60ms + var(--d)) both;
   }
 
-  /* The squeezed sticker is wrung back and forth, then shrinks, dried out and greyed. */
+  /* The squeezed sticker is wrung hard (pinched narrow in pulses, in time with the drops), then stays squashed. */
   .player.loser .reveal-art.react-squeeze {
     animation: fx-squeeze-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
   }
@@ -3062,41 +3069,76 @@
   @keyframes fx-absorb-ring {
     0% {
       opacity: 0;
-      scale: 1.15;
+      scale: 1.3;
       rotate: 0deg;
     }
-    15% {
+    10% {
       opacity: 1;
     }
-    60% {
+    40% {
       opacity: 1;
-      scale: 0.86;
+      scale: 0.8;
       rotate: 40deg;
     }
+    60%,
     100% {
       opacity: 0;
-      scale: 0.74;
-      rotate: 70deg;
+      scale: 0.72;
+      rotate: 60deg;
     }
   }
 
+  @keyframes fx-absorb-stream {
+    0% {
+      opacity: 0;
+      scale: 0.7;
+    }
+    8% {
+      opacity: 1;
+      scale: 1;
+    }
+    50% {
+      opacity: 1;
+    }
+    72%,
+    100% {
+      opacity: 0;
+      scale: 1;
+    }
+  }
+
+  /* A drop runs the whole arc of its stream (stops from absorb.svelte), turning with it. */
   @keyframes fx-absorb-drop {
     0% {
       opacity: 0;
       translate: 0 0;
-      scale: 0.4;
+      rotate: var(--r0);
+      scale: calc(var(--s) * 0.4);
     }
-    15% {
+    10% {
       opacity: 1;
-      scale: 1;
+      scale: var(--s);
     }
-    85% {
+    25% {
+      translate: var(--x1) var(--y1);
+      rotate: var(--r1);
+    }
+    50% {
+      translate: var(--x2) var(--y2);
+      rotate: var(--r2);
+    }
+    75% {
+      translate: var(--x3) var(--y3);
+      rotate: var(--r3);
+    }
+    88% {
       opacity: 1;
     }
     100% {
       opacity: 0;
-      translate: var(--dx) var(--dy);
-      scale: 0.5;
+      translate: var(--x4) var(--y4);
+      rotate: var(--r4);
+      scale: calc(var(--s) * 0.6);
     }
   }
 
@@ -3107,47 +3149,48 @@
       rotate: 0deg;
       filter: none;
     }
-    6% {
-      scale: 0.78 1.14;
-      rotate: 10deg;
-    }
-    14% {
-      scale: 1.1 0.84;
-      rotate: -12deg;
-    }
-    22% {
-      scale: 0.8 1.1;
-      rotate: 12deg;
-    }
-    30% {
-      translate: 0 0;
-      scale: 1.06 0.88;
-      rotate: -8deg;
-      filter: none;
-    }
-    44% {
-      translate: 0 2px;
-      scale: 0.9 0.96;
-      rotate: 4deg;
-      filter: saturate(0.6);
-    }
-    60% {
-      translate: 0 6px;
-      scale: 0.84 0.86;
-      rotate: 8deg;
-      filter: saturate(0.35);
-      animation-timing-function: ease-out;
-    }
-    76% {
-      translate: 0 10px;
-      scale: 0.88 0.84;
+    5% {
+      scale: 0.68 1.12;
       rotate: 6deg;
     }
-    100% {
-      translate: 0 8px;
-      scale: 0.86 0.84;
+    12% {
+      scale: 1.04 0.92;
+      rotate: -5deg;
+    }
+    19% {
+      scale: 0.64 1.1;
       rotate: 8deg;
-      filter: saturate(0.3);
+    }
+    27% {
+      scale: 1 0.94;
+      rotate: -4deg;
+      filter: none;
+    }
+    35% {
+      translate: 0 3px;
+      scale: 0.66 1.04;
+      rotate: 6deg;
+      filter: saturate(0.75);
+    }
+    48% {
+      scale: 0.86 0.94;
+      rotate: 2deg;
+    }
+    62% {
+      translate: 0 8px;
+      scale: 0.72 0.92;
+      rotate: 5deg;
+      filter: saturate(0.55);
+      animation-timing-function: ease-out;
+    }
+    80% {
+      scale: 0.8 0.89;
+    }
+    100% {
+      translate: 0 7px;
+      scale: 0.78 0.9;
+      rotate: 4deg;
+      filter: saturate(0.55);
     }
   }
 
@@ -3156,10 +3199,10 @@
       opacity: 0;
     }
     40% {
-      opacity: 0.3;
+      opacity: 0.25;
     }
     100% {
-      opacity: 0.55;
+      opacity: 0.45;
     }
   }
 
@@ -4115,16 +4158,16 @@
 
 /* ---- fx static: absorb / squeeze ---- */
 
-/* Squeezed dry: shrunk, squashed and tilted, greyed and dusty, with twist lines and dry cracks. */
+/* Wrung dry: squashed narrow and slightly tipped, pinch marks pressing in on its sides, its top and bottom rim crumpled. */
 .player.loser .reveal-art.react-squeeze {
-  translate: 0 8px;
-  scale: 0.86 0.84;
-  rotate: 8deg;
-  filter: saturate(0.3);
+  translate: 0 7px;
+  scale: 0.78 0.9;
+  rotate: 4deg;
+  filter: saturate(0.55);
 }
 
 .react-squeeze .squeeze-dry {
-  opacity: 0.55;
+  opacity: 0.45;
 }
 
 /* ---- fx static: curse / hexed ---- */
