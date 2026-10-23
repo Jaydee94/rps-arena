@@ -17,9 +17,12 @@ describe('ClashFx', () => {
     expect(container.querySelector('.fx')).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('lands the effect on the given side', () => {
-    const { container } = render(ClashFx, { attack: 'smash', side: 'mine' });
-    expect(container.querySelector('.fx')).toHaveClass('fx--at-mine');
+  it('names the side it lands on (a card side, or the panel centre for a clash)', () => {
+    for (const side of ['mine', 'theirs', 'centre'] as const) {
+      const { container, unmount } = render(ClashFx, { attack: 'smash', side });
+      expect(container.querySelector('.fx')).toHaveClass(`fx--at-${side}`);
+      unmount();
+    }
   });
 
   it('renders nothing for an attack without a scene file', () => {
@@ -28,9 +31,9 @@ describe('ClashFx', () => {
     expect(container.innerHTML.replace(/<!--.*?-->/g, '').trim()).toBe('');
   });
 
-  // Task 4c adds fx/clash.svelte and turns this into a positive test.
+  // Task 4c adds fx/clash.svelte and turns this into a positive test (`.fx.fx--clash.fx--at-centre`).
   it('renders nothing for a clash (draw) until its scene exists', () => {
-    const { container } = render(ClashFx, { attack: 'clash', side: 'theirs' });
+    const { container } = render(ClashFx, { attack: 'clash', side: 'centre' });
     expect(container.querySelector('.fx')).toBeNull();
   });
 });

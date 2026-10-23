@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/svelte';
 import type { RoomView, RoundResult, SeatId } from '@rps/shared';
 import Board from './Board.svelte';
@@ -27,26 +27,10 @@ const rockBeatsScissors: RoundResult = {
 /** The gesture sticker of a reveal side (the element that carries the effect hooks). */
 const sticker = (region: HTMLElement) => region.querySelector('.reveal-art') as HTMLElement;
 
-function stubReducedMotion(reduce: boolean) {
-  vi.stubGlobal(
-    'matchMedia',
-    vi.fn((query: string) => ({
-      matches: reduce && query.includes('prefers-reduced-motion: reduce'),
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })),
-  );
-}
-
 describe('Board matchup effects', () => {
   beforeEach(() => {
     setLocale('de');
     resetConnectionMock();
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
   });
 
   it('marks the winning sticker with the attack and the losing one with the reaction', () => {
@@ -69,14 +53,17 @@ describe('Board matchup effects', () => {
     expect(sticker(screen.getByRole('region', { name: 'Gegner' }))).toHaveClass('attack-smash');
   });
 
-  it('renders the smash scene inside the duel panel, landing on the loser', () => {
+  it('renders the smash scene inside the struck card, centred on its sticker stage', () => {
     feed(reveal(rockBeatsScissors));
     render(Board);
-    const duel = screen.getByTestId('duel');
-    const fx = duel.querySelector('.fx');
+    const struck = screen.getByRole('region', { name: 'Gegner' });
+    const fx = struck.querySelector('.stage > .fx');
     expect(fx).toHaveClass('fx--smash');
     expect(fx).toHaveClass('fx--at-theirs');
     expect(fx).toHaveAttribute('aria-hidden', 'true');
+    expect(struck).toHaveClass('struck');
+    expect(screen.getByRole('region', { name: 'Du' }).querySelector('.fx')).toBeNull();
+    expect(screen.getByTestId('duel').querySelectorAll('.fx')).toHaveLength(1);
   });
 
   it('shows the verb sentence as the rule line in German', () => {
@@ -105,6 +92,23 @@ describe('Board matchup effects', () => {
     }
     expect(container.querySelector('.fx')).toBeNull();
     expect(container.querySelector('.rule')).toBeNull();
+  });
+
+  it('gives a draw the clash slot at the centre of the panel, and a decided duel none', () => {
+    feed(
+      reveal({ picks: { a0: 'rock', b0: 'rock' }, duels: [{ seats: ['a0', 'b0'], result: 'draw' }], winner: 'draw' }),
+    );
+    const { unmount } = render(Board);
+    const slot = screen.getByTestId('duel').querySelector(':scope > .fx-centre');
+    expect(slot).not.toBeNull();
+    expect(slot).toHaveAttribute('aria-hidden', 'true');
+    // Empty until Task 4c adds fx/clash.svelte; then ClashFx renders `.fx.fx--clash.fx--at-centre` in it.
+    expect(slot?.querySelector('.fx')).toBeNull();
+    unmount();
+
+    feed(reveal(rockBeatsScissors));
+    render(Board);
+    expect(screen.getByTestId('duel').querySelector('.fx-centre')).toBeNull();
   });
 
   it('shows no scene, hooks or sentence when a pick is missing', () => {
@@ -144,8 +148,8 @@ describe('Board matchup effects', () => {
     expect(screen.getByText('Schere zerschneidet Papier')).toBeInTheDocument();
   });
 
-  it('keeps the static end pose hooks under reduced motion', () => {
-    stubReducedMotion(true);
+  // jsdom applies no CSS: this pins the hooks the static end pose rules (animations.css, FX static) select.
+  it('renders the hooks and shards the static end pose is drawn from', () => {
     feed(reveal(rockBeatsScissors));
     render(Board);
     const theirs = sticker(screen.getByRole('region', { name: 'Gegner' }));

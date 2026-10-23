@@ -2,6 +2,7 @@
   import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
   import type { StickerFx } from '../lib/matchup-fx';
+  import ClashFx from './ClashFx.svelte';
   import { reactionArt } from './fx';
   import GestureIcon from './GestureIcon.svelte';
 
@@ -32,20 +33,25 @@
   class:slam-right={side === 'theirs'}
   class:loser
   class:compact
+  class:struck={fx?.role === 'loser'}
   aria-label={label}
 >
   <p class="tag">
     <span class="who">{label}</span> ·
     {#if gesture}<span class="gesture-name">{t(gestureKey(gesture))}</span>{:else}<span class="gesture-name">{t('board.no_pick')}</span>{/if}
   </p>
-  <span class="tilt">
-    <span class="reveal-art {fx?.className ?? ''}" data-fx={fx?.role}>
-      {#if gesture}
-        <GestureIcon id={gesture} size={compact ? 88 : 138} />
-        {#if Reaction}<Reaction {gesture} size={compact ? 88 : 138} />{/if}
-      {:else}
-        <span class="none" aria-hidden="true">?</span>
-      {/if}
+  <!-- The stage is the sticker's box, unrotated and unmirrored: the effect frame of an attack on this sticker is centred on it. -->
+  <span class="stage">
+    {#if fx?.role === 'loser' && fx.attack}<ClashFx attack={fx.attack} {side} />{/if}
+    <span class="tilt">
+      <span class="reveal-art {fx?.className ?? ''}" data-fx={fx?.role}>
+        {#if gesture}
+          <GestureIcon id={gesture} size={compact ? 88 : 138} />
+          {#if Reaction}<Reaction {gesture} size={compact ? 88 : 138} />{/if}
+        {:else}
+          <span class="none" aria-hidden="true">?</span>
+        {/if}
+      </span>
     </span>
   </span>
 </section>
@@ -109,6 +115,19 @@
 
   .compact .tag {
     font-size: var(--text-md);
+  }
+
+  /*
+   * A struck card (one that hosts an effect frame) lies above the other card, so the chunks and splashes of
+   * the attack fly over it; the burst (z-index 4, later in the panel) and the duel chip (5) stay on top.
+   */
+  .struck {
+    z-index: 4;
+  }
+
+  .stage {
+    position: relative;
+    display: grid;
   }
 
   .tilt {

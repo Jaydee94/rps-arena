@@ -5,8 +5,11 @@
   interface Props {
     /** The winner's attack, or `clash` for a draw. */
     attack: Attack | 'clash';
-    /** Where the effect lands: the losing sticker's side (own side top left, opponent bottom right). */
-    side: 'mine' | 'theirs';
+    /**
+     * Where the effect lands: on the losing sticker of that side (rendered inside its PlayerCard), or at the
+     * centre of the panel for a draw (rendered by RevealPanel).
+     */
+    side: 'mine' | 'theirs' | 'centre';
   }
 
   let { attack, side }: Props = $props();
@@ -16,9 +19,10 @@
 </script>
 
 <!--
-  The effect frame of one duel, centred on the sticker that takes the hit and drawn behind the cards.
-  Decorative only. Motion: animations.css (REVEAL, fx sub-sections); without motion the frame stays
-  invisible (the scene's last frame is empty anyway), the static end pose lives on the losing sticker.
+  The effect frame of one duel, centred on the box it is rendered in (the struck sticker, or the panel
+  centre for a clash). Decorative only. Motion: animations.css (REVEAL, fx sub-sections); without motion
+  the frame stays invisible (the scene's last frame is empty anyway), the static end pose lives on the
+  losing sticker.
 -->
 {#if Art}
   <div class="fx fx--{attack} fx--at-{side}" aria-hidden="true">
@@ -27,37 +31,21 @@
 {/if}
 
 <style>
+  /*
+   * The frame is twice the box it sits in (the sticker's stage in PlayerCard, or the centre slot of the panel
+   * for a draw) and centred on it: the art's viewBox -100..100 puts that box at the circle r = 50. Below the
+   * card's own content (sticker, name tag), above the panel behind it.
+   */
   .fx {
-    /* Sticker edge length and name tag height of PlayerCard: the frame sits on the sticker's centre. */
-    --fx-sticker: 138px;
-    --fx-tag: 2.3rem;
-    --fx-size: calc(var(--fx-sticker) * 2);
-    --fx-inset: calc(var(--space-4) + var(--fx-sticker) / 2);
-    --fx-inset-block: calc(var(--space-4) + var(--fx-tag) + var(--space-2) + var(--fx-sticker) / 2);
     position: absolute;
-    z-index: 2;
-    width: var(--fx-size);
-    height: var(--fx-size);
+    inset: 50% auto auto 50%;
+    z-index: -1;
+    width: 200%;
+    height: 200%;
+    translate: -50% -50%;
     /* Static: invisible. The REVEAL motion rules show the frame only while motion is allowed. */
     opacity: 0;
     pointer-events: none;
-  }
-
-  :global(.duel.team) > .fx {
-    --fx-sticker: 88px;
-    --fx-tag: 1.9rem;
-  }
-
-  .fx--at-mine {
-    top: var(--fx-inset-block);
-    left: var(--fx-inset);
-    translate: -50% -50%;
-  }
-
-  .fx--at-theirs {
-    right: var(--fx-inset);
-    bottom: var(--fx-inset-block);
-    translate: 50% 50%;
   }
 
   .fx :global(svg) {

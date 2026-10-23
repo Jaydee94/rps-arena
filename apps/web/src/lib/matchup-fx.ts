@@ -61,12 +61,14 @@ export interface StickerFx {
   className: string;
   /** The reaction of a losing sticker (selects its overlay art); null otherwise. */
   reaction: Reaction | null;
+  /** The attack that strikes a losing sticker (its PlayerCard renders the effect frame); null otherwise. */
+  attack: Attack | null;
 }
 
 export function stickerFx(scene: DuelScene | null, side: FxSide): StickerFx | null {
   if (!scene) return null;
-  if (scene.kind === 'draw') return { role: 'draw', className: 'fx-clash', reaction: null };
+  if (scene.kind === 'draw') return { role: 'draw', className: 'fx-clash', reaction: null, attack: null };
   return scene.winner === side
-    ? { role: 'winner', className: `attack-${scene.attack}`, reaction: null }
-    : { role: 'loser', className: `react-${scene.reaction}`, reaction: scene.reaction };
+    ? { role: 'winner', className: `attack-${scene.attack}`, reaction: null, attack: null }
+    : { role: 'loser', className: `react-${scene.reaction}`, reaction: scene.reaction, attack: scene.attack };
 }
