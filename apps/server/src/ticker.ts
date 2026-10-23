@@ -3,8 +3,11 @@ import type { Room } from './room';
 import type { RoomStore } from './store';
 
 export interface TickerOptions {
-  /** Called after the ticker deleted an abandoned room. */
-  onDelete?: (code: string) => void;
+  /**
+   * Called after the ticker deleted an abandoned room, with the room as it was last stored (so
+   * the caller can detach the sockets of everyone it held, e.g. tournament personal channels).
+   */
+  onDelete?: (code: string, room: Room) => void;
   /** Called for a failed room tick (e.g. Redis timeout); the next run retries. */
   onError?: (error: unknown, code: string) => void;
   rng?: () => number;
@@ -36,12 +39,12 @@ export function startTicker(
 
   async function tickRoom(code: string, now: number): Promise<void> {
     let changed = false;
-    let abandoned = false;
+    let abandoned: Room | null = null;
     const room = await store.update(code, (current) => {
       if (current.deadline === null || current.deadline > now) return null;
       const next = tick(current, now, options.rng);
       if (isAbandoned(next, now)) {
-        abandoned = true;
+        abandoned = current;
         return null;
       }
       changed = next !== current;
@@ -51,7 +54,7 @@ export function startTicker(
     if (abandoned) {
       // Nobody can come back (joins and rejoins refuse an abandoned room), so delete it.
       await store.delete(code);
-      options.onDelete?.(code);
+      options.onDelete?.(code, abandoned);
     } else if (changed) {
       onChange(room);
     }
