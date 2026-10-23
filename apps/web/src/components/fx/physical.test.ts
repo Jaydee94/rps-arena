@@ -86,6 +86,17 @@ describe('cover reaction', () => {
   });
 });
 
+// Fire goes out for many attackers (matchups.ts): only water leaves the blue wet film, the rest is smoke.
+describe('extinguish wash', () => {
+  it('is smoke-grey by default and wet blue only next to the splash graphic', () => {
+    const src = readFileSync(join(import.meta.dirname, 'react-extinguish.svelte'), 'utf8');
+    const rule = (selector: string) => new RegExp(`${selector.replace(/[.()]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(src)?.[1] ?? '';
+    expect(rule('\n  .extinguish-wash')).toMatch(/background:[^;]*--grey/);
+    expect(rule('\n  .extinguish-wash')).not.toMatch(/--sky/);
+    expect(rule(':global(.player:has(.fx--splash)) .extinguish-wash')).toMatch(/--sky/);
+  });
+});
+
 /** The numbers of an SVG `transform` function, e.g. `translate(-47 17)` -> [-47, 17]. */
 const fn = (el: Element | null, name: string): number[] => {
   const m = new RegExp(`${name}\\(([^)]*)\\)`).exec(el?.getAttribute('transform') ?? '');
