@@ -100,6 +100,10 @@
   --dur-beat: 420ms; /* one beat of the countdown */
   --dur-slam: 520ms;
   --impact-at: 440ms; /* moment of impact after the reveal starts */
+  /* Matchup effects (ClashFx): every scene starts at the impact, the attack connects --fx-hit later. */
+  --fx-dur: 1400ms;
+  --fx-delay: var(--impact-at);
+  --fx-hit: 260ms;
 
   /* Layers */
   --z-base: 0;

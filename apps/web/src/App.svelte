@@ -6,6 +6,7 @@
   import Home from './components/Home.svelte';
   import Lobby from './components/Lobby.svelte';
   import Result from './components/Result.svelte';
+  import Spectate from './components/Spectate.svelte';
   import Wordmark from './components/Wordmark.svelte';
   import { room, status } from './lib/connection';
   import { locale, setLocale, t, type Locale } from './lib/i18n';
@@ -15,6 +16,7 @@
 
   const screen = $derived.by(() => {
     if (!$room) return 'home';
+    if ($room.role === 'spectator') return 'spectate';
     if (!$room.match) return 'lobby';
     return $room.match.phase === 'finished' ? 'result' : 'board';
   });
@@ -52,6 +54,8 @@
         <Lobby />
       {:else if screen === 'board'}
         <Board />
+      {:else if screen === 'spectate'}
+        <Spectate />
       {:else}
         <Result />
       {/if}
@@ -62,10 +66,18 @@
 <style>
   .app {
     display: grid;
+    /* A fixed single track that may shrink: nothing inside (an input's intrinsic width, a long name) can widen it. */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
     max-width: 48rem;
     margin: 0 auto;
     padding: var(--space-5) var(--space-4) var(--space-7);
+    /*
+     * Last line of defence: a pop-in that overshoots (the ZAP star, a stamped tile) is cut at the page
+     * gutter instead of widening the page for a few frames. The padding keeps shadows and focus rings
+     * inside the clip. overflow-x: clip makes no scroll container and leaves the vertical axis alone.
+     */
+    overflow-x: clip;
   }
 
   /*
@@ -81,6 +93,10 @@
     margin-inline: calc(-1 * var(--space-4));
     padding: 0 var(--space-4) var(--space-3);
     overflow-x: clip;
+  }
+
+  .app > :global(*) {
+    min-width: 0;
   }
 
   .badge {

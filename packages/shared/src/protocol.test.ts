@@ -1,7 +1,18 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { BLUFF_EMOTES } from './constants';
+import { BLUFF_EMOTES, MAX_SPECTATORS } from './constants';
 import { AVATARS, ClientEvents, ERROR_CODES, ProtocolError, parseNickname } from './protocol';
-import type { RoomJoined, ServerEvents } from './protocol';
+import type { StandingRow, TournamentFormat } from './tournament';
+import type {
+  PlayerView,
+  PublicPairing,
+  PublicParticipant,
+  PublicSpectator,
+  PublicTournament,
+  RoomJoined,
+  RoomView,
+  ServerEvents,
+  SpectatorView,
+} from './protocol';
 import type { SeatId } from './match';
 
 function errorCode(fn: () => unknown): string | undefined {
@@ -141,11 +152,21 @@ describe('ClientEvents', () => {
 });
 
 describe('ServerEvents', () => {
-  it('room:joined carries code, token and seat', () => {
+  it('room:joined carries code, token, role and seat', () => {
     expectTypeOf<ServerEvents['room:joined']>().toEqualTypeOf<RoomJoined>();
-    expectTypeOf<RoomJoined>().toEqualTypeOf<{ code: string; token: string; seat: SeatId }>();
-    const joined: RoomJoined = { code: 'ABCDE', token: 'f'.repeat(32), seat: 'a0' };
-    expect(Object.keys(joined).sort()).toEqual(['code', 'seat', 'token']);
+    expectTypeOf<RoomJoined>().toEqualTypeOf<{
+      code: string;
+      token: string;
+      role: 'player' | 'spectator';
+      seat: SeatId | null;
+    }>();
+    const joined: RoomJoined = { code: 'ABCDE', token: 'f'.repeat(32), role: 'player', seat: 'a0' };
+    expect(Object.keys(joined).sort()).toEqual(['code', 'role', 'seat', 'token']);
+  });
+
+  it('room:state carries the union of player and spectator views', () => {
+    expectTypeOf<ServerEvents['room:state']>().toEqualTypeOf<RoomView>();
+    expectTypeOf<RoomView>().toEqualTypeOf<PlayerView | SpectatorView>();
   });
 });
 
@@ -154,5 +175,137 @@ describe('ERROR_CODES', () => {
     expect(ERROR_CODES).toContain('rate_limited');
     expect(ERROR_CODES).toContain('internal');
     expect(new Set(ERROR_CODES).size).toBe(ERROR_CODES.length);
+  });
+});
+
+describe('spectator protocol additions', () => {
+  it('has the not_player error code', () => {
+    expect(ERROR_CODES).toContain('not_player');
+  });
+
+  it('caps spectators at 16', () => {
+    expect(MAX_SPECTATORS).toBe(16);
+  });
+
+  it('discriminates views by role and gives spectators no seat of their own', () => {
+    const config = { mode: 'classic', bestOf: 3 } as const;
+    const spectators: PublicSpectator[] = [{ id: 's1', nickname: 'Zed', avatar: 'fox', connected: true }];
+    const base = {
+      code: 'ABCDE',
+      config,
+      hostSeat: 'a0' as SeatId,
+      isHost: false,
+      players: {},
+      spectators,
+      match: null,
+      tournament: null,
+      deadline: null,
+    };
+    const spectator = { role: 'spectator', me: null, ...base } satisfies SpectatorView;
+    const player = { role: 'player', you: 'a0', ...base } satisfies PlayerView;
+    // @ts-expect-error a player view requires role: 'player'
+    const noRole: PlayerView = { you: 'a0', ...base };
+    // @ts-expect-error a spectator view has no `you`
+    const withYou: SpectatorView = { role: 'spectator', me: null, you: 'a0', ...base };
+    const views: RoomView[] = [spectator, player];
+    expect(views.map((view) => view.role)).toEqual(['spectator', 'player']);
+    expect('you' in spectator).toBe(false);
+    expect([noRole, withYou]).toHaveLength(2);
+  });
+});
+
+describe('tournament protocol additions', () => {
+  const create = { config: { mode: 'classic', bestOf: 3 }, nickname: 'Ann', avatar: 'fox' };
+
+  it('accepts room:create with a knockout or roundrobin tournament', () => {
+    for (const format of ['knockout', 'roundrobin']) {
+      const result = ClientEvents['room:create'].safeParse({ ...create, tournament: { format } });
+      expect(result.success).toBe(true);
+    }
+    expect(ClientEvents['room:create'].parse({ ...create, tournament: { format: 'knockout' } }).tournament).toEqual({
+      format: 'knockout',
+    });
+  });
+
+  it('keeps the tournament optional on room:create', () => {
+    expect(ClientEvents['room:create'].parse(create).tournament).toBeUndefined();
+  });
+
+  it('rejects room:create with any other tournament format', () => {
+    for (const format of ['swiss', '', 'Knockout', 3, null]) {
+      const result = ClientEvents['room:create'].safeParse({ ...create, tournament: { format } });
+      expect(result.success).toBe(false);
+    }
+    expect(ClientEvents['room:create'].safeParse({ ...create, tournament: {} }).success).toBe(false);
+  });
+
+  it('keeps bestOf 1 out of room:create (internal to tie-break matches)', () => {
+    expect(ClientEvents['room:create'].safeParse({ ...create, config: { mode: 'classic', bestOf: 1 } }).success).toBe(
+      false,
+    );
+  });
+
+  it('has an empty schema for tournament:skip', () => {
+    expect(ClientEvents['tournament:skip'].safeParse({}).success).toBe(true);
+    expect(ClientEvents['tournament:skip'].safeParse(undefined).success).toBe(false);
+    expect(ClientEvents['tournament:skip'].safeParse('x').success).toBe(false);
+  });
+
+  it('has the not_enough_players error code', () => {
+    expect(ERROR_CODES).toContain('not_enough_players');
+    expect(new Set(ERROR_CODES).size).toBe(ERROR_CODES.length);
+  });
+
+  it('types the public tournament shapes', () => {
+    expectTypeOf<PublicParticipant>().toEqualTypeOf<{
+      id: string;
+      nickname: string;
+      avatar: string;
+      connected: boolean;
+      forfeited: boolean;
+    }>();
+    expectTypeOf<PublicPairing>().toEqualTypeOf<{
+      id: string;
+      round: number;
+      a: string | null;
+      b: string | null;
+      bestOf: 1 | 3;
+      tiebreak: boolean;
+      winner: string | null;
+      decidedBy: 'match' | 'forfeit' | 'coin' | 'bye' | 'none' | null;
+      score: { a: number; b: number } | null;
+    }>();
+    expectTypeOf<PublicTournament>().toEqualTypeOf<{
+      format: TournamentFormat;
+      phase: 'lobby' | 'draw' | 'match' | 'intermission' | 'finished';
+      participants: PublicParticipant[];
+      pairings: PublicPairing[];
+      currentPairingId: string | null;
+      standings: StandingRow[];
+      podium: { rank: 1 | 2 | 3; ids: string[] }[];
+      youId: string | null;
+      untilMs: number | null;
+    }>();
+  });
+
+  it('requires a tournament field (nullable) on both views', () => {
+    expectTypeOf<PlayerView['tournament']>().toEqualTypeOf<PublicTournament | null>();
+    expectTypeOf<SpectatorView['tournament']>().toEqualTypeOf<PublicTournament | null>();
+    const base = {
+      code: 'ABCDE',
+      config: { mode: 'classic', bestOf: 3 } as const,
+      hostSeat: 'a0' as SeatId,
+      isHost: false,
+      players: {},
+      spectators: [],
+      match: null,
+      deadline: null,
+    };
+    // @ts-expect-error a player view requires the tournament field
+    const player: PlayerView = { role: 'player', you: 'a0', ...base };
+    // @ts-expect-error a spectator view requires the tournament field
+    const spectator: SpectatorView = { role: 'spectator', me: null, ...base };
+    const ok: PlayerView = { role: 'player', you: 'a0', ...base, tournament: null };
+    expect([player, spectator, ok]).toHaveLength(3);
   });
 });

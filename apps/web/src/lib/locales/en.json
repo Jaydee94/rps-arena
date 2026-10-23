@@ -258,6 +258,8 @@
   "errors.invalid_gesture": "That gesture isn't available in this mode.",
   "errors.already_picked": "You've already picked.",
   "errors.not_host": "Only the host can do that.",
+  "errors.not_enough_players": "A tournament needs at least 4 players.",
+  "errors.not_player": "Only players can do that. You're watching.",
   "errors.bad_token": "Your session has expired. Please join the room again.",
   "errors.rate_limited": "Too many actions at once. Please wait a moment.",
   "errors.internal": "Internal error. Please try again.",
@@ -315,5 +317,18 @@
   "camera.badge": "Experimental",
   "camera.hold": "Hold rock, paper or scissors up to the camera.",
   "camera.loading": "Loading gesture recognition…",
-  "camera.pose_none": "No gesture detected"
+  "camera.pose_none": "No gesture detected",
+
+  "spectate.banner": "You are watching",
+  "spectate.pick": "The players are choosing…",
+  "spectate.waiting_pick": "{name} is thinking…",
+  "spectate.locked": "{name} has locked in",
+  "spectate.round_won": "{name} wins the round!",
+  "spectate.over": "Match finished",
+  "spectate.finished": "{name} wins the match!",
+  "spectate.count": "{n} spectators",
+  "spectate.count_one": "1 spectator",
+  "spectate.waiting": "The players are getting ready again…",
+  "spectate.announced": "{name} announces: {gesture}",
+  "spectate.silent": "{name} announces nothing."
 }

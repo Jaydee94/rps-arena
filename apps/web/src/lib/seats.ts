@@ -1,4 +1,4 @@
-import { activeSeats, type RoomView, type SeatId, type Team } from '@rps/shared';
+import { activeSeats, type PlayerView, type SpectatorView, type SeatId, type Team } from '@rps/shared';
 
 export const teamOf = (seat: SeatId): Team => (seat.startsWith('a') ? 'a' : 'b');
 
@@ -8,8 +8,9 @@ export const otherTeam = (team: Team): Team => (team === 'a' ? 'b' : 'a');
 export const opponentSeat = (seat: SeatId): SeatId =>
   `${otherTeam(teamOf(seat))}${seat.slice(1)}` as SeatId;
 
-export const isHost = (room: RoomView): boolean => room.you === room.hostSeat;
+/** Whether this viewer hosts the room; the server decides (spectators are never host in stage 1). */
+export const isHost = (room: PlayerView | SpectatorView): boolean => room.isHost;
 
 /** A match can start once every required seat is taken. */
-export const canStart = (room: RoomView): boolean =>
+export const canStart = (room: PlayerView): boolean =>
   activeSeats(room.config.mode).every((seat) => room.players[seat] !== undefined);

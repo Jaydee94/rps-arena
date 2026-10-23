@@ -1,6 +1,9 @@
 <script lang="ts">
   import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
+  import type { StickerFx } from '../lib/matchup-fx';
+  import ClashFx from './ClashFx.svelte';
+  import { reactionArt } from './fx';
   import GestureIcon from './GestureIcon.svelte';
 
   interface Props {
@@ -14,9 +17,13 @@
     loser?: boolean;
     /** Smaller sticker for the half-height panels of 2v2. */
     compact?: boolean;
+    /** Matchup effect hooks of the sticker (`data-fx` plus `attack-*`, `react-*` or `fx-clash`); none without a scene. */
+    fx?: StickerFx | null;
   }
 
-  let { label, gesture = null, side, loser = false, compact = false }: Props = $props();
+  let { label, gesture = null, side, loser = false, compact = false, fx = null }: Props = $props();
+
+  const Reaction = $derived(fx?.reaction ? reactionArt(fx.reaction) : null);
 </script>
 
 <!-- One reveal side: a name tag ("Du · Stein") and the big gesture sticker. -->
@@ -26,19 +33,25 @@
   class:slam-right={side === 'theirs'}
   class:loser
   class:compact
+  class:struck={fx?.role === 'loser'}
   aria-label={label}
 >
   <p class="tag">
     <span class="who">{label}</span> ·
     {#if gesture}<span class="gesture-name">{t(gestureKey(gesture))}</span>{:else}<span class="gesture-name">{t('board.no_pick')}</span>{/if}
   </p>
-  <span class="tilt">
-    <span class="reveal-art">
-      {#if gesture}
-        <GestureIcon id={gesture} size={compact ? 88 : 138} />
-      {:else}
-        <span class="none" aria-hidden="true">?</span>
-      {/if}
+  <!-- The stage is the sticker's box, unrotated and unmirrored: the effect frame of an attack on this sticker is centred on it. -->
+  <span class="stage">
+    {#if fx?.role === 'loser' && fx.attack}<ClashFx attack={fx.attack} {side} />{/if}
+    <span class="tilt">
+      <span class="reveal-art {fx?.className ?? ''}" data-fx={fx?.role}>
+        {#if gesture}
+          <GestureIcon id={gesture} size={compact ? 88 : 138} />
+          {#if Reaction}<Reaction {gesture} size={compact ? 88 : 138} />{/if}
+        {:else}
+          <span class="none" aria-hidden="true">?</span>
+        {/if}
+      </span>
     </span>
   </span>
 </section>
@@ -53,12 +66,23 @@
   }
 
   .mine {
+    /* Matchup effects: the sign of "towards the other sticker" on the y axis of the (mirrored) sticker. */
+    --fx-toward: 1;
     top: var(--space-4);
     left: var(--space-4);
     justify-items: start;
   }
 
+  /*
+   * In 2v2 the duel result chip hangs top right (--chip-w is set by the duel panel in RevealPanel): the own
+   * side stops short of it, so a long name wraps inside the tag instead of running under the chip.
+   */
+  .mine.compact {
+    max-width: calc(100% - 2 * var(--space-4) - var(--chip-w, 0px) - var(--space-2));
+  }
+
   .theirs {
+    --fx-toward: -1;
     right: var(--space-4);
     bottom: var(--space-4);
     justify-items: end;
@@ -93,6 +117,19 @@
     font-size: var(--text-md);
   }
 
+  /*
+   * A struck card (one that hosts an effect frame) lies above the other card, so the chunks and splashes of
+   * the attack fly over it; the burst (z-index 4, later in the panel) and the duel chip (5) stay on top.
+   */
+  .struck {
+    z-index: 4;
+  }
+
+  .stage {
+    position: relative;
+    display: grid;
+  }
+
   .tilt {
     display: grid;
     rotate: -10deg;
@@ -106,6 +143,11 @@
 
   .reveal-art {
     display: grid;
+  }
+
+  /* One cell: reaction art (components/fx/react-*.svelte) stacks exactly on the sticker. */
+  .reveal-art > :global(*) {
+    grid-area: 1 / 1;
   }
 
   .none {

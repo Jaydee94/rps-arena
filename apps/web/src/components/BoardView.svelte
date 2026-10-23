@@ -1,25 +1,25 @@
 <script lang="ts">
-  import { gestureSetFor, type PublicMatch, type RoomView, type SeatId } from '@rps/shared';
+  import { gestureSetFor, type PublicMatch, type PlayerView, type SeatId } from '@rps/shared';
   import { announce, next, pick } from '../lib/connection';
-  import { duelViews, outcomeFor, type DuelView, type Side } from '../lib/board';
+  import { duelViews, outcomeFor, type Side } from '../lib/board';
   import { emitCountdownEnded, shouldCountDown } from '../lib/countdown';
   import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
   import { opponentSeat, teamOf } from '../lib/seats';
   import AnnouncePanel from './AnnouncePanel.svelte';
   import CameraToggle from './CameraToggle.svelte';
-  import ComicBurst from './ComicBurst.svelte';
   import Countdown from './Countdown.svelte';
   import GesturePad from './GesturePad.svelte';
-  import PlayerCard from './PlayerCard.svelte';
+  import RevealPanel from './RevealPanel.svelte';
+  import RuleLines from './RuleLines.svelte';
   import RulesPanel from './RulesPanel.svelte';
   import Scoreboard from './Scoreboard.svelte';
-  import SpeedLines from './SpeedLines.svelte';
+  import SpectatorBadge from './SpectatorBadge.svelte';
   import ThinkBubble from './ThinkBubble.svelte';
   import TimerBar from './TimerBar.svelte';
 
   interface Props {
-    room: RoomView;
+    room: PlayerView;
     match: PublicMatch;
   }
 
@@ -50,7 +50,7 @@
   let countingDown = $state(false);
   // The score from before the reveal: the scoreboard must not give the result away during the countdown.
   let heldScore = $state<PublicMatch['score'] | null>(null);
-  let prevRoom: RoomView | null = null;
+  let prevRoom: PlayerView | null = null;
   $effect.pre(() => {
     const current = room;
     if (shouldCountDown(prevRoom, current)) {
@@ -102,24 +102,8 @@
   const right = $derived(side(teamOf(opponent), opponent));
 
   const duels = $derived(match.phase === 'reveal' && match.lastRound ? duelViews(match.lastRound, you) : []);
-  // The sound effect of every clash: a win is a POW, a loss a BAM, a draw a ZAP.
-  const BURST = {
-    win: { text: 'pow', variant: 'pow' },
-    lose: { text: 'bam', variant: 'bam' },
-    draw: { text: 'zap', variant: 'zap' },
-  } as const;
-
   const pickOf = (seat: SeatId): string | undefined => match.lastRound?.picks[seat];
 
-  /** "Stein schlägt Schere" for a duel that someone won with a real gesture; null for draws and timeouts. */
-  function ruleFor(duel: DuelView): string | null {
-    const mine = pickOf(duel.mine);
-    const theirs = pickOf(duel.theirs);
-    if (duel.outcome === 'draw' || !mine || !theirs) return null;
-    const [winner, loser] = duel.outcome === 'win' ? [mine, theirs] : [theirs, mine];
-    return t('board.rule', { winner: t(gestureKey(winner)), loser: t(gestureKey(loser)) });
-  }
-  const rules = $derived(duels.map(ruleFor).filter((rule): rule is string => rule !== null));
 
   const roundOutcome = $derived(match.lastRound ? outcomeFor(match.lastRound.winner, myTeam) : 'draw');
 
@@ -158,25 +142,9 @@
     {#if countingDown}
       <Countdown onDone={endCountdown} />
     {:else}
-      <!-- One diagonally split comic panel per duel: own side on top in yellow, the opponent below in blue. -->
-      {#each duels as duel (duel.mine)}
-        <div class="duel clash" class:team={isTeamMode} data-testid="duel">
-          <span class="half half-mine" aria-hidden="true"></span>
-          <span class="half half-theirs" aria-hidden="true"></span>
-          <SpeedLines />
-          <span class="impact-flash" aria-hidden="true"></span>
-          <PlayerCard label={label(duel.mine)} gesture={pickOf(duel.mine)} side="mine"
-            loser={duel.outcome === 'lose'} compact={isTeamMode} />
-          <PlayerCard label={label(duel.theirs)} gesture={pickOf(duel.theirs)} side="theirs"
-            loser={duel.outcome === 'win'} compact={isTeamMode} />
-          <div class="impact"><ComicBurst text={t(`burst.${BURST[duel.outcome].text}`)} variant={BURST[duel.outcome].variant} /></div>
-          {#if isTeamMode}<p class="duel-result">{t(`board.duel_${duel.outcome}`)}</p>{/if}
-        </div>
-      {/each}
+      <RevealPanel {duels} picks={match.lastRound?.picks ?? {}} {label} team={isTeamMode} />
       <button type="button" class="btn btn-primary next" onclick={() => next()}>{t('board.next')}</button>
-      {#each rules as rule, i (i)}
-        <p class="rule">{rule}</p>
-      {/each}
+      <RuleLines {duels} picks={match.lastRound?.picks ?? {}} />
     {/if}
   {:else}
     <section class="who you" aria-label={label(you)}>
@@ -194,6 +162,7 @@
     <RulesPanel mode={room.config.mode} />
   {/if}
   {#if ['classic', 'team2v2'].includes(room.config.mode) && gestureSetFor(room.config.mode).id === 'classic'}<CameraToggle gestures={gestureSetFor(room.config.mode).gestures} {onpick} disabled={picked !== null || match.phase !== 'pick'} />{/if}
+  <SpectatorBadge spectators={room.spectators} />
 </main>
 
 <style>
@@ -286,6 +255,12 @@
     justify-self: center;
   }
 
+  /* Last in every phase: the pick-phase rows and the reveal order above stay as they are. */
+  .board > :global(.spectator-badge) {
+    order: 9;
+    justify-self: end;
+  }
+
   /*
    * Reveal phase, placed by CSS only (grid order): the panel(s) or the countdown first, then the
    * status bubble with "Weiter" beside it, then the rule line, the camera row last.
@@ -311,113 +286,12 @@
     padding-inline: var(--space-4);
   }
 
-  .board.revealed > .rule {
+  /* The rule lines (RuleLines) carry their own look; the board only places them. */
+  .board.revealed > :global(.rule) {
     order: 3;
   }
 
   .board.revealed > :global(.camera) {
     order: 4;
-  }
-
-  /* The panel: a dark --line ground shows as the gap between the two diagonal halves. */
-  .duel {
-    position: relative;
-    height: 32.5rem;
-    border: var(--outline) solid var(--line);
-    border-radius: var(--radius-panel);
-    background: var(--line);
-    box-shadow: var(--shadow-panel);
-    /* Flying stickers, rays and flash stay inside the panel: nothing may widen the page. */
-    overflow: clip;
-    /*
-     * The z-index values 0-5 of the panel parts (halves, rays, flash, cards, burst, duel result) are a
-     * local stacking order inside this context, not page layers, so the --z-* tokens do not apply.
-     */
-    isolation: isolate;
-  }
-
-  .duel.team {
-    height: 17rem;
-  }
-
-  .half {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-  }
-
-  .half-mine {
-    background:
-      radial-gradient(circle, color-mix(in srgb, var(--red) 45%, transparent) 22%, transparent 25%) 0 0 /
-        var(--dot-panel-size) var(--dot-panel-size),
-      var(--yellow);
-    clip-path: polygon(0 0, 100% 0, 100% 38%, 0 58%);
-  }
-
-  .half-theirs {
-    background:
-      radial-gradient(circle, var(--sky) 22%, transparent 25%) 0 0 / var(--dot-panel-size) var(--dot-panel-size),
-      var(--blue);
-    clip-path: polygon(0 61%, 100% 41%, 100% 100%, 0 100%);
-  }
-
-  /* Ben-Day flash at the point of impact: only ever visible while it moves (REVEAL section). */
-  .impact-flash {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    z-index: 2;
-    width: 220px;
-    height: 220px;
-    translate: -50% -50%;
-    border-radius: 50%;
-    background:
-      radial-gradient(circle, var(--pink) 30%, transparent 33%) 0 0 / 16px 16px,
-      var(--white);
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  /* The burst sits on the seam, over everything else. */
-  .impact {
-    --burst-size: min(13.5rem, 52vw);
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    z-index: 4;
-    translate: -50% -50%;
-  }
-
-  .team .impact {
-    --burst-size: 7rem;
-  }
-
-  .duel-result {
-    position: absolute;
-    top: var(--space-4);
-    right: var(--space-4);
-    z-index: 5;
-    max-width: 38%;
-    padding: 0 var(--space-2);
-    border: var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--sticker);
-    color: var(--on-bright);
-    box-shadow: var(--shadow-sm);
-    overflow-wrap: anywhere;
-    text-align: center;
-    font-size: var(--text-sm);
-    font-weight: 700;
-    rotate: var(--tilt-2);
-  }
-
-  .rule {
-    justify-self: center;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    text-align: center;
-    font-family: var(--font-display);
-    font-size: var(--text-lg);
-    letter-spacing: 0.04em;
   }
 </style>
