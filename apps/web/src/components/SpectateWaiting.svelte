@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { SpectatorView } from '@rps/shared';
-  import { forgetSession } from '../lib/connection';
+  import { leaveRoom } from '../lib/connection';
   import { t } from '../lib/i18n';
   import SpectateBanner from './SpectateBanner.svelte';
   import SpectatorBadge from './SpectatorBadge.svelte';
@@ -13,7 +13,7 @@
 
   function leave() {
     // Without the stored credentials the reload cannot silently rejoin this room.
-    forgetSession();
+    leaveRoom();
     location.assign('/');
   }
 </script>

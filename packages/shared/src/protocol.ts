@@ -117,6 +117,7 @@ export const ClientEvents = {
   'game:pick': z.object({ gesture: z.string().min(1).max(32) }),
   'game:next': emptySchema,
   'room:rematch': emptySchema,
+  'room:leave': emptySchema,
   'tournament:skip': emptySchema,
 } as const;
 

@@ -17,15 +17,15 @@ function description(radio: HTMLElement): string {
 describe('GestureButton rule hint', () => {
   beforeEach(() => setLocale('de'));
 
-  it('describes what the gesture beats via aria-describedby', () => {
+  it('describes what the gesture does to the others via aria-describedby', () => {
     render(GestureButton, { ...base, gesture: 'rock', beats: ['scissors'] });
-    expect(description(screen.getByRole('radio', { name: 'Stein' }))).toBe('schlägt: Schere');
+    expect(description(screen.getByRole('radio', { name: 'Stein' }))).toBe('zerquetscht Schere');
   });
 
   it('lists several beaten gestures and follows the locale', () => {
     setLocale('en');
     render(GestureButton, { ...base, gesture: 'rock', beats: ['scissors', 'lizard'] });
-    expect(description(screen.getByRole('radio', { name: 'Rock' }))).toBe('beats: Scissors, Lizard');
+    expect(description(screen.getByRole('radio', { name: 'Rock' }))).toBe('crushes Scissors, crushes Lizard');
   });
 
   it('keeps the accessible name free of the hint', () => {
@@ -42,6 +42,6 @@ describe('GestureButton rule hint', () => {
 
   it('still describes a disabled tile', () => {
     render(GestureButton, { ...base, disabled: true, gesture: 'rock', beats: ['scissors'] });
-    expect(description(screen.getByRole('radio', { name: 'Stein' }))).toBe('schlägt: Schere');
+    expect(description(screen.getByRole('radio', { name: 'Stein' }))).toBe('zerquetscht Schere');
   });
 });

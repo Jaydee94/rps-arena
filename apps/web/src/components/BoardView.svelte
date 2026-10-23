@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { gestureSetFor, type PublicMatch, type PlayerView, type SeatId } from '@rps/shared';
-  import { announce, next, pick } from '../lib/connection';
+  import { gestureBeats, gestureSetFor, type PublicMatch, type PlayerView, type SeatId } from '@rps/shared';
+  import { announce, leaveRoom, next, pick } from '../lib/connection';
   import { duelViews, outcomeFor, type Side } from '../lib/board';
   import { emitCountdownEnded, shouldCountDown } from '../lib/countdown';
   import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
+  import { doesSentence } from '../lib/matchup-fx';
   import { opponentSeat, teamOf } from '../lib/seats';
   import AnnouncePanel from './AnnouncePanel.svelte';
   import CameraToggle from './CameraToggle.svelte';
@@ -74,6 +75,13 @@
   const revealing = $derived(match.phase === 'reveal' && !countingDown);
 
   const picked = $derived(match.yourPick ?? localPick);
+  // Feedback after the pick: what the chosen gesture does to the others.
+  const pickEffect = $derived.by(() => {
+    if (picked === null) return null;
+    const { gestures } = gestureSetFor(room.config.mode);
+    if (!gestures.includes(picked)) return null;
+    return t('board.picked_effect', { sentence: doesSentence(picked, gestureBeats({ gestures }, picked)) });
+  });
   const announced = $derived(localAnnounced || you in match.announces);
 
   function onpick(gesture: string) {
@@ -88,6 +96,15 @@
     localAnnounced = true;
     announce(emote);
     statusEl?.focus();
+  }
+
+  // Leaving a running match forfeits it, so it takes a second tap.
+  let confirmingLeave = $state(false);
+
+  function leave() {
+    // Without the stored credentials the reload cannot silently rejoin this room.
+    leaveRoom();
+    location.assign('/');
   }
 
   const nick = (seat: SeatId) => room.players[seat]?.nickname ?? '';
@@ -161,11 +178,23 @@
       <AnnouncePanel done={announced} {onannounce} />
     {:else}
       <GesturePad gestures={gestureSetFor(room.config.mode).gestures} {picked} {onpick} />
+      {#if pickEffect}<p class="pick-effect">{pickEffect}</p>{/if}
     {/if}
     <RulesPanel mode={room.config.mode} />
   {/if}
   {#if ['classic', 'team2v2'].includes(room.config.mode) && gestureSetFor(room.config.mode).id === 'classic'}<CameraToggle gestures={gestureSetFor(room.config.mode).gestures} {onpick} disabled={picked !== null || match.phase !== 'pick'} />{/if}
   <SpectatorBadge spectators={room.spectators} />
+  <div class="exit">
+    {#if confirmingLeave}
+      <p role="alert">{t('board.leave_confirm')}</p>
+      <button type="button" class="btn btn-small" onclick={leave}>{t('board.leave_yes')}</button>
+      <button type="button" class="btn btn-small btn-primary" onclick={() => (confirmingLeave = false)}>
+        {t('board.leave_stay')}
+      </button>
+    {:else}
+      <button type="button" class="btn btn-small" onclick={() => (confirmingLeave = true)}>{t('board.leave')}</button>
+    {/if}
+  </div>
 </main>
 
 <style>
@@ -224,6 +253,28 @@
   .picking > .them {
     grid-column: 2;
     grid-row: 3 / span 2;
+  }
+
+  .pick-effect {
+    justify-self: center;
+    max-width: 100%;
+    margin: 0;
+    overflow-wrap: anywhere;
+    text-align: center;
+    font-weight: 700;
+  }
+
+  .exit {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+  }
+
+  .exit > p {
+    flex-basis: 100%;
+    text-align: center;
   }
 
   .who {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { TOURNAMENT_MAX_PLAYERS, TOURNAMENT_MIN_PLAYERS } from '@rps/shared';
-  import { room, startMatch } from '../lib/connection';
+  import { leaveRoom, room, startMatch } from '../lib/connection';
   import { t } from '../lib/i18n';
   import CopyRow from './CopyRow.svelte';
   import ParticipantList from './ParticipantList.svelte';
@@ -8,6 +8,12 @@
   import SpectatorBadge from './SpectatorBadge.svelte';
 
   const inviteLink = $derived($room ? `${location.origin}/?room=${$room.code}` : '');
+
+  function leave() {
+    // Without the stored credentials the reload cannot silently rejoin this room.
+    leaveRoom();
+    location.assign('/');
+  }
 </script>
 
 {#if $room?.tournament}
@@ -17,6 +23,7 @@
   {@const canStart = connected >= TOURNAMENT_MIN_PLAYERS}
   {@const watching = view.role === 'spectator' && view.me === null && tournament.youId === null}
   <main class="tlobby">
+    <button type="button" class="btn btn-small leave" onclick={leave}>{t('lobby.leave')}</button>
     <section class="panel roster" aria-labelledby="tlobby-title">
       <h2 id="tlobby-title" class="ribbon">{t('tournament.title')}</h2>
       <p class="meta">
@@ -125,6 +132,10 @@
     border-radius: var(--radius-sm);
     font-weight: 700;
     overflow-wrap: anywhere;
+  }
+
+  .tlobby > .leave {
+    justify-self: end;
   }
 
   .tlobby > .start {

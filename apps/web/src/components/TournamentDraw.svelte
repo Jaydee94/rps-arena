@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PublicTournament } from '@rps/shared';
-  import { room, skipWait } from '../lib/connection';
+  import { leaveRoom, room, skipWait } from '../lib/connection';
   import { t } from '../lib/i18n';
   import { prefersReducedMotion } from '../lib/motion';
   import { drawSlots, participantById } from '../lib/tournament-ui';
@@ -29,6 +29,12 @@
   function from(k: number): { x: string; y: string } {
     const angle = k * 2.4;
     return { x: `${Math.round(Math.cos(angle) * 130)}%`, y: `${Math.round(Math.sin(angle) * 260)}%` };
+  }
+
+  function leave() {
+    // Without the stored credentials the reload cannot silently rejoin this room.
+    leaveRoom();
+    location.assign('/');
   }
 </script>
 
@@ -91,6 +97,7 @@
       {#if view.isHost}
         <button type="button" class="btn btn-primary" onclick={() => skipWait()}>{t('tournament.skip')}</button>
       {/if}
+      <button type="button" class="btn leave" onclick={leave}>{t('lobby.leave')}</button>
     </div>
   </main>
 {/if}

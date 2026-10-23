@@ -17,6 +17,7 @@ import {
   createRoom,
   isAbandoned,
   joinRoom,
+  leaveNow,
   leaveSpectator,
   markConnected,
   markDisconnected,
@@ -409,6 +410,38 @@ describe('tick', () => {
     expect(room.match?.phase).toBe('finished');
     expect(room.match?.winner).toBe('b');
     expect(isAbandoned(room, T0 + RECONNECT_GRACE_MS)).toBe(true);
+  });
+});
+
+describe('leaveNow', () => {
+  it('forfeits a seat of a running match without waiting for the grace', () => {
+    const room = leaveNow(duelRoom(), 'b0', T0 + 5);
+    expect(room.match?.forfeited).toEqual(['b0']);
+    expect(room.match?.phase).toBe('finished');
+    expect(room.match?.winner).toBe('a');
+    expect(room.deadline).toBeNull();
+    expect(isAbandoned(room, T0 + 5)).toBe(false); // a0 is still there
+  });
+
+  it('is the same as a disconnect whose grace has run out', () => {
+    const viaGrace = tick(markDisconnected(duelRoom(), 'b0', T0 + 5), T0 + 5 + RECONNECT_GRACE_MS);
+    const now = leaveNow(duelRoom(), 'b0', T0 + 5);
+    expect(now.match?.forfeited).toEqual(viaGrace.match?.forfeited);
+    expect(now.match?.winner).toEqual(viaGrace.match?.winner);
+  });
+
+  it('frees the seat in the lobby and hands the host role on', () => {
+    let room = createRoom({ config: classic, nickname: 'Ann', avatar: 'fox', socketId: 's-a0' }, T0);
+    room = joinRoom(room, 'Ben', 'owl', T0, 's-b0').room;
+    room = leaveNow(room, 'a0', T0 + 1);
+    expect(room.players.a0).toBeUndefined();
+    expect(room.hostSeat).toBe('b0');
+    expect(isAbandoned(leaveNow(room, 'b0', T0 + 2), T0 + 2)).toBe(true);
+  });
+
+  it('leaves the room as it is for an empty seat or a bot', () => {
+    const lobby = createRoom({ config: classic, nickname: 'Ann', avatar: 'fox', socketId: 's-a0' }, T0);
+    expect(leaveNow(lobby, 'b0', T0 + 1)).toBe(lobby);
   });
 });
 

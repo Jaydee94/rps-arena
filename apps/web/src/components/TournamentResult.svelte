@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { forgetSession, rematch, room } from '../lib/connection';
+  import { leaveRoom, rematch, room } from '../lib/connection';
   import { t } from '../lib/i18n';
   import { participantName } from '../lib/tournament-ui';
   import Bracket from './Bracket.svelte';
@@ -9,7 +9,7 @@
 
   function leave() {
     // Without the stored credentials the reload cannot silently rejoin this room.
-    forgetSession();
+    leaveRoom();
     location.assign('/');
   }
 </script>

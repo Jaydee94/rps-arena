@@ -118,4 +118,14 @@ describe('Intermission', () => {
     expect(within(resultPanel()).getByText('Tie-break')).toBeInTheDocument();
     expect(screen.getByText('Spieler-p1 vs Spieler-p2')).toBeInTheDocument();
   });
+
+  it('lets everyone leave while waiting', async () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { assign });
+    show(tournamentWith({ winner: 'p0' }));
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Leave room' }));
+    expect(actions.leaveRoom).toHaveBeenCalledTimes(1);
+    expect(assign).toHaveBeenCalledWith('/');
+    vi.unstubAllGlobals();
+  });
 });

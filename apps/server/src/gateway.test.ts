@@ -1258,3 +1258,142 @@ describe('gateway: tournaments', () => {
     expect(h.io.sockets.adapter.rooms.get(participantChannel(code, mover.id))).toBeUndefined();
   });
 });
+
+describe('gateway: room:leave', () => {
+  /** A client that left is in no room: every game event answers `bad_token`. */
+  async function expectOutOfRoom(c: Client) {
+    c.send('game:pick', { gesture: 'rock' });
+    expect((await errorOf(c)).code).toBe('bad_token');
+  }
+
+  /** The first state `c` receives after `mark` (a `states(c).length` taken before the event) that matches. */
+  async function stateAfter<T>(c: Client, mark: number, match: (view: T) => boolean): Promise<T> {
+    for (let i = 0; i < 200; i++) {
+      const found = states(c).slice(mark).find((e) => match(e.payload as T));
+      if (found) return found.payload as T;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    throw new Error('timeout waiting for a state after the leave');
+  }
+
+  it('frees the seat of a guest in the lobby at once and tells the host', async () => {
+    const h = await harness();
+    const { a, b, aJoined } = await createAndJoin(h);
+    await a.next<RoomView>('room:state', (v) => v.players.b0 !== undefined);
+    const mark = states(a).length;
+    b.send('room:leave');
+    const view = await stateAfter<RoomView>(a, mark, (v) => v.players.b0 === undefined);
+    expect(view.players.a0?.connected).toBe(true);
+    expect((await h.store.get(aJoined.code))?.players.b0).toBeUndefined();
+    await expectOutOfRoom(b);
+  });
+
+  it('the leaver gets no further state, and its token cannot come back', async () => {
+    const h = await harness();
+    const { a, b, aJoined, bJoined } = await createAndJoin(h);
+    await a.next<RoomView>('room:state', (v) => v.players.b0 !== undefined);
+    await b.next<RoomView>('room:state', (v) => v.players.b0 !== undefined);
+    const mark = states(a).length;
+    b.send('room:leave');
+    await stateAfter<RoomView>(a, mark, (v) => v.players.b0 === undefined);
+    const seenByB = states(b).length;
+    a.send('room:start'); // refused (one seat empty), but a state change must not reach b either way
+    await errorOf(a);
+    await roundTrip(a);
+    expect(states(b).length).toBe(seenByB);
+    b.send('room:rejoin', { code: aJoined.code, token: bJoined.token });
+    expect((await errorOf(b)).code).toBe('bad_token');
+  });
+
+  it('hands the host role to the remaining player when the host leaves the lobby', async () => {
+    const h = await harness();
+    const { a, b } = await createAndJoin(h);
+    await b.next<RoomView>('room:state', (v) => v.players.b0 !== undefined);
+    const mark = states(b).length;
+    a.send('room:leave');
+    const view = await stateAfter<RoomView>(b, mark, (v) => v.players.a0 === undefined);
+    expect(view.hostSeat).toBe('b0');
+    expect(view.isHost).toBe(true);
+  });
+
+  it('forfeits a running match right away: no clock, no ticker', async () => {
+    const h = await harness();
+    const { a, b, aJoined } = await startedDuel(h);
+    const mark = states(a).length;
+    b.send('room:leave');
+    const end = await stateAfter<RoomView>(a, mark, (v) => v.match?.phase === 'finished');
+    expect(end.match?.forfeited).toEqual(['b0']);
+    expect(end.match?.winner).toBe('a');
+    expect((await h.store.get(aJoined.code))?.deadline).toBeNull();
+  });
+
+  it('deletes the room when the last human leaves', async () => {
+    const h = await harness();
+    const a = await h.client();
+    a.send('room:create', { config: classic, nickname: 'Ann', avatar: 'fox' });
+    const { code } = await a.next<RoomJoined>('room:joined');
+    a.send('room:leave');
+    for (let i = 0; i < 50 && (await h.store.get(code)); i++) await new Promise((r) => setTimeout(r, 10));
+    expect(await h.store.get(code)).toBeNull();
+    expect(await h.store.dueRooms(Number.MAX_SAFE_INTEGER)).toEqual([]);
+  });
+
+  it('a spectator leaves without touching the match', async () => {
+    const h = await harness();
+    const { a, b, aJoined } = await startedDuel(h);
+    const { s } = await spectate(h, aJoined.code);
+    await a.next<RoomView>('room:state', (v) => v.spectators.length === 1);
+    const mark = states(a).length;
+    const markB = states(b).length;
+    s.send('room:leave');
+    const view = await stateAfter<RoomView>(a, mark, (v) => v.spectators.length === 0);
+    expect(view.match?.phase).toBe('pick');
+    expect(view.match?.forfeited).toEqual([]);
+    await stateAfter<RoomView>(b, markB, (v) => v.spectators.length === 0);
+    await expectOutOfRoom(s);
+  });
+
+  it('is harmless without a room, and the socket can open a new one afterwards', async () => {
+    const h = await harness();
+    const c = await h.client();
+    c.send('room:leave');
+    c.send('room:create', { config: classic, nickname: 'Cid', avatar: 'cat' });
+    expect((await c.next<RoomJoined>('room:joined')).seat).toBe('a0');
+    expect(c.events.some((e) => e.event === 'room:error')).toBe(false);
+  });
+
+  it('removes a participant from a tournament lobby and moves the host role on', async () => {
+    const h = await harness();
+    const { code, entrants, host } = await tournamentLobby(h);
+    const [, ida, jo] = entrants;
+    ida!.c.send('room:leave');
+    const afterGuest = await jo!.c.next<SpectatorView>(
+      'room:state',
+      (v) => v.tournament?.participants.length === 3,
+    );
+    expect(afterGuest.tournament?.participants.map((p) => p.id)).not.toContain(ida!.id);
+    host.c.send('room:leave');
+    const afterHost = await jo!.c.next<SpectatorView>(
+      'room:state',
+      (v) => v.tournament?.participants.length === 2,
+    );
+    expect(afterHost.tournament?.hostId).not.toBe(host.id);
+    expect(afterHost.isHost).toBe(afterHost.tournament?.hostId === jo!.id);
+    expect(h.io.sockets.adapter.rooms.get(participantChannel(code, host.id))).toBeUndefined();
+  });
+
+  it('forfeits a participant of a running tournament match at once', async () => {
+    const h = await harness();
+    const { entrants, host } = await tournamentLobby(h);
+    host.c.send('room:start');
+    await Promise.all(entrants.map((e) => e.c.next<SpectatorView>('room:state', tPhase('draw'))));
+    host.c.send('tournament:skip');
+    const { a, b, waiting } = await matchViews(entrants);
+    const mark = states(a.c).length;
+    b.c.send('room:leave');
+    const view = await stateAfter<AnyView>(a.c, mark, (v) => v.match?.phase === 'finished');
+    expect(view.match?.winner).toBe('a');
+    expect(view.match?.forfeited).toEqual(['b0']);
+    await waiting[0]!.c.next<AnyView>('room:state', (v) => v.match?.phase === 'finished');
+  });
+});

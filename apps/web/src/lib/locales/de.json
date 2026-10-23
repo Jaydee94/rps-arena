@@ -82,6 +82,7 @@
   "lobby.move": "Umsetzen",
   "lobby.move_here": "Hierher setzen",
   "lobby.mode": "{mode} · Best of {n}",
+  "lobby.leave": "Raum verlassen",
 
   "board.round": "Runde {round}",
   "board.score": "{a} : {b}",
@@ -92,6 +93,11 @@
   "board.reveal": "Aufdecken!",
   "board.announce": "Kündige deinen Zug an – oder bluffe!",
   "board.you": "Du",
+  "board.picked_effect": "Deine Wahl: {sentence}",
+  "board.leave": "Match verlassen",
+  "board.leave_confirm": "Wirklich aufgeben? Das Match zählt dann als verloren.",
+  "board.leave_yes": "Ja, verlassen",
+  "board.leave_stay": "Weiterspielen",
   "board.opponent": "Gegner",
   "board.opponent_locked": "Gegner hat gewählt",
   "board.opponent_thinking": "Gegner überlegt …",
@@ -223,8 +229,6 @@
   "rule.gun.wolf": "{winner} verjagt {loser}",
 
   "rules.title": "Regeln",
-  "rules.beats": "{gesture} schlägt {list}",
-  "rules.hint": "schlägt: {list}",
 
   "countdown.1": "SCHNICK!",
   "countdown.2": "SCHNACK!",

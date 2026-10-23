@@ -82,6 +82,7 @@
   "lobby.move": "Move",
   "lobby.move_here": "Move here",
   "lobby.mode": "{mode} · Best of {n}",
+  "lobby.leave": "Leave room",
 
   "board.round": "Round {round}",
   "board.score": "{a} : {b}",
@@ -92,6 +93,11 @@
   "board.reveal": "Reveal!",
   "board.announce": "Announce your move, or bluff!",
   "board.you": "You",
+  "board.picked_effect": "Your pick: {sentence}",
+  "board.leave": "Leave match",
+  "board.leave_confirm": "Really give up? The match counts as lost.",
+  "board.leave_yes": "Yes, leave",
+  "board.leave_stay": "Keep playing",
   "board.opponent": "Opponent",
   "board.opponent_locked": "Opponent has chosen",
   "board.opponent_thinking": "Opponent is thinking…",
@@ -223,8 +229,6 @@
   "rule.gun.wolf": "{winner} chases off {loser}",
 
   "rules.title": "Rules",
-  "rules.beats": "{gesture} beats {list}",
-  "rules.hint": "beats: {list}",
 
   "countdown.1": "ROCK!",
   "countdown.2": "PAPER!",
