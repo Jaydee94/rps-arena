@@ -1,10 +1,10 @@
 <script lang="ts">
   /*
-   * Cover (struck by wrap, "paper covers rock"): a ruled sheet of paper drops onto the sticker and lies over
+   * Cover (struck by wrap, every paper win: "paper covers rock"): a ruled sheet of paper drops onto the sticker and lies over
    * it, two corners curling up off the face. The sheet is thin enough that the beaten gesture still shows
    * through it, dimmed. It overhangs the disc only a little at its corners. The static end pose and the last
-   * keyframes both show the sheet lying flat with its corners curled (animations.css, "fx: wrap / fold" and
-   * "fx static: wrap / fold"). Markup only; it ignores the overlay props ({ gesture, size }).
+   * keyframes both show the sheet lying flat with its corners curled (animations.css, "fx: wrap / cover" and
+   * "fx static: wrap / cover"). Markup only; it ignores the overlay props ({ gesture, size }).
    */
 
   interface Props {

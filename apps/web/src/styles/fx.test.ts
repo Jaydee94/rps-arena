@@ -34,7 +34,7 @@ const rulesWith = (css: string, needle: string): string[] =>
 const SCENES = [
   'smash / crumble',
   'slash / split',
-  'wrap / fold',
+  'wrap / cover',
   'shoot / perforate',
   'bite / chomp',
   'punch / knockback',
@@ -97,7 +97,7 @@ describe('matchup effect styles', () => {
   const plainRules = [...code(fxMotion).replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(
     (m) => ({ selector: (m[1] ?? '').trim(), body: m[2] ?? '' }),
   );
-  const REACTIONS = [...new Set([...Object.values(REACTION_FOR_ATTACK), 'extinguish', 'cover'])];
+  const REACTIONS = [...new Set([...Object.values(REACTION_FOR_ATTACK), 'extinguish'])];
 
   it('finds the scene keyframes and rules it checks', () => {
     expect(keyframes.map((k) => k.name)).toContain('fx-smash-slam');

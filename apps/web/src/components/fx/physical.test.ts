@@ -10,7 +10,7 @@ import { reactionArt } from './index';
 /** The physical scenes (Task 4a): attack, reaction, and whether the reaction draws overlay art. */
 const SCENES: { attack: Attack; reaction: string; overlay: boolean }[] = [
   { attack: 'slash', reaction: 'split', overlay: true },
-  { attack: 'wrap', reaction: 'fold', overlay: true },
+  { attack: 'wrap', reaction: 'cover', overlay: true },
   { attack: 'shoot', reaction: 'perforate', overlay: true },
   { attack: 'bite', reaction: 'chomp', overlay: true },
   { attack: 'punch', reaction: 'knockback', overlay: false },
@@ -63,7 +63,7 @@ describe('physical matchup scenes', () => {
   }
 });
 
-// The cover reaction (paper's wins): drawn in the wrap / fold sub-sections, with motion and a static pose.
+// The cover reaction (every paper win): a sheet with two curled corners, moving and resting in its own parts.
 describe('cover reaction', () => {
   it('lays a decorative sheet over the sticker', () => {
     const Art = reactionArt('cover');
@@ -76,11 +76,11 @@ describe('cover reaction', () => {
   });
 
   it('moves only with motion allowed, and rests covered in a static end pose', () => {
-    const scene = section(motion, '/* ---- fx: wrap / fold ---- */');
+    const scene = section(motion, '/* ---- fx: wrap / cover ---- */');
     expect(scene).toMatch(/\.player\.loser \.reveal-art\.react-cover\s*\{[^}]*animation:/);
     expect(scene).toMatch(/\.react-cover \.cover-sheet\s*\{[^}]*animation:/);
     expect(scene).toMatch(/@keyframes fx-cover-sheet/);
-    const pose = section(statics, '/* ---- fx static: wrap / fold ---- */');
+    const pose = section(statics, '/* ---- fx static: wrap / cover ---- */');
     expect(pose).toMatch(/\.player\.loser \.reveal-art\.react-cover\s*\{[^}]*rotate:/);
     expect(pose).toMatch(/\.react-cover \.cover-sheet/);
   });

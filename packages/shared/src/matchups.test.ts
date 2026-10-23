@@ -138,7 +138,7 @@ describe('REACTION_FOR_ATTACK', () => {
     expect(REACTION_FOR_ATTACK).toEqual({
       smash: 'crumble',
       slash: 'split',
-      wrap: 'fold',
+      wrap: 'cover',
       burn: 'char',
       splash: 'drench',
       gust: 'blow',
@@ -226,13 +226,14 @@ describe('matchupFor', () => {
     }
   });
 
-  it('covers every loser of paper with a sheet instead of folding and taping it', () => {
+  it('covers every loser of paper with a sheet (the generic wrap reaction, no override needed)', () => {
     const losers = allRelations()
       .filter((r) => r.winner === 'paper')
       .map((r) => r.loser);
     expect(losers.sort()).toEqual(['air', 'devil', 'dragon', 'gun', 'lightning', 'rock', 'spock', 'water']);
     for (const loser of losers) {
       expect(matchupFor('paper', loser), loser).toEqual({ attack: 'wrap', reaction: 'cover', key: `paper>${loser}` });
+      expect(Object.hasOwn(PAIR_OVERRIDES, `paper>${loser}`), loser).toBe(false);
     }
   });
 

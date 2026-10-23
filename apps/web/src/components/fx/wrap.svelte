@@ -1,9 +1,9 @@
 <script lang="ts">
   /*
    * Wrap (paper): a ruled sheet sails in from the attacker's side and lands on the struck sticker, where the
-   * reaction's own paper (cover or fold) takes over, while two swirl lines wind round it. Frame: the sticker is
+   * cover reaction's own sheet takes over, while two swirl lines wind round it. Frame: the sticker is
    * the circle r = 50 around 0,0; the attacker sits bottom right (fx--at-mine) or top left (fx--at-theirs).
-   * Markup only; motion: animations.css, "fx: wrap / fold".
+   * Markup only; motion: animations.css, "fx: wrap / cover".
    */
 
   /** Ruled lines on the sheet (y), drawn across its full width. */

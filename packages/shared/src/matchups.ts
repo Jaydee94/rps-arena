@@ -18,11 +18,11 @@ export type Attack =
   | 'curse'
   | 'poison';
 
-/** How the losing gesture reacts: one per attack, plus `extinguish` and `cover` which only overrides use. */
+/** How the losing gesture reacts: one per attack, plus `extinguish` which only overrides use. */
 export type Reaction =
   | 'crumble'
   | 'split'
-  | 'fold'
+  | 'cover'
   | 'char'
   | 'drench'
   | 'blow'
@@ -34,8 +34,7 @@ export type Reaction =
   | 'squeeze'
   | 'hexed'
   | 'wobble'
-  | 'extinguish'
-  | 'cover';
+  | 'extinguish';
 
 export interface Matchup {
   attack: Attack;
@@ -69,7 +68,7 @@ export const GESTURE_ATTACK: Readonly<Record<string, Attack>> = Object.freeze({
 export const REACTION_FOR_ATTACK: Readonly<Record<Attack, Reaction>> = Object.freeze({
   smash: 'crumble',
   slash: 'split',
-  wrap: 'fold',
+  wrap: 'cover',
   burn: 'char',
   splash: 'drench',
   gust: 'blow',
@@ -110,16 +109,6 @@ export const PAIR_OVERRIDES: Readonly<Record<string, Partial<Pick<Matchup, 'atta
     'wolf>water': Object.freeze({ attack: 'splash' as const }),
     'snake>air': Object.freeze({ attack: 'absorb' as const }),
     'snake>water': Object.freeze({ attack: 'slash' as const }),
-
-    // Paper covers its loser like a sheet laid over it instead of taping it up.
-    'paper>rock': Object.freeze({ reaction: 'cover' as const }),
-    'paper>spock': Object.freeze({ reaction: 'cover' as const }),
-    'paper>air': Object.freeze({ reaction: 'cover' as const }),
-    'paper>water': Object.freeze({ reaction: 'cover' as const }),
-    'paper>lightning': Object.freeze({ reaction: 'cover' as const }),
-    'paper>devil': Object.freeze({ reaction: 'cover' as const }),
-    'paper>gun': Object.freeze({ reaction: 'cover' as const }),
-    'paper>dragon': Object.freeze({ reaction: 'cover' as const }),
   });
 
 const SET_IDS: readonly GestureSetId[] = ['classic', 'lizard-spock', 'wheel7', 'wheel9', 'wheel15'];
