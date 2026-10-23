@@ -47,12 +47,14 @@
     <g class="gust-cloud">
       {#each CLOUD as puff, i (i)}<circle class="white" cx={puff.x} cy={puff.y} r={puff.r} />{/each}
     </g>
-    {#each STREAKS as streak, i (i)}
-      <g class="gust-streak" style:--d={streak.delay}>
-        <path class="gust-under" d={streak.d} />
-        <path class="gust-top" d={streak.d} />
-      </g>
-    {/each}
+    <g class="gust-lee">
+      {#each STREAKS as streak, i (i)}
+        <g class="gust-streak" style:--d={streak.delay}>
+          <path class="gust-under" d={streak.d} />
+          <path class="gust-top" d={streak.d} />
+        </g>
+      {/each}
+    </g>
     {#each LEAVES as leaf, i (i)}
       <g transform="translate({leaf.x} {leaf.y})">
         <path class="green gust-leaf" d={LEAF} style:--spin={leaf.spin} style:--d={leaf.d} />
@@ -62,7 +64,10 @@
 </svg>
 
 <style>
-  /* Turns the art towards the attacker (the frame never mirrors). */
+  /*
+   * Turns the art towards the attacker (the frame never mirrors). The panel keeps its height and widens with the
+   * page up to its full width at 46rem, so the attacker's direction flattens step by step.
+   */
   .gust-aim {
     transform-box: view-box;
     transform-origin: 0 0;
@@ -73,13 +78,74 @@
     rotate: 235deg;
   }
 
+  @media (min-width: 30rem) {
+    :global(.fx--at-mine) .gust-aim {
+      rotate: 37deg;
+    }
+
+    :global(.fx--at-theirs) .gust-aim {
+      rotate: 217deg;
+    }
+  }
+
+  @media (min-width: 38rem) {
+    :global(.fx--at-mine) .gust-aim {
+      rotate: 27deg;
+    }
+
+    :global(.fx--at-theirs) .gust-aim {
+      rotate: 207deg;
+    }
+  }
+
+  @media (min-width: 46rem) {
+    :global(.fx--at-mine) .gust-aim {
+      rotate: 24deg;
+    }
+
+    :global(.fx--at-theirs) .gust-aim {
+      rotate: 204deg;
+    }
+  }
+
   /* 2v2: the attacker sits beside the struck sticker (slightly above or below), not diagonally. */
   :global(.compact .fx--at-mine) .gust-aim {
-    rotate: 12deg;
+    rotate: 13deg;
   }
 
   :global(.compact .fx--at-theirs) .gust-aim {
     rotate: 193deg;
+  }
+
+  @media (min-width: 30rem) {
+    :global(.compact .fx--at-mine) .gust-aim {
+      rotate: 8deg;
+    }
+
+    :global(.compact .fx--at-theirs) .gust-aim {
+      rotate: 188deg;
+    }
+  }
+
+  /*
+   * From 30rem the panel is landscape: the struck sticker sits close to the panel's corner on its lee side and the
+   * burst is far off, so the streaks shift towards the attacker and close up a little, keeping their tails inside
+   * the panel. In 2v2 the panel is low, so they close up more.
+   */
+  .gust-lee {
+    transform-box: view-box;
+    transform-origin: 0 0;
+  }
+
+  @media (min-width: 30rem) {
+    .gust-lee {
+      translate: 120px 0;
+      scale: 1 0.74;
+    }
+
+    :global(.compact) .gust-lee {
+      scale: 1 0.7;
+    }
   }
 
   .gust-cloud,
