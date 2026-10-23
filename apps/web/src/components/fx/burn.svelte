@@ -53,17 +53,18 @@
     { x: 4, y: -62, dx: 4, dy: -40, r: 3.5 },
   ];
 
-  /** Smoke puffs rising once the fire dies down. */
+  /** Dark smoke puffs rising once the fire dies down (dark, so they read on the light panel half too). */
   const SMOKE = [
-    { x: -18, y: -66, r: 15, d: 0 },
-    { x: 20, y: -72, r: 12, d: 90 },
-    { x: -2, y: -86, r: 10, d: 170 },
+    { x: -20, y: -64, r: 18, d: 0 },
+    { x: 22, y: -70, r: 15, d: 90 },
+    { x: 0, y: -88, r: 13, d: 170 },
+    { x: -44, y: -78, r: 10, d: 240 },
   ];
 </script>
 
 <svg class="art" viewBox="-100 -100 200 200" focusable="false">
   {#each SMOKE as puff, i (i)}
-    <circle class="grey burn-smoke" cx={puff.x} cy={puff.y} r={puff.r} style:--d="{puff.d}ms" />
+    <circle class="line burn-smoke" cx={puff.x} cy={puff.y} r={puff.r} style:--d="{puff.d}ms" />
   {/each}
   {#each FLAMES as flame, i (i)}
     <g transform={flame.at}>
@@ -96,6 +97,12 @@
   }
 
   .burn-core {
+    stroke-width: 3;
+  }
+
+  /* A light rim keeps the dark puffs apart from the outline-coloured panel gaps and from each other. */
+  .burn-smoke {
+    stroke: var(--grey);
     stroke-width: 3;
   }
 </style>

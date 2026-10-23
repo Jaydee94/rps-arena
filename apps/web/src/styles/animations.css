@@ -1892,6 +1892,11 @@
     animation: fx-char-smoke calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
   }
 
+  /* Flames lick up over the lower half of the struck sticker, in front of it, flicker and die down. */
+  .react-char .char-flame {
+    animation: fx-char-flame calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit) + var(--d)) both;
+  }
+
   /* Fire doused by water (water>fire; the graphic is the splash): squashed flat, shivers, goes out and steams. */
   .player.loser .reveal-art.react-extinguish {
     animation: fx-extinguish-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
@@ -2056,7 +2061,7 @@
     72% {
       translate: 0 11px;
       rotate: 14deg;
-      filter: saturate(0.3);
+      filter: saturate(0.45);
       animation-timing-function: ease-out;
     }
     84% {
@@ -2067,7 +2072,7 @@
       translate: 0 9px;
       scale: 1;
       rotate: 12deg;
-      filter: saturate(0.3);
+      filter: saturate(0.45);
     }
   }
 
@@ -2080,7 +2085,7 @@
     }
     55%,
     100% {
-      opacity: 0.72;
+      opacity: 0.6;
     }
   }
 
@@ -2092,6 +2097,38 @@
     60%,
     100% {
       opacity: 1;
+    }
+  }
+
+  @keyframes fx-char-flame {
+    0% {
+      opacity: 0;
+      scale: 0.2;
+    }
+    6% {
+      opacity: 1;
+      scale: 1.1 0.9;
+    }
+    14% {
+      scale: 0.88 1.16;
+    }
+    22% {
+      scale: 1.08 0.94;
+    }
+    30% {
+      scale: 0.92 1.1;
+    }
+    38% {
+      scale: 1.04 0.96;
+    }
+    48% {
+      opacity: 1;
+      scale: 0.9 1;
+    }
+    66%,
+    100% {
+      opacity: 0;
+      scale: 0.4 0.3;
     }
   }
 
@@ -3993,15 +4030,23 @@
 
 /* ---- fx static: burn / char, extinguish ---- */
 
-/* Burnt: tilted and greyed, blackened from the rim inwards, smoke curling off it. */
+/*
+ * Charred: tilted and dulled, a ragged black burnt rim with embers glowing in it, soot blotches on its face,
+ * dark smoke curling off its top; the flames are out.
+ */
 .player.loser .reveal-art.react-char {
   translate: 0 9px;
   rotate: 12deg;
-  filter: saturate(0.3);
+  filter: saturate(0.45);
 }
 
 .react-char .char-soot {
-  opacity: 0.72;
+  opacity: 0.6;
+}
+
+.react-char .char-flame {
+  opacity: 0;
+  scale: 0.4 0.3;
 }
 
 /* Put out (water>fire): shrunk, tilted, nearly grey under a wet film, steam still over it. */
