@@ -679,6 +679,7 @@ and are under the same license. The fonts Bangers and Comic Neue are self-hosted
 the license texts sit next to the files). SFX and music are generated at runtime with the Web Audio API; there
 are no audio files. No third-party asset is loaded at runtime. Sources and licenses are in
 [`docs/assets.md`](docs/assets.md).
+How the matchup scenes of the reveal work and how to add one: [`docs/matchup-scenes.md`](docs/matchup-scenes.md).
 
 ## Decisions
 

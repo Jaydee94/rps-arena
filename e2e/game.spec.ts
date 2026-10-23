@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import type { RoomJoined, RoomView, SpectatorView } from '@rps/shared';
 import {
   advanceRound,
@@ -519,4 +520,108 @@ test('spectator: a second page watches a running bot room', async ({ browser }) 
 
   await a.context.close();
   await c.context.close();
+});
+
+// --- Matchup scenes -----------------------------------------------------------------------------
+
+/** The English locale of the web app: the tests read the sentence from it instead of restating it. */
+const en = JSON.parse(readFileSync(new URL('../apps/web/src/lib/locales/en.json', import.meta.url), 'utf8')) as Record<string, string>;
+
+/** The rule line of `winner` beating `loser`, exactly as the reveal renders it ("Rock crushes Scissors"). */
+const ruleSentence = (winner: string, loser: string): string =>
+  en[`rule.${winner}.${loser}`]!.replace('{winner}', en[`gesture.${winner}`]!).replace('{loser}', en[`gesture.${loser}`]!);
+
+/** What the matchup scene of the (single) duel looked like when the reveal panel appeared, read in one step. */
+interface SceneSnapshot {
+  /** The rule lines under the panel (one per decided duel, none for a draw). */
+  rules: string[];
+  /** The classes of the own (top) and the other (bottom) sticker, e.g. `attack-smash` or `react-crumble`. */
+  mine: string[];
+  theirs: string[];
+  /** The scene classes of the effect frames in the panel (`fx--smash`, `fx--clash`, ...). */
+  frames: string[];
+  /** Animations running (or about to start) inside the effect frames, and in the whole document. */
+  frameAnimations: number;
+  documentAnimations: number;
+}
+
+/**
+ * Waits (inside the page) for the reveal panel and captures the scene in a single evaluation, at the first
+ * frame the panel exists: the scene only plays for about two seconds, so nothing here polls the live page.
+ */
+async function captureScene(page: Page): Promise<SceneSnapshot> {
+  const handle = await page.waitForFunction(
+    () => {
+      const duel = document.querySelector('[data-testid="duel"]');
+      if (!duel) return null;
+      const classes = (side: string) => [...(duel.querySelector(`.player.${side} .reveal-art`)?.classList ?? [])];
+      const frames = [...duel.querySelectorAll('.fx')];
+      return {
+        rules: [...document.querySelectorAll('p.rule')].map((rule) => (rule.textContent ?? '').replace(/\s+/g, ' ').trim()),
+        mine: classes('mine'),
+        theirs: classes('theirs'),
+        frames: frames.flatMap((frame) => [...frame.classList].filter((c) => c.startsWith('fx--') && !c.startsWith('fx--at-'))),
+        frameAnimations: frames.reduce((sum, frame) => sum + frame.getAnimations({ subtree: true }).length, 0),
+        documentAnimations: document.getAnimations().length,
+      };
+    },
+    undefined,
+    // Generous: the motion side first plays the countdown, and the machine may be busy.
+    { timeout: 20_000 },
+  );
+  return (await handle.jsonValue()) as SceneSnapshot;
+}
+
+test('matchup scene: rock crushes scissors, animated with motion and static with reduced motion', async ({ browser }) => {
+  // Ann sees the full scene (motion on, countdown included); Ben has reduced motion (the config default).
+  const a = await newPlayer(browser, { reducedMotion: 'no-preference' });
+  const b = await newPlayer(browser);
+  await startDuel(a, b);
+
+  await gesture(a.page, 'Rock').click();
+  await gesture(b.page, 'Scissors').click();
+  const [seenByA, seenByB] = await Promise.all([captureScene(a.page), captureScene(b.page)]);
+  const sentence = ruleSentence('rock', 'scissors');
+  expect(sentence).toBe('Rock crushes Scissors');
+
+  // With motion: the sentence, the winner attacks (smash), the loser reacts (crumble) and the smash frame plays.
+  expect(seenByA.rules).toEqual([sentence]);
+  expect(seenByA.mine).toContain('attack-smash');
+  expect(seenByA.theirs).toContain('react-crumble');
+  expect(seenByA.frames).toEqual(['fx--smash']);
+  expect(seenByA.frameAnimations).toBeGreaterThan(0);
+
+  // Reduced motion: the same sentence and the same hooks (they select the static end pose, the loser at the
+  // bottom from Ben's viewpoint), but nothing animates at all, in the whole document.
+  expect(seenByB.rules).toEqual([sentence]);
+  expect(seenByB.mine).toContain('react-crumble');
+  expect(seenByB.theirs).toContain('attack-smash');
+  expect(seenByB.frames).toEqual(['fx--smash']);
+  expect(seenByB.frameAnimations).toBe(0);
+  expect(seenByB.documentAnimations).toBe(0);
+  // Still nothing once the reveal has settled (the panel is still up).
+  await expect(b.page.getByTestId('duel')).toBeVisible();
+  expect(await b.page.evaluate(() => document.getAnimations().length)).toBe(0);
+  await expect(b.page.locator('p.rule')).toHaveText(sentence);
+
+  await a.context.close();
+  await b.context.close();
+});
+
+test('matchup scene: a draw shows the clash frame and no rule line', async ({ browser }) => {
+  const a = await newPlayer(browser, { reducedMotion: 'no-preference' });
+  const b = await newPlayer(browser);
+  await startDuel(a, b);
+
+  await gesture(a.page, 'Rock').click();
+  await gesture(b.page, 'Rock').click();
+  const seen = await captureScene(a.page);
+  expect(seen.rules).toEqual([]);
+  expect(seen.mine).toContain('fx-clash');
+  expect(seen.theirs).toContain('fx-clash');
+  expect(seen.frames).toEqual(['fx--clash']);
+  expect(seen.frameAnimations).toBeGreaterThan(0);
+
+  await a.context.close();
+  await b.context.close();
 });
