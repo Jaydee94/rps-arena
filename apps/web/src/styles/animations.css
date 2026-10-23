@@ -801,7 +801,10 @@
 
   /* ---- fx: slash / split ---- */
 
-  /* Scissors: opens wide, then swipes through towards the other sticker at --fx-hit and springs back. */
+  /*
+   * Scissors: draws back sideways (never up into its own name tag), then swipes through towards the other
+   * sticker at --fx-hit and springs back.
+   */
   .player .reveal-art.attack-slash {
     animation: fx-slash-swipe var(--fx-dur) linear var(--fx-delay) both;
   }
@@ -848,9 +851,9 @@
       rotate: 0deg;
     }
     12% {
-      translate: -8% calc(-6% * var(--fx-toward));
-      scale: 1.06;
-      rotate: -26deg;
+      translate: -10% calc(4% * var(--fx-toward));
+      scale: 1;
+      rotate: -14deg;
       animation-timing-function: cubic-bezier(0.7, 0, 0.9, 0.4);
     }
     19% {
