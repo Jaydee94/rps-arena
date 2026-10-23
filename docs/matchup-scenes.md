@@ -16,7 +16,9 @@ A scene is built from parts, not drawn per pair:
   the fire is put out, not soaked.
 - **Sentence** under the panel, one per pair, in English and German ("Rock crushes Scissors"). Keys are
   `rule.<winner>.<loser>` in `apps/web/src/lib/locales/{en,de}.json`.
-- **Sound**: one short synthesized sound per attack, played at the impact (`apps/web/src/lib/audio.ts`).
+- **Sound**: one short synthesized sound per attack (`apps/web/src/lib/audio.ts`). Its hit lands on the visible
+  contact, 0.70 s after the countdown ends (the impact at 0.44 s plus 0.26 s). Slash and curse start a little
+  earlier, because their hit is inside the sound. The draw's clash sound plays at the impact.
 
 All 112 winner/loser pairs of all gesture sets have an attack, a reaction and a sentence (`allRelations()`; a test
 checks this). A **draw** gets its own scene, the clash: both stickers bounce off each other. A missing pick gets
