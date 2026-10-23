@@ -1,8 +1,9 @@
 <script lang="ts">
   /*
-   * Wrap (paper): a big ruled sheet swoops in behind the struck sticker and closes around it, while two
-   * swirl lines wind round it like string round a parcel. Frame: the sticker is the circle r = 50 around 0,0.
-   * Markup only; motion: animations.css, "fx: wrap / fold".
+   * Wrap (paper): a ruled sheet sails in from the attacker's side and lands on the struck sticker, where the
+   * cover reaction's own sheet takes over, while two swirl lines wind round it. Frame: the sticker is
+   * the circle r = 50 around 0,0; the attacker sits bottom right (fx--at-mine) or top left (fx--at-theirs).
+   * Markup only; motion: animations.css, "fx: wrap / cover".
    */
 
   /** Ruled lines on the sheet (y), drawn across its full width. */
@@ -10,8 +11,8 @@
 
   /** Swirl arcs around the sticker: radius and the arc's start and end angle (degrees). */
   const SWIRLS = [
-    { r: 74, from: 200, to: 320 },
-    { r: 82, from: 20, to: 140 },
+    { r: 58, from: 200, to: 320 },
+    { r: 62, from: 20, to: 140 },
   ];
 
   const arc = ({ r, from, to }: { r: number; from: number; to: number }) => {
@@ -50,6 +51,12 @@
 
   .wrap-sheet {
     stroke-width: 4;
+    --from: 1;
+  }
+
+  /* The sign of "towards the attacker" on both axes of the unmirrored frame. */
+  :global(.fx--at-theirs) .wrap-sheet {
+    --from: -1;
   }
 
   .wrap-rule {

@@ -138,7 +138,7 @@ describe('REACTION_FOR_ATTACK', () => {
     expect(REACTION_FOR_ATTACK).toEqual({
       smash: 'crumble',
       slash: 'split',
-      wrap: 'fold',
+      wrap: 'cover',
       burn: 'char',
       splash: 'drench',
       gust: 'blow',
@@ -166,13 +166,75 @@ describe('matchupFor', () => {
 
   it('builds the generic matchup from the winner attack', () => {
     expect(matchupFor('rock', 'scissors')).toEqual({ attack: 'smash', reaction: 'crumble', key: 'rock>scissors' });
-    expect(matchupFor('paper', 'rock')).toEqual({ attack: 'wrap', reaction: 'fold', key: 'paper>rock' });
+    expect(matchupFor('scissors', 'paper')).toEqual({ attack: 'slash', reaction: 'split', key: 'scissors>paper' });
     expect(matchupFor('spock', 'rock')).toEqual({ attack: 'zap', reaction: 'shock', key: 'spock>rock' });
   });
 
   it('applies the water>fire override', () => {
     expect(matchupFor('water', 'fire')).toEqual({ attack: 'splash', reaction: 'extinguish', key: 'water>fire' });
     expect(matchupFor('water', 'paper').reaction).toBe('drench');
+  });
+
+  it('makes Spock smash the scissors and the lizard bite the paper, as their sentences say', () => {
+    expect(matchupFor('spock', 'scissors')).toEqual({ attack: 'smash', reaction: 'crumble', key: 'spock>scissors' });
+    expect(matchupFor('lizard', 'paper')).toEqual({ attack: 'bite', reaction: 'chomp', key: 'lizard>paper' });
+    // The other pairs of those winners keep their own attack.
+    expect(matchupFor('spock', 'rock').attack).toBe('zap');
+    expect(matchupFor('lizard', 'spock').attack).toBe('poison');
+  });
+
+  it('puts fire out whoever beats it, with the winner keeping its own attack', () => {
+    const expected: Record<string, Attack> = {
+      water: 'splash',
+      rock: 'smash',
+      air: 'gust',
+      gun: 'shoot',
+      lightning: 'zap',
+      dragon: 'burn',
+      devil: 'curse',
+    };
+    const winners = allRelations()
+      .filter((r) => r.loser === 'fire')
+      .map((r) => r.winner);
+    expect(winners.sort()).toEqual(Object.keys(expected).sort());
+    for (const winner of winners) {
+      expect(matchupFor(winner, 'fire'), winner).toEqual({ attack: expected[winner], reaction: 'extinguish', key: `${winner}>fire` });
+    }
+  });
+
+  it('never ties up, punches or bites air and water: they are taken in, blown away or splashed', () => {
+    const expected: Record<string, [Attack, string]> = {
+      'tree>water': ['absorb', 'squeeze'],
+      'tree>air': ['absorb', 'squeeze'],
+      'human>air': ['absorb', 'squeeze'],
+      'human>water': ['absorb', 'squeeze'],
+      'wolf>air': ['gust', 'blow'],
+      'wolf>water': ['splash', 'drench'],
+      'snake>air': ['absorb', 'squeeze'],
+      'snake>water': ['splash', 'drench'],
+    };
+    for (const [key, [attack, reaction]] of Object.entries(expected)) {
+      const [winner = '', loser = ''] = key.split('>');
+      expect(matchupFor(winner, loser), key).toEqual({ attack, reaction, key });
+    }
+    // The rule for every relation, so a new gesture set cannot bring a bite on water back.
+    for (const { winner, loser } of allRelations()) {
+      if (loser !== 'air' && loser !== 'water') continue;
+      const { attack, reaction } = matchupFor(winner, loser);
+      expect(['bite', 'punch', 'entangle'], `${winner}>${loser}`).not.toContain(attack);
+      expect(['bind', 'knockback', 'chomp'], `${winner}>${loser}`).not.toContain(reaction);
+    }
+  });
+
+  it('covers every loser of paper with a sheet (the generic wrap reaction, no override needed)', () => {
+    const losers = allRelations()
+      .filter((r) => r.winner === 'paper')
+      .map((r) => r.loser);
+    expect(losers.sort()).toEqual(['air', 'devil', 'dragon', 'gun', 'lightning', 'rock', 'spock', 'water']);
+    for (const loser of losers) {
+      expect(matchupFor('paper', loser), loser).toEqual({ attack: 'wrap', reaction: 'cover', key: `paper>${loser}` });
+      expect(Object.hasOwn(PAIR_OVERRIDES, `paper>${loser}`), loser).toBe(false);
+    }
   });
 
   it('only overrides pairs that exist as relations', () => {

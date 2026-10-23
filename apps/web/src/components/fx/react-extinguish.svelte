@@ -1,7 +1,7 @@
 <script lang="ts">
   /*
-   * Extinguish (the water>fire override; the attack graphic is splash): the doused fire goes out in a
-   * hiss of steam. A grey-blue wash dims the sticker and white steam puffs billow up over it. Decorative,
+   * Extinguish (fire as the loser): the fire goes out. A wash dims the sticker (grey-blue and wet when
+   * water douses it, smoke-grey for every other attacker) and white puffs billow up over it. Decorative,
    * stacked on the sticker and clipped to its disc. The end pose lives in animations.css, "fx static:
    * burn / char, extinguish". Markup only; it ignores the overlay props ({ gesture, size }).
    */
@@ -43,8 +43,13 @@
     height: 100%;
   }
 
-  /* Wet ash: the flame underneath goes dull. */
+  /* Smothered: the flame underneath goes dull under grey smoke. */
   .extinguish-wash {
+    background: radial-gradient(circle at 50% 70%, var(--line) 0%, var(--grey) 75%);
+  }
+
+  /* Wet ash, only when water put it out (the splash graphic is in the same card). */
+  :global(.player:has(.fx--splash)) .extinguish-wash {
     background: radial-gradient(circle at 50% 70%, var(--grey) 10%, var(--sky) 90%);
   }
 

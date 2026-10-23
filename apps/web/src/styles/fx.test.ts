@@ -34,7 +34,7 @@ const rulesWith = (css: string, needle: string): string[] =>
 const SCENES = [
   'smash / crumble',
   'slash / split',
-  'wrap / fold',
+  'wrap / cover',
   'shoot / perforate',
   'bite / chomp',
   'punch / knockback',

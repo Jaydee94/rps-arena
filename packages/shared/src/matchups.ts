@@ -22,7 +22,7 @@ export type Attack =
 export type Reaction =
   | 'crumble'
   | 'split'
-  | 'fold'
+  | 'cover'
   | 'char'
   | 'drench'
   | 'blow'
@@ -68,7 +68,7 @@ export const GESTURE_ATTACK: Readonly<Record<string, Attack>> = Object.freeze({
 export const REACTION_FOR_ATTACK: Readonly<Record<Attack, Reaction>> = Object.freeze({
   smash: 'crumble',
   slash: 'split',
-  wrap: 'fold',
+  wrap: 'cover',
   burn: 'char',
   splash: 'drench',
   gust: 'blow',
@@ -87,6 +87,28 @@ export const PAIR_OVERRIDES: Readonly<Record<string, Partial<Pick<Matchup, 'atta
   Object.freeze({
     // Water does not soak fire like paper, it puts it out.
     'water>fire': Object.freeze({ reaction: 'extinguish' as const }),
+
+    // The sentence is canon: Spock smashes the scissors, the lizard eats the paper.
+    'spock>scissors': Object.freeze({ attack: 'smash' as const }),
+    'lizard>paper': Object.freeze({ attack: 'bite' as const }),
+
+    // Fire as the loser: a flame does not char, crumble or get shot full of holes, it goes out.
+    'rock>fire': Object.freeze({ reaction: 'extinguish' as const }),
+    'air>fire': Object.freeze({ reaction: 'extinguish' as const }),
+    'gun>fire': Object.freeze({ reaction: 'extinguish' as const }),
+    'lightning>fire': Object.freeze({ reaction: 'extinguish' as const }),
+    'dragon>fire': Object.freeze({ reaction: 'extinguish' as const }),
+    'devil>fire': Object.freeze({ reaction: 'extinguish' as const }),
+
+    // Nothing to tie up, punch or bite on air and water: they are taken in, blown away or splashed.
+    'tree>water': Object.freeze({ attack: 'absorb' as const }),
+    'tree>air': Object.freeze({ attack: 'absorb' as const }),
+    'human>air': Object.freeze({ attack: 'absorb' as const }),
+    'human>water': Object.freeze({ attack: 'absorb' as const }),
+    'wolf>air': Object.freeze({ attack: 'gust' as const }),
+    'wolf>water': Object.freeze({ attack: 'splash' as const }),
+    'snake>air': Object.freeze({ attack: 'absorb' as const }),
+    'snake>water': Object.freeze({ attack: 'splash' as const }),
   });
 
 const SET_IDS: readonly GestureSetId[] = ['classic', 'lizard-spock', 'wheel7', 'wheel9', 'wheel15'];

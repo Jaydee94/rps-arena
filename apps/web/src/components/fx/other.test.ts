@@ -18,7 +18,7 @@ vi.mock('../../lib/connection', async () => (await import('../../test/connection
 const SCENES: { attack: Attack; reaction: Reaction; part: string; overlay: string; winner: string; loser: string }[] = [
   { attack: 'curse', reaction: 'hexed', part: '.curse-ring', overlay: '.hexed-veil', winner: 'devil', loser: 'human' },
   { attack: 'poison', reaction: 'wobble', part: '.poison-splat', overlay: '.wobble-slime', winner: 'lizard', loser: 'spock' },
-  { attack: 'entangle', reaction: 'bind', part: '.entangle-vine', overlay: '.bind-band', winner: 'tree', loser: 'water' },
+  { attack: 'entangle', reaction: 'bind', part: '.entangle-vine', overlay: '.bind-band', winner: 'tree', loser: 'wolf' },
 ];
 
 function reveal(lastRound: RoundResult, you: SeatId = 'a0', team = false): RoomView {

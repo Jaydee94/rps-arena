@@ -1043,14 +1043,14 @@
     }
   }
 
-  /* ---- fx: wrap / fold ---- */
+  /* ---- fx: wrap / cover ---- */
 
   /* Paper: rears back, then flaps over towards the other sticker like a thrown sheet, fluttering as it lands. */
   .player .reveal-art.attack-wrap {
     animation: fx-wrap-swoop var(--fx-dur) linear var(--fx-delay) both;
   }
 
-  /* A ruled sheet swoops in behind the struck sticker and closes round it; string winds round the parcel. */
+  /* A ruled sheet sails in from the attacker and lands on the struck sticker; string winds round it. */
   .fx--wrap .wrap-sheet {
     animation: fx-wrap-sheet calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
   }
@@ -1059,17 +1059,17 @@
     animation: fx-wrap-swirl calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
   }
 
-  /* The loser: squeezed by the wrapping, the flaps fold in and the tape seals them; then it tips over, greyed. */
-  .player.loser .reveal-art.react-fold {
-    animation: fx-fold-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  /* Cover (every paper win): a sheet drops onto the loser, its corners curl up; it sinks, greyed. */
+  .player.loser .reveal-art.react-cover {
+    animation: fx-cover-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
   }
 
-  .react-fold .fold-flap {
-    animation: fx-fold-flap calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  .react-cover .cover-sheet {
+    animation: fx-cover-sheet calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
   }
 
-  .react-fold .fold-tape {
-    animation: fx-fold-tape calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  .react-cover .cover-curl {
+    animation: fx-cover-curl calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
   }
 
   @keyframes fx-wrap-swoop {
@@ -1117,31 +1117,31 @@
     }
   }
 
+  /* Small, from the attacker's corner, landing on the sticker; gone as the reaction's paper settles on it. */
   @keyframes fx-wrap-sheet {
     0% {
       opacity: 0;
-      scale: 0.3;
-      rotate: -60deg;
+      translate: calc(46% * var(--from)) calc(46% * var(--from));
+      scale: 0.42;
+      rotate: -50deg;
+      animation-timing-function: ease-in;
     }
-    6% {
+    5% {
       opacity: 1;
     }
-    16% {
-      scale: 1.08;
-      rotate: 6deg;
-    }
-    26% {
-      scale: 1;
-      rotate: 0deg;
-    }
-    58% {
+    14% {
       opacity: 1;
-      scale: 0.96;
+      translate: calc(8% * var(--from)) calc(8% * var(--from));
+      scale: 0.66;
+      rotate: 4deg;
+      animation-timing-function: ease-out;
     }
+    24%,
     100% {
       opacity: 0;
-      scale: 0.7;
-      rotate: -4deg;
+      translate: 0 0;
+      scale: 0.56;
+      rotate: 0deg;
     }
   }
 
@@ -1167,76 +1167,82 @@
     }
   }
 
-  @keyframes fx-fold-sticker {
-    0% {
+  /* The loser ducks as the sheet lands on it, then settles under it, tipped and greyed. */
+  @keyframes fx-cover-sticker {
+    0%,
+    12% {
       translate: 0 0;
       scale: 1;
       rotate: 0deg;
       filter: none;
     }
-    5% {
-      translate: 0 2%;
-      scale: 0.84 1.06;
+    18% {
+      translate: 0 3%;
+      scale: 1.06 0.9;
       rotate: 0deg;
     }
-    13% {
-      scale: 1.04 0.95;
-      rotate: 3deg;
-    }
-    22% {
-      scale: 0.9 1;
-      rotate: -2deg;
-    }
-    34% {
+    26% {
       translate: 0 0;
-      scale: 0.94;
-      rotate: 0deg;
-      filter: none;
-      animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5);
-    }
-    66% {
-      translate: 0 8px;
-      scale: 0.92;
-      rotate: -10deg;
-      filter: saturate(0.35);
+      scale: 0.97 1.02;
+      rotate: -3deg;
+      filter: saturate(0.6);
       animation-timing-function: ease-out;
     }
+    50%,
     100% {
       translate: 0 6px;
-      scale: 0.92;
-      rotate: -8deg;
-      filter: saturate(0.35);
+      scale: 0.94;
+      rotate: -6deg;
+      filter: saturate(0.4);
     }
   }
 
-  @keyframes fx-fold-flap {
+  /* From the attacker's side (+x, y towards the other sticker), sailing down onto the face and flattening. */
+  @keyframes fx-cover-sheet {
     0% {
       opacity: 0;
-      scale: 0 1;
+      translate: 24% calc(28% * var(--fx-toward));
+      scale: 1.1;
+      rotate: 24deg;
+      animation-timing-function: ease-in;
     }
-    3% {
+    6% {
       opacity: 1;
     }
-    14% {
-      scale: 1.12 1;
+    16% {
+      translate: 4% calc(5% * var(--fx-toward));
+      scale: 1.06;
+      rotate: -8deg;
+      animation-timing-function: ease-out;
     }
-    22%,
+    24% {
+      translate: -2% 0;
+      scale: 0.98;
+      rotate: 4deg;
+    }
+    34%,
     100% {
       opacity: 1;
+      translate: 0 0;
       scale: 1;
+      rotate: 0deg;
     }
   }
 
-  @keyframes fx-fold-tape {
+  /* Flat while it lands, then the two corners spring up and settle curled. */
+  @keyframes fx-cover-curl {
     0%,
-    20% {
-      opacity: 0;
-      scale: 0 1;
-    }
     22% {
+      opacity: 0;
+      scale: 0.2;
+    }
+    26% {
       opacity: 1;
     }
-    32%,
+    38% {
+      scale: 1.2;
+    }
+    48%,
     100% {
       opacity: 1;
       scale: 1;
@@ -4024,18 +4030,18 @@
   rotate: var(--sr);
 }
 
-/* ---- fx static: wrap / fold ---- */
+/* ---- fx static: wrap / cover ---- */
 
-/* Wrapped up: squeezed, tipped back and greyed, the paper flaps taped shut over its sides. */
-.player.loser .reveal-art.react-fold {
+/* Covered: a sheet lies over the sticker, two corners curled up; underneath it sits a little lower, tipped and greyed. */
+.player.loser .reveal-art.react-cover {
   translate: 0 6px;
-  scale: 0.92;
-  rotate: -8deg;
-  filter: saturate(0.35);
+  scale: 0.94;
+  rotate: -6deg;
+  filter: saturate(0.4);
 }
 
-.react-fold .fold-flap,
-.react-fold .fold-tape {
+.react-cover .cover-sheet,
+.react-cover .cover-curl {
   opacity: 1;
   scale: 1;
 }

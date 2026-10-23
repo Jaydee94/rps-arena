@@ -10,7 +10,7 @@ import { reactionArt } from './index';
 /** The physical scenes (Task 4a): attack, reaction, and whether the reaction draws overlay art. */
 const SCENES: { attack: Attack; reaction: string; overlay: boolean }[] = [
   { attack: 'slash', reaction: 'split', overlay: true },
-  { attack: 'wrap', reaction: 'fold', overlay: true },
+  { attack: 'wrap', reaction: 'cover', overlay: true },
   { attack: 'shoot', reaction: 'perforate', overlay: true },
   { attack: 'bite', reaction: 'chomp', overlay: true },
   { attack: 'punch', reaction: 'knockback', overlay: false },
@@ -61,6 +61,40 @@ describe('physical matchup scenes', () => {
       expect(pose.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/animation|transition/);
     });
   }
+});
+
+// The cover reaction (every paper win): a sheet with two curled corners, moving and resting in its own parts.
+describe('cover reaction', () => {
+  it('lays a decorative sheet over the sticker', () => {
+    const Art = reactionArt('cover');
+    if (!Art) throw new Error('react-cover missing');
+    const { container } = render(Art, { gesture: 'rock', size: 138 });
+    expect(container.querySelector('.cover')).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('.cover .cover-sheet')).not.toBeNull();
+    expect(container.querySelectorAll('.cover .cover-curl')).toHaveLength(2);
+    expect(container.querySelector('[data-gesture]')).toBeNull();
+  });
+
+  it('moves only with motion allowed, and rests covered in a static end pose', () => {
+    const scene = section(motion, '/* ---- fx: wrap / cover ---- */');
+    expect(scene).toMatch(/\.player\.loser \.reveal-art\.react-cover\s*\{[^}]*animation:/);
+    expect(scene).toMatch(/\.react-cover \.cover-sheet\s*\{[^}]*animation:/);
+    expect(scene).toMatch(/@keyframes fx-cover-sheet/);
+    const pose = section(statics, '/* ---- fx static: wrap / cover ---- */');
+    expect(pose).toMatch(/\.player\.loser \.reveal-art\.react-cover\s*\{[^}]*rotate:/);
+    expect(pose).toMatch(/\.react-cover \.cover-sheet/);
+  });
+});
+
+// Fire goes out for many attackers (matchups.ts): only water leaves the blue wet film, the rest is smoke.
+describe('extinguish wash', () => {
+  it('is smoke-grey by default and wet blue only next to the splash graphic', () => {
+    const src = readFileSync(join(import.meta.dirname, 'react-extinguish.svelte'), 'utf8');
+    const rule = (selector: string) => new RegExp(`${selector.replace(/[.()]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(src)?.[1] ?? '';
+    expect(rule('\n  .extinguish-wash')).toMatch(/background:[^;]*--grey/);
+    expect(rule('\n  .extinguish-wash')).not.toMatch(/--sky/);
+    expect(rule(':global(.player:has(.fx--splash)) .extinguish-wash')).toMatch(/--sky/);
+  });
 });
 
 /** The numbers of an SVG `transform` function, e.g. `translate(-47 17)` -> [-47, 17]. */
