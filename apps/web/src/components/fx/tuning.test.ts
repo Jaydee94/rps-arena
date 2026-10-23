@@ -60,6 +60,16 @@ describe('absorb: juice streams round the burst', () => {
     }
   });
 
+  it('passes the stops of a drop as style directives, not a composed style string', () => {
+    const { container } = render(ClashFx, { attack: 'absorb', side: 'theirs' });
+    const drop = container.querySelector<SVGElement>('.absorb-set--narrow .absorb-drop');
+    const values = ['--s', '--d', '--x1', '--y1', '--x4', '--y4', '--r0', '--r2', '--r4'].map((v) =>
+      drop?.style.getPropertyValue(v),
+    );
+    expect(values).toEqual(['1.8', '0ms', '39.1px', '39.8px', '158.0px', '0.0px', '53.7deg', '0.0deg', '-53.0deg']);
+    expect(source('absorb.svelte')).not.toMatch(/\bstyle\s*=/);
+  });
+
   it('runs the drops along those stops in the motion block', () => {
     expect(inside).toMatch(/\.fx--absorb \.absorb-stream \{\s*animation: fx-absorb-stream/);
     expect(inside).toMatch(/@keyframes fx-absorb-drop \{[\s\S]*?translate: var\(--x2\) var\(--y2\)/);
