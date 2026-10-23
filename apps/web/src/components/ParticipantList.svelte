@@ -23,9 +23,9 @@
         <span class="nick">{p.nickname}</span>
         {#if p.id === youId || p.id === hostId || !p.connected}
           <span class="tags">
-            {#if p.id === youId}<span>{t('tournament.you')}</span>{/if}
-            {#if p.id === hostId}<span>{t('tournament.host')}</span>{/if}
-            {#if !p.connected}<span>{t('lobby.disconnected')}</span>{/if}
+            {#if p.id === youId}<span data-kind="you">{t('tournament.you')}</span>{/if}
+            {#if p.id === hostId}<span data-kind="host">{t('tournament.host')}</span>{/if}
+            {#if !p.connected}<span data-kind="away">{t('lobby.disconnected')}</span>{/if}
           </span>
         {/if}
       </span>
@@ -81,10 +81,29 @@
     font-weight: 700;
   }
 
+  /*
+   * The pills sit on a card that is light in both themes (--sticker), so they use bright tokens with the
+   * always-dark --on-bright text and outline: never --paper-2 or --surface, which turn dark in dark mode.
+   * The three kinds also differ in shape, not only colour: You is sky, Host is yellow, the lost connection
+   * is a dashed pill.
+   */
   .tags > span {
     padding: 0 var(--space-2);
-    border: 2px solid var(--edge);
+    border: 2px solid var(--on-bright);
     border-radius: var(--radius-pill);
-    background: var(--paper-2);
+    background: var(--sticker);
+    color: var(--on-bright);
+  }
+
+  .tags > [data-kind='you'] {
+    background: var(--sky);
+  }
+
+  .tags > [data-kind='host'] {
+    background: var(--yellow);
+  }
+
+  .tags > [data-kind='away'] {
+    border-style: dashed;
   }
 </style>
