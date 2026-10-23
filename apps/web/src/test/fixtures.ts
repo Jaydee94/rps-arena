@@ -1,5 +1,6 @@
 import type {
   PlayerView,
+  PublicPairing,
   PublicMatch,
   PublicPlayer,
   PublicTournament,
@@ -60,6 +61,22 @@ export function makeTournament(overrides: Partial<PublicTournament> & { n?: numb
     hostId: 'p0',
     untilMs: null,
     ...rest,
+  };
+}
+
+/** A pairing: by default an undecided round-1 best-of-3 between `p0` and `p1`. */
+export function makePairing(overrides: Partial<PublicPairing> = {}): PublicPairing {
+  return {
+    id: 'r1-1',
+    round: 1,
+    a: 'p0',
+    b: 'p1',
+    bestOf: 3,
+    tiebreak: false,
+    winner: null,
+    decidedBy: null,
+    score: null,
+    ...overrides,
   };
 }
 
