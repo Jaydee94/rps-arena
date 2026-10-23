@@ -100,7 +100,7 @@ export const PAIR_OVERRIDES: Readonly<Record<string, Partial<Pick<Matchup, 'atta
     'dragon>fire': Object.freeze({ reaction: 'extinguish' as const }),
     'devil>fire': Object.freeze({ reaction: 'extinguish' as const }),
 
-    // Nothing to tie up, punch or bite on air and water: they are taken in, blown away, splashed or parted.
+    // Nothing to tie up, punch or bite on air and water: they are taken in, blown away or splashed.
     'tree>water': Object.freeze({ attack: 'absorb' as const }),
     'tree>air': Object.freeze({ attack: 'absorb' as const }),
     'human>air': Object.freeze({ attack: 'absorb' as const }),
@@ -108,7 +108,7 @@ export const PAIR_OVERRIDES: Readonly<Record<string, Partial<Pick<Matchup, 'atta
     'wolf>air': Object.freeze({ attack: 'gust' as const }),
     'wolf>water': Object.freeze({ attack: 'splash' as const }),
     'snake>air': Object.freeze({ attack: 'absorb' as const }),
-    'snake>water': Object.freeze({ attack: 'slash' as const }),
+    'snake>water': Object.freeze({ attack: 'splash' as const }),
   });
 
 const SET_IDS: readonly GestureSetId[] = ['classic', 'lizard-spock', 'wheel7', 'wheel9', 'wheel15'];

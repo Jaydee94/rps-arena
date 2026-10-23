@@ -202,7 +202,7 @@ describe('matchupFor', () => {
     }
   });
 
-  it('never ties up, punches or bites air and water: they are taken in, blown away, splashed or parted', () => {
+  it('never ties up, punches or bites air and water: they are taken in, blown away or splashed', () => {
     const expected: Record<string, [Attack, string]> = {
       'tree>water': ['absorb', 'squeeze'],
       'tree>air': ['absorb', 'squeeze'],
@@ -211,7 +211,7 @@ describe('matchupFor', () => {
       'wolf>air': ['gust', 'blow'],
       'wolf>water': ['splash', 'drench'],
       'snake>air': ['absorb', 'squeeze'],
-      'snake>water': ['slash', 'split'],
+      'snake>water': ['splash', 'drench'],
     };
     for (const [key, [attack, reaction]] of Object.entries(expected)) {
       const [winner = '', loser = ''] = key.split('>');
