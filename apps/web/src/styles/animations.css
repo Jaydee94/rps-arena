@@ -124,11 +124,17 @@
     }
   }
 
-  /* In the reveal the burst pops at the moment of impact and then throbs (REVEAL section: throb). */
+  /*
+   * In the reveal the burst pops at the moment of impact and then throbs (REVEAL section: throb). The throb
+   * moves the burst's wrapper (RevealPanel's .impact): two animations of `scale` on one element cannot run
+   * on the compositor, and the burst would be repainted on every frame for the rest of the reveal.
+   */
   .clash .burst--animated {
-    animation:
-      burst-pop 520ms var(--ease-pop) var(--impact-at) both,
-      throb 1.1s ease-in-out calc(var(--impact-at) + 520ms) infinite;
+    animation: burst-pop 520ms var(--ease-pop) var(--impact-at) both;
+  }
+
+  .clash .impact {
+    animation: throb 1.1s ease-in-out calc(var(--impact-at) + 520ms) infinite;
   }
 
   /* ---- Result: confetti for the winner, a sad wobble for the loser ---- */
@@ -456,11 +462,15 @@
 
   /* ==== REVEAL (slam, speed lines, flash, burst, loser) ==== */
 
-  /* Rays burst out at the impact, then keep turning slowly (the static look is opacity .45, see SpeedLines). */
+  /*
+   * Rays burst out at the impact, then keep turning slowly (the static look is opacity .45, see SpeedLines).
+   * The burst owns scale and opacity, the spin alone owns rotate: two animations of one property on an element
+   * cannot run on the compositor, and the 760px conic gradient would be repainted on every frame of the reveal.
+   */
   .speed-lines {
     animation:
       speed-lines 1.1s ease-out var(--impact-at) both,
-      speed-spin 30s linear calc(var(--impact-at) + 1.1s) infinite;
+      speed-spin 30s linear var(--impact-at) infinite;
   }
 
   /* Opacity 0 at rest: without motion there is no flash at all. */
@@ -489,16 +499,15 @@
     100% {
       opacity: 0.5;
       scale: 1.3;
-      rotate: 14deg;
     }
   }
 
   @keyframes speed-spin {
     from {
-      rotate: 14deg;
+      rotate: 0deg;
     }
     to {
-      rotate: 374deg;
+      rotate: 360deg;
     }
   }
 
