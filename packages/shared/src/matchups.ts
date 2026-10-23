@@ -101,14 +101,14 @@ export const PAIR_OVERRIDES: Readonly<Record<string, Partial<Pick<Matchup, 'atta
     'dragon>fire': Object.freeze({ reaction: 'extinguish' as const }),
     'devil>fire': Object.freeze({ reaction: 'extinguish' as const }),
 
-    // Nothing to tie up, punch or bite on air and water: they are taken in, blown about or splashed.
+    // Nothing to tie up, punch or bite on air and water: they are taken in, blown away, splashed or parted.
     'tree>water': Object.freeze({ attack: 'absorb' as const }),
     'tree>air': Object.freeze({ attack: 'absorb' as const }),
     'human>air': Object.freeze({ attack: 'absorb' as const }),
     'human>water': Object.freeze({ attack: 'absorb' as const }),
     'wolf>air': Object.freeze({ attack: 'gust' as const }),
-    'wolf>water': Object.freeze({ reaction: 'drench' as const }),
-    'snake>air': Object.freeze({ reaction: 'blow' as const }),
+    'wolf>water': Object.freeze({ attack: 'splash' as const }),
+    'snake>air': Object.freeze({ attack: 'absorb' as const }),
     'snake>water': Object.freeze({ attack: 'slash' as const }),
 
     // Paper covers its loser like a sheet laid over it instead of taping it up.

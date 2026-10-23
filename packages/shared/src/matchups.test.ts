@@ -209,17 +209,19 @@ describe('matchupFor', () => {
       'human>air': ['absorb', 'squeeze'],
       'human>water': ['absorb', 'squeeze'],
       'wolf>air': ['gust', 'blow'],
-      'wolf>water': ['bite', 'drench'],
-      'snake>air': ['bite', 'blow'],
+      'wolf>water': ['splash', 'drench'],
+      'snake>air': ['absorb', 'squeeze'],
       'snake>water': ['slash', 'split'],
     };
     for (const [key, [attack, reaction]] of Object.entries(expected)) {
       const [winner = '', loser = ''] = key.split('>');
       expect(matchupFor(winner, loser), key).toEqual({ attack, reaction, key });
     }
+    // The rule for every relation, so a new gesture set cannot bring a bite on water back.
     for (const { winner, loser } of allRelations()) {
       if (loser !== 'air' && loser !== 'water') continue;
-      const { reaction } = matchupFor(winner, loser);
+      const { attack, reaction } = matchupFor(winner, loser);
+      expect(['bite', 'punch', 'entangle'], `${winner}>${loser}`).not.toContain(attack);
       expect(['bind', 'knockback', 'chomp'], `${winner}>${loser}`).not.toContain(reaction);
     }
   });
