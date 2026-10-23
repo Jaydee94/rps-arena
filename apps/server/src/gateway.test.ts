@@ -1084,11 +1084,23 @@ describe('gateway: tournaments', () => {
     // The new participant left the shared spectator channel: no `me: null` view after its own one.
     expect(h.io.sockets.adapter.rooms.get(spectatorChannel(code))).toBeUndefined();
     expect(h.io.sockets.adapter.rooms.get(participantChannel(code, sId!))?.has(s.socket.id!)).toBe(true);
+    // Force the rematch race: a `bind` of the former spectator that committed before the rematch
+    // joins `:spec` only after the re-homing. It must still get exactly one view per change.
+    h.io.in(participantChannel(code, sId!)).socketsJoin(spectatorChannel(code));
+    expect(h.io.sockets.adapter.rooms.get(spectatorChannel(code))?.has(s.socket.id!)).toBe(true);
     const count = states(s).length;
     host.c.send('room:start');
     const sDraw = await s.next<SpectatorView>('room:state', tPhase('draw'));
     expect(sDraw.me).toEqual({ id: sId });
     expect(states(s).length - count).toBe(1);
+    // A plain spectator joins the running tournament: the shared view goes out on `:spec`, yet the
+    // participant still on `:spec` receives only its own view.
+    const before = states(s).length;
+    await spectate(h, code, 'Max');
+    const own = await s.next<SpectatorView>('room:state', (v) => v.spectators[0]?.nickname === 'Max');
+    expect(own.me).toEqual({ id: sId });
+    await roundTrip(s);
+    expect(states(s).length - before).toBe(1);
   });
 
   it('a pairing member and a waiting participant come back by token with the right view', async () => {

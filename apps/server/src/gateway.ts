@@ -64,9 +64,10 @@ export interface Gateway {
   broadcast(room: Room): void;
   /**
    * Detaches all sockets from a deleted room. `room` is its last stored state (the ticker passes
-   * it): its participants' and spectators' personal channels are left too.
+   * it); it is required because the personal channels of its participants and spectators are
+   * named by their ids and are left too.
    */
-  dropRoom(code: string, room?: Room): void;
+  dropRoom(code: string, room: Room): void;
   /** Resolves once no socket event is being processed (for graceful shutdown). */
   idle(): Promise<void>;
 }
@@ -201,6 +202,17 @@ function errorCodeOf(error: unknown): ErrorCode {
 }
 
 /**
+ * Notes for clients (hazards and conventions):
+ * - `room:state` snapshots carry no version. A `bind` sends its snapshot after the store update,
+ *   so in rare interleavings a late snapshot can overtake a newer one (inherited from Stage 1);
+ *   the next change corrects it.
+ * - In tournament rooms `room:joined.role`/`seat` only describe the binding at that moment (a
+ *   pairing member is `player` on a0/b0, everyone else `spectator` with seat null). Pairing changes
+ *   send no new `room:joined`, so clients route on `room:state.role` and `me` (`me` set = a
+ *   participant), never on `room:joined.role`. `hostSeat` is meaningless in tournament views; use
+ *   `isHost`.
+ * - `tournament:skip`, like the other host events, answers `bad_token` for an unbound socket.
+ *
  * Wires the client events to the engine. Every change goes through `store.update`, so it is
  * atomic across replicas; afterwards each seat gets its `viewFor` view on its seat channel and all
  * spectators share one `spectatorViewFor` view on the spectator channel. Spectators may only watch:
@@ -261,13 +273,20 @@ export function createGateway(
         seat ? viewFor(room, seat) : participantViewFor(room, participant.id),
       );
     }
-    if (spectatorsOf(room).length > 0) io.to(spectatorChannel(room.code)).emit('room:state', spectatorViewFor(room));
+    if (spectatorsOf(room).length > 0) {
+      // Never to a participant: a socket that still sits on `:spec` (e.g. a spectator's `bind`
+      // that committed before a rematch made it a participant and joined `:spec` only after
+      // `rehomeTournament` ran) would otherwise get the shared `me: null` view next to its own.
+      const participantChannels = (room.tournament?.participants ?? []).map((p) => participantChannel(room.code, p.id));
+      io.to(spectatorChannel(room.code)).except(participantChannels).emit('room:state', spectatorViewFor(room));
+    }
   }
 
   /**
    * After a tournament rematch some spectators became participants (and disconnected participants
    * may have become spectators): move their sockets, on any replica, between the shared spectator
-   * channel and their personal one only. Runs before the broadcast.
+   * channel and their personal one only. Runs before the broadcast. This is cleanup only: the
+   * shared spectator emit already excludes every participant channel (see `broadcastTournament`).
    */
   function rehomeTournament(room: Room): void {
     for (const participant of room.tournament?.participants ?? []) {
@@ -278,8 +297,8 @@ export function createGateway(
     }
   }
 
-  function dropRoom(code: string, room?: Room): void {
-    const people = room ? [...(room.tournament?.participants ?? []), ...spectatorsOf(room)] : [];
+  function dropRoom(code: string, room: Room): void {
+    const people = [...(room.tournament?.participants ?? []), ...spectatorsOf(room)];
     io.in(code).socketsLeave([
       code,
       ...(['a0', 'a1', 'b0', 'b1'] as const).map((s) => seatChannel(code, s)),
