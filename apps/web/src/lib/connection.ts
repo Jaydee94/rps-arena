@@ -153,3 +153,5 @@ export const announce = (emote: string | null) => send('game:announce', { emote 
 export const pick = (gesture: string) => send('game:pick', { gesture });
 export const next = () => send('game:next', {});
 export const rematch = () => send('room:rematch', {});
+/** Host only: ends the tournament draw animation or the intermission early. */
+export const skipWait = () => send('tournament:skip', {});

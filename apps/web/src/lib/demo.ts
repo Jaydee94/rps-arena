@@ -1,13 +1,16 @@
 /**
- * DEV-ONLY: `?demo=home|lobby|board|reveal|result|spectate|gallery` renders a screen from mock data, so the look
+ * DEV-ONLY: `?demo=home|lobby|board|reveal|result|spectate|gallery|tournament-lobby|tournament-draw|tournament-intermission|tournament-finished` renders a screen from mock data, so the look
  * can be checked without a server. main.ts imports this module only behind `import.meta.env.DEV`,
  * so it never reaches a production build.
  *
  * Extra query params: mode=<mode id>, outcome=win|lose|draw, picked=1, phase=announce, left=<seconds>, bot=1,
  * watchers=<n> (spectators in the lobby/board room), and for `spectate`: phase=pick|announce|reveal|finished|lobby (no match).
+ * Tournament demos: n=<4..8 participants>, format=knockout|roundrobin, as=spectator (a plain spectator without `me`), mode=<non-bluff, non-2v2 mode>.
  */
 import { REVEAL_MS, type PlayerView, type PublicMatch, type PublicPlayer, type PublicSpectator, type RoomConfig, type RoomView, type RoundResult, type SeatId } from '@rps/shared';
 import { setDemoState } from './connection';
+import { demoTournament } from './demo-tournament';
+import { TOURNAMENT_MODES } from './tournament-ui';
 
 type Params = URLSearchParams;
 
@@ -52,7 +55,44 @@ function watchers(n: number): PublicSpectator[] {
 
 const MODES = ['classic', 'lizard-spock', 'wheel7', 'wheel9', 'wheel15', 'bluff', 'team2v2'] as const;
 
+const TOURNAMENT_PHASES = {
+  'tournament-lobby': 'lobby',
+  'tournament-draw': 'draw',
+  'tournament-intermission': 'intermission',
+  'tournament-finished': 'finished',
+} as const;
+
+/** A tournament screen as the host (or, with `as=spectator`, as a plain spectator) sees it. */
+function buildTournament(phase: (typeof TOURNAMENT_PHASES)[keyof typeof TOURNAMENT_PHASES], params: Params): RoomView {
+  const requested = params.get('mode');
+  const mode = TOURNAMENT_MODES.find((m) => m === requested) ?? 'wheel9';
+  const n = Math.min(8, Math.max(4, Number(params.get('n') ?? 5) || 5));
+  const spectator = params.get('as') === 'spectator';
+  const tournament = demoTournament({
+    format: params.get('format') === 'roundrobin' ? 'roundrobin' : 'knockout',
+    n,
+    phase,
+    youId: spectator ? null : 'd0',
+    // One person lost the connection in the default lobby (5 participants).
+    disconnected: phase === 'lobby' && n === 5 && !params.get('n') ? [3] : [],
+  });
+  return {
+    role: 'spectator',
+    code: 'KX7QZ',
+    config: { mode, bestOf: 3 },
+    hostSeat: 'a0',
+    isHost: !spectator,
+    me: spectator ? null : { id: 'd0' },
+    players: {},
+    spectators: watchers(Number(params.get('watchers') ?? 0)),
+    match: null,
+    tournament,
+    deadline: null,
+  };
+}
+
 function build(name: string, params: Params): RoomView | null {
+  if (name in TOURNAMENT_PHASES) return buildTournament(TOURNAMENT_PHASES[name as keyof typeof TOURNAMENT_PHASES], params);
   const requested = params.get('mode');
   const mode = MODES.find((m) => m === requested) ?? (name === 'lobby' ? 'team2v2' : name === 'board' ? 'wheel15' : 'lizard-spock');
   const config: RoomConfig = { mode, bestOf: 5 };

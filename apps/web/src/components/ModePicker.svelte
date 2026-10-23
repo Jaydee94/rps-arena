@@ -4,17 +4,19 @@
 
   interface Props {
     value: ModeId;
+    /** The modes on offer (default: all). */
+    modes?: readonly ModeId[];
   }
 
-  const MODES: readonly ModeId[] = ['classic', 'lizard-spock', 'wheel7', 'wheel9', 'wheel15', 'bluff', 'team2v2'];
+  const ALL_MODES: readonly ModeId[] = ['classic', 'lizard-spock', 'wheel7', 'wheel9', 'wheel15', 'bluff', 'team2v2'];
 
-  let { value = $bindable() }: Props = $props();
+  let { value = $bindable(), modes = ALL_MODES }: Props = $props();
 </script>
 
 <fieldset class="group">
   <legend>{t('home.mode')}</legend>
   <div class="modes">
-    {#each MODES as mode (mode)}
+    {#each modes as mode (mode)}
       {@const chosen = value === mode}
       <label class="mode" class:checked={chosen}>
         <input
