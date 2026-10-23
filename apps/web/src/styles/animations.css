@@ -547,9 +547,15 @@
    * - only translate, rotate, scale and opacity move (plus the loser's filter: saturate, as in loser-droop).
    */
 
-  /* The effect frame is invisible at rest (ClashFx): it only shows while motion is allowed. */
+  /*
+   * The effect frame is invisible at rest (ClashFx): it only shows while motion is allowed. Its own layer:
+   * the parts of the SVG art move on the main thread (Chrome does not composite SVG children), and without
+   * a layer each of their repaints re-rasters the panel and the dotted page behind them. The frame only
+   * exists during the reveal.
+   */
   .fx {
     animation: fx-frame 1ms linear both;
+    will-change: transform;
   }
 
   @keyframes fx-frame {

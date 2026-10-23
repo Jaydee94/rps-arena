@@ -67,4 +67,8 @@ describe('compositor-friendly motion', () => {
     expect(css).toMatch(/\.clash \.burst--animated\s*\{\s*animation:\s*burst-pop[^,;]*;\s*\}/);
     expect(css).toMatch(/\.clash \.impact\s*\{\s*animation:\s*throb\b/);
   });
+
+  it('gives the matchup effect frame a layer of its own while motion is allowed', () => {
+    expect(css).toMatch(/\n\s*\.fx\s*\{[^}]*will-change:\s*transform/);
+  });
 });
