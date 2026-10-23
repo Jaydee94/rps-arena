@@ -48,30 +48,22 @@
   /**
    * Drops running along the streams: each starts on the rim and travels the whole arc, pointing the way it
    * goes. Five stops per drop (--x1..--x4 / --y1..--y4 relative to the start, --r0..--r4 its heading) are read
-   * by the keyframes; --s is its size, --d its stagger.
+   * by the keyframes (`mx`, `my`, `r` below); --s is its size, --d its stagger.
    */
   const drops = (arc: (s: number) => Curve) =>
     SIDES.flatMap((s, side) =>
       [0, 1, 2].map((k) => {
         const curve = arc(s);
         const [x0, y0] = curve[0];
-        const vars: Record<string, string> = {};
-        [0.25, 0.5, 0.75, 1].forEach((t, i) => {
-          const [x, y] = at(curve, t);
-          vars[`--x${i + 1}`] = `${(x - x0).toFixed(1)}px`;
-          vars[`--y${i + 1}`] = `${(y - y0).toFixed(1)}px`;
-        });
-        [0, 0.25, 0.5, 0.75, 1].forEach((t, i) => {
-          vars[`--r${i}`] = `${heading(curve, t).toFixed(1)}deg`;
-        });
+        const stops = [0.25, 0.5, 0.75, 1].map((t) => at(curve, t));
         return {
           x: x0,
           y: y0,
-          style: [
-            `--s: ${[1.8, 1.5, 1.25][k] ?? 1}`,
-            `--d: ${k * 170 + side * 60}ms`,
-            ...Object.entries(vars).map(([key, value]) => `${key}: ${value}`),
-          ].join('; '),
+          s: [1.8, 1.5, 1.25][k] ?? 1,
+          d: k * 170 + side * 60,
+          mx: stops.map(([x]) => `${(x - x0).toFixed(1)}px`),
+          my: stops.map(([, y]) => `${(y - y0).toFixed(1)}px`),
+          r: [0, 0.25, 0.5, 0.75, 1].map((t) => `${heading(curve, t).toFixed(1)}deg`),
         };
       }),
     );
@@ -105,7 +97,24 @@
         {/each}
         {#each set.drops as drop, i (i)}
           <g transform="translate({drop.x} {drop.y})">
-            <g class="absorb-drop" style={drop.style}>
+            <g
+              class="absorb-drop"
+              style:--s={drop.s}
+              style:--d="{drop.d}ms"
+              style:--x1={drop.mx[0]}
+              style:--x2={drop.mx[1]}
+              style:--x3={drop.mx[2]}
+              style:--x4={drop.mx[3]}
+              style:--y1={drop.my[0]}
+              style:--y2={drop.my[1]}
+              style:--y3={drop.my[2]}
+              style:--y4={drop.my[3]}
+              style:--r0={drop.r[0]}
+              style:--r1={drop.r[1]}
+              style:--r2={drop.r[2]}
+              style:--r3={drop.r[3]}
+              style:--r4={drop.r[4]}
+            >
               <path class="absorb-juice" d={DROP} />
               <ellipse class="white absorb-shine" cx="-4" cy="-3" rx="3" ry="2" />
             </g>
