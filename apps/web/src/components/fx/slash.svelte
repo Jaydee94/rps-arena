@@ -25,9 +25,9 @@
 
   /** Speed lines parallel to the swoosh: offset across it and their length. */
   const LINES = [
-    { y: -24, x1: -70, x2: 30 },
-    { y: 22, x1: -30, x2: 74 },
-    { y: 34, x1: -84, x2: -20 },
+    { y: -34, x1: -96, x2: 20 },
+    { y: 30, x1: -30, x2: 96 },
+    { y: 44, x1: -110, x2: -30 },
   ];
 
   // A 4-point twinkle star around 0,0.
@@ -40,7 +40,7 @@
       {#each LINES as line, i (i)}
         <line class="slash-line" x1={line.x1} y1={line.y} x2={line.x2} y2={line.y} />
       {/each}
-      <path class="white slash-swoosh" d="M -100,6 C -50,-22 50,-26 100,-6 C 50,14 -50,18 -100,6 Z" />
+      <path class="white slash-swoosh" d="M -130,8 C -60,-34 60,-40 130,-8 C 60,22 -60,28 -130,8 Z" />
       {#each SPARKS as spark, i (i)}
         <g class="slash-spot" transform="translate({spark.x} {spark.y}) scale({spark.s})"><polygon class="yellow slash-spark" points={SPARK} /></g>
       {/each}
@@ -65,10 +65,10 @@
   /* The swoosh grows from its tail, the blade's path. */
   .slash-swoosh {
     transform-origin: 0% 50%;
-    stroke-width: 4;
+    stroke-width: 5;
   }
 
   .slash-line {
-    stroke-width: 3;
+    stroke-width: 5;
   }
 </style>
