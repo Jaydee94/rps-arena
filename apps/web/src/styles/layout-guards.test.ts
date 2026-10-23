@@ -175,3 +175,21 @@ describe('M2: the stamped tile never widens the page', () => {
     expect(pad).toContain('padding-inline: var(--space-2)');
   });
 });
+
+describe('T1: tournament marker pills stay readable in dark mode', () => {
+  const list = component('ParticipantList.svelte');
+  const pill = rule(list, '.tags > span');
+
+  it('draws the pills on bright tokens with the always-dark text colour', () => {
+    expect(pill).toMatch(/background:\s*var\(--(sticker|yellow|sky)\)/);
+    expect(pill).toContain('color: var(--on-bright)');
+    // --paper-2 and --surface turn dark in dark mode while --on-bright stays dark.
+    expect(strip(list)).not.toMatch(/--(paper-2|surface)\b/);
+  });
+
+  it('tells the You, Host and lost-connection pills apart beyond their text', () => {
+    expect(rule(list, ".tags > [data-kind='you']")).toContain('var(--sky)');
+    expect(rule(list, ".tags > [data-kind='host']")).toContain('var(--yellow)');
+    expect(rule(list, ".tags > [data-kind='away']")).toContain('border-style: dashed');
+  });
+});

@@ -108,6 +108,7 @@ export function tournamentViewFor(room: Room, forId: string | null): PublicTourn
     standings: t.state ? standings(t.state) : [],
     podium: t.state ? podium(t.state) : [],
     youId: forId,
+    hostId: t.hostId,
     untilMs: t.untilMs,
   };
 }
