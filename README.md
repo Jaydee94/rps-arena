@@ -41,6 +41,11 @@ Kubernetes (Helm, Redis) and is released automatically on every release-worthy m
 - **Rooms:** Whoever creates a room gets a 5-character code and a shareable link. The others join with the code
   or the link. Nickname and comic avatar (32 to choose from) are picked when joining; nothing is stored
   permanently.
+- **Spectators:** Anyone who joins a room whose match is already running (or finished) watches it live as a
+  spectator, up to `MAX_SPECTATORS` (16) per room; further joiners get "room full". Picks stay secret until the
+  reveal: spectators see who has locked in, never what, and no session tokens. Spectators do not take a seat, do
+  not count as players and never influence the match timing, the deadlines or the idle abort. A reload brings a
+  spectator back to the same room (session token). While a lobby is still waiting, a full room stays full.
 - **Bot:** Solo play against a bot on three levels (easy, medium, hard), in all duel modes (not 2v2).
 - **Match format:** Best of 3, 5 or 7, chosen by the room creator.
 - **Reveal time:** The round result stays on screen for 5.5 s (`REVEAL_MS`), including the countdown. If all
@@ -115,6 +120,7 @@ bot in this mode.
 | `ANNOUNCE_TIMEOUT_MS` | 8 s | Time for the announcement in Bluff mode. Whoever stays silent announces nothing. |
 | `REVEAL_MS` | 5.5 s | How long the round result stays on screen. The client first shows a short countdown ("Rock, Paper, Scissors", in German "Schnick, Schnack, Schnuck", about 1.26 s, skipped with reduced motion), so the result stays visible for the remainder. If all connected players are "next", the next round starts sooner. |
 | `RECONNECT_GRACE_MS` | 30 s | How long a disconnected player can return. After that they lose their duel in this and all further rounds (forfeit). |
+| `MAX_SPECTATORS` | 16 | Most spectators in one room. Disconnected spectators inside their grace period still count; further joins get `room_full`. |
 | `IDLE_ROUNDS_LIMIT` | 3 | See below. |
 | `ROOM_TTL_S` | 1800 s | Inactive rooms disappear from Redis after 30 minutes. |
 
@@ -168,6 +174,10 @@ Key properties:
   seat from an allow-list. For other seats, only *whether* they have picked is visible (`lockedSeats`), never
   *what*. Only after the reveal does the pick appear in `lastRound`. Other players' session tokens are never part
   of a view.
+- **Spectator channel:** Each seat has its own Socket.IO channel for its personal view; all spectators of a room
+  share one channel `<code>:spec` that carries a single identical view (`spectatorViewFor` in
+  `apps/server/src/view.ts`). It is built from the same allow-list as the seat views, so it never contains a
+  pick (`yourPick` is always `null`) or any token, and it is never emitted to a seated participant.
 - **Redis is the only state:** Rooms, scores and deadlines live in Redis. The server pods hold nothing that a
   restart would lose. Updates to a room are atomic read-modify-write operations, and the pods distribute events
   through the Socket.IO Redis adapter. Several replicas without sticky sessions are possible because the
