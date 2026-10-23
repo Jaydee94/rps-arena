@@ -2609,41 +2609,44 @@
       filter: none;
     }
     6% {
-      translate: -12% calc(2% * var(--fx-toward));
-      rotate: -18deg;
-    }
-    14% {
-      translate: -15% calc(2% * var(--fx-toward));
+      translate: -18% calc(2% * var(--fx-toward));
+      scale: 0.94 1.04;
       rotate: -22deg;
     }
+    14% {
+      translate: -22% calc(2% * var(--fx-toward));
+      scale: 0.96 1.02;
+      rotate: -26deg;
+    }
     24% {
-      translate: -9% calc(1% * var(--fx-toward));
-      rotate: -12deg;
+      translate: -12% calc(1% * var(--fx-toward));
+      scale: 1;
+      rotate: -14deg;
     }
     34% {
-      translate: -13% calc(2% * var(--fx-toward));
-      rotate: -19deg;
+      translate: -18% calc(2% * var(--fx-toward));
+      rotate: -21deg;
       filter: none;
     }
     46% {
-      translate: -8% calc(1% * var(--fx-toward));
-      rotate: -10deg;
+      translate: -10% calc(1% * var(--fx-toward));
+      rotate: -12deg;
       filter: saturate(0.6);
     }
     62% {
-      translate: -9% calc(1% * var(--fx-toward));
-      rotate: -15deg;
+      translate: -12% calc(1% * var(--fx-toward));
+      rotate: -17deg;
       animation-timing-function: ease-out;
     }
     80% {
-      translate: -7% calc(1% * var(--fx-toward));
-      rotate: -12deg;
+      translate: -9% calc(1% * var(--fx-toward));
+      rotate: -13deg;
     }
     100% {
-      translate: -7% calc(1% * var(--fx-toward));
+      translate: -10% calc(1% * var(--fx-toward));
       scale: 1;
-      rotate: -13deg;
-      filter: saturate(0.35);
+      rotate: -15deg;
+      filter: saturate(0.45);
     }
   }
 
@@ -4130,12 +4133,12 @@
 
 /*
  * Blown back: shoved sideways away from the wind (never towards its own name tag) and leaning away
- * from it, greyed, swoosh marks on its far side.
+ * from it, dulled, bold swoosh marks and a wind curl left on its far side.
  */
 .player.loser .reveal-art.react-blow {
-  translate: -7% calc(1% * var(--fx-toward));
-  rotate: -13deg;
-  filter: saturate(0.35);
+  translate: -10% calc(1% * var(--fx-toward));
+  rotate: -15deg;
+  filter: saturate(0.45);
 }
 
 /* ---- fx static: zap / shock ---- */

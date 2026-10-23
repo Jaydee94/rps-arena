@@ -9,17 +9,19 @@
    */
 
   /**
-   * Wind streaks passing around the sticker (never behind it): a gentle wave ending in a curl at the far
-   * (-x) end. y offset, start and end x, curl size, stagger.
+   * Bold wind streaks passing around the sticker (never behind it) and well beyond it on the lee side: a gentle
+   * wave, the outer ones ending in a curl at the far (-x) end. y offset, start and end x, curl size, stagger.
    */
   const STREAKS = [
-    { y: -74, x0: 70, x1: -36, c: 14, d: '0ms' },
-    { y: -58, x0: 96, x1: -10, c: 0, d: '90ms' },
-    { y: 60, x0: 92, x1: -20, c: 0, d: '40ms' },
-    { y: 76, x0: 66, x1: -44, c: 16, d: '130ms' },
+    { y: -82, x0: 74, x1: -108, c: 18, d: '0ms' },
+    { y: -60, x0: 92, x1: -78, c: 0, d: '90ms' },
+    { y: 60, x0: 90, x1: -86, c: 0, d: '40ms' },
+    { y: 82, x0: 70, x1: -112, c: 20, d: '130ms' },
+    { y: -104, x0: 40, x1: -60, c: 0, d: '170ms' },
+    { y: 104, x0: 36, x1: -66, c: 0, d: '200ms' },
   ].map(({ y, x0, x1, c, d }) => {
     const mid = (x0 + x1) / 2;
-    const wave = `M${x0},${y} C${mid + 20},${y - 8} ${mid - 20},${y + 8} ${x1},${y}`;
+    const wave = `M${x0},${y} C${mid + 24},${y - 10} ${mid - 24},${y + 10} ${x1},${y}`;
     const curl = c ? ` C${x1 - c},${y} ${x1 - c},${y - c * 1.4} ${x1},${y - c * 1.4} C${x1 + c * 0.7},${y - c * 1.4} ${x1 + c * 0.7},${y - c * 0.5} ${x1},${y - c * 0.6}` : '';
     return { d: wave + curl, delay: d };
   });
@@ -71,6 +73,15 @@
     rotate: 235deg;
   }
 
+  /* 2v2: the attacker sits beside the struck sticker (slightly above or below), not diagonally. */
+  :global(.compact .fx--at-mine) .gust-aim {
+    rotate: 12deg;
+  }
+
+  :global(.compact .fx--at-theirs) .gust-aim {
+    rotate: 193deg;
+  }
+
   .gust-cloud,
   .gust-streak,
   .gust-leaf {
@@ -80,11 +91,11 @@
 
   /* An outlined tube: a thick dark line under a thinner white one. */
   .gust-under {
-    stroke-width: 11;
+    stroke-width: 17;
   }
 
   .gust-top {
     stroke: var(--white);
-    stroke-width: 5;
+    stroke-width: 9;
   }
 </style>
