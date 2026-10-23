@@ -378,6 +378,29 @@ describe('matchup sounds', () => {
     }
   });
 
+  it('gives every attack sound and the clash a hit that sits on a real transient of its recipe', async () => {
+    const { audio, HIT_AT, SOUND_LENGTH } = await load();
+    expect(Object.keys(HIT_AT).sort()).toEqual([...names].sort());
+    audio.unlock();
+    const start = 10;
+    context().currentTime = start;
+    for (const name of names) {
+      const hitAt = HIT_AT[name as keyof typeof HIT_AT];
+      expect(hitAt, name).toBeGreaterThanOrEqual(0);
+      expect(hitAt, name).toBeLessThan(SOUND_LENGTH[name as keyof typeof SOUND_LENGTH]);
+      FakeAudioContext.nodes = [];
+      audio.play(name as Parameters<typeof audio.play>[0]);
+      // the hit is where a source starts (a snap, a thud) or where a gain envelope peaks (a swell)
+      const moments = FakeAudioContext.nodes.flatMap((node) => [
+        ...node.start.mock.calls.map(([at]) => (at as number) - start),
+        ...node.gain.linearRampToValueAtTime.mock.calls.map(([, at]) => (at as number) - start),
+      ]);
+      expect(moments.some((at) => Math.abs(at - hitAt) < 0.001), name).toBe(true);
+      // sounds with hitAt 0 open with their hit: a source starts exactly at the recipe start
+      if (hitAt === 0) expect(Math.min(...moments), name).toBeCloseTo(0);
+    }
+  });
+
   it('honours a start delay', async () => {
     const { audio } = await load();
     audio.unlock();

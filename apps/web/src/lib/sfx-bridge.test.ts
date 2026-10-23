@@ -16,10 +16,14 @@ vi.mock('./audio', () => ({
     { click: 0.1, lock: 0.2, reveal: 0.7, win: 0.6, lose: 0.9, draw: 0.4 } as Record<string, number>,
     { get: (lengths, name) => lengths[name as string] ?? 0.4 },
   ),
+  // Where the hit of each matchup sound is: slash opens with a whoosh, curse with a swell.
+  HIT_AT: new Proxy({ 'attack-slash': 0.17, 'attack-curse': 0.12 } as Record<string, number>, {
+    get: (hits, name) => hits[name as string] ?? 0,
+  }),
 }));
 vi.mock('./connection', () => ({ room: roomStore }));
 
-const { IMPACT_AT_S, createRoomSoundPlayer, diffRoomSounds, revealSoundsFor, scheduleRoomSounds, startSfxBridge } =
+const { CONTACT_S, FX_HIT_S, IMPACT_AT_S, RESULT_GAP_S, createRoomSoundPlayer, diffRoomSounds, revealSoundsFor, scheduleRoomSounds, startSfxBridge } =
   await import('./sfx-bridge');
 const { emitCountdownEnded } = await import('./countdown');
 const { motion } = await import('./motion');
@@ -593,6 +597,15 @@ describe('revealSoundsFor', () => {
     const match = /--impact-at:\s*(\d+)ms/.exec(css);
     expect(Number(match?.[1]) / 1000).toBeCloseTo(IMPACT_AT_S);
   });
+
+  it('keeps FX_HIT_S and CONTACT_S in step with --fx-hit and --fx-delay in tokens.css', () => {
+    const css = readFileSync(resolve(__dirname, '../styles/tokens.css'), 'utf8');
+    const hit = /--fx-hit:\s*(\d+)ms/.exec(css);
+    expect(Number(hit?.[1]) / 1000).toBeCloseTo(FX_HIT_S);
+    // the scene starts at --fx-delay (the impact) and its graphics and reaction at delay + hit
+    expect(/--fx-delay:\s*var\(--impact-at\)/.test(css)).toBe(true);
+    expect(CONTACT_S).toBeCloseTo(IMPACT_AT_S + FX_HIT_S);
+  });
 });
 
 describe('the attack sound at the impact', () => {
@@ -619,15 +632,46 @@ describe('the attack sound at the impact', () => {
   const picking = () => makeRoom({ match: { yourPick: 'rock' } });
   const smash = () => duelRoom('a0', 'rock', 'scissors', 'a');
 
-  it('is planned impact-at after the countdown, with the result after the attack sound', () => {
+  it('plans the hit on the contact, with the result after it and before the end of the attack sound', () => {
     const plan = scheduleRoomSounds(picking(), smash()).map(({ name, delay }) => [name, Number(delay.toFixed(3))]);
+    // countdown end 1.26 s; smash hits with its first sample (hitAt 0) at the contact 0.70 s; the
+    // result stays at its old place (impact + length = 0.84 s) but not before contact + 0.15 s
     expect(plan).toEqual([
-      ['attack-smash', 1.7],
-      ['win', 2.1],
+      ['attack-smash', 1.96],
+      ['win', 2.11],
     ]);
   });
 
-  it('starts impact-at after the natural end of the countdown, exactly once', () => {
+  it('starts a sound with a lead-in earlier, so that its hit lands on the contact', () => {
+    // slash: the first snip is at 0.17 s of the recipe
+    const slash = duelRoom('a0', 'scissors', 'paper', 'a');
+    const plan = scheduleRoomSounds(picking(), slash).map(({ name, delay }) => [name, Number(delay.toFixed(3))]);
+    expect(plan[0]).toEqual(['attack-slash', Number((1.26 + CONTACT_S - 0.17).toFixed(3))]);
+    // curse: the swell peaks at 0.12 s
+    const curse = duelRoom('a0', 'devil', 'rock', 'a');
+    expect(scheduleRoomSounds(picking(), curse)[0]?.delay).toBeCloseTo(1.26 + CONTACT_S - 0.12);
+  });
+
+  it('never starts a sound before the countdown end', () => {
+    for (const [a, b] of [['rock', 'scissors'], ['scissors', 'paper'], ['devil', 'rock'], ['rock', 'rock']] as const) {
+      const room = duelRoom('a0', a, b, a === b ? 'draw' : 'a');
+      const first = scheduleRoomSounds(picking(), room)[0];
+      expect(first?.delay, a).toBeGreaterThanOrEqual(1.26);
+    }
+  });
+
+  it('keeps the result sound at its old place or earlier than the end of the attack sound', () => {
+    // mocked attack sounds last 0.4 s; the old result time was impact + length after the countdown end
+    for (const [a, b] of [['rock', 'scissors'], ['scissors', 'paper'], ['devil', 'rock'], ['paper', 'rock']] as const) {
+      const [attack, result] = scheduleRoomSounds(picking(), duelRoom('a0', a, b, 'a'));
+      if (!attack || !result) throw new Error('no plan');
+      expect(result.delay, a).toBeLessThanOrEqual(attack.delay + 0.4 + 1e-9);
+      expect(result.delay, a).toBeGreaterThanOrEqual(1.26 + CONTACT_S + RESULT_GAP_S - 1e-9);
+      expect(result.delay, a).toBeLessThanOrEqual(1.26 + IMPACT_AT_S + 0.4 + RESULT_GAP_S + 1e-9);
+    }
+  });
+
+  it('starts the hit on the contact after the natural end of the countdown, exactly once', () => {
     player.update(picking(), smash());
     vi.advanceTimersByTime(1259);
     expect(played).toEqual([]);
@@ -635,35 +679,36 @@ describe('the attack sound at the impact', () => {
     player.countdownEnded(); // the Countdown's own end arrives just after the timer: no repeat
     vi.advanceTimersByTime(5000);
     expect(played).toEqual([
-      { name: 'attack-smash', delay: IMPACT_AT_S, at: 1260 },
-      { name: 'win', delay: Number((IMPACT_AT_S + 0.4).toFixed(3)), at: 1260 },
+      { name: 'attack-smash', delay: CONTACT_S, at: 1260 },
+      { name: 'win', delay: 0.85, at: 1260 },
     ]);
   });
 
-  it('starts impact-at after a skip, exactly once', () => {
+  it('starts the hit on the contact after a skip, exactly once', () => {
     player.update(picking(), smash());
     vi.advanceTimersByTime(200);
     player.countdownEnded();
     player.countdownEnded();
     vi.advanceTimersByTime(5000);
     expect(played).toEqual([
-      { name: 'attack-smash', delay: IMPACT_AT_S, at: 200 },
-      { name: 'win', delay: 0.84, at: 200 },
+      { name: 'attack-smash', delay: CONTACT_S, at: 200 },
+      { name: 'win', delay: 0.85, at: 200 },
     ]);
   });
 
-  it('lets the lock sound finish first, keeping the impact offset', () => {
+  it('lets a lock sound that is still playing push the chain, but not delay it otherwise', () => {
     player.update(makeRoom({ match: { yourPick: null } }), smash());
     vi.advanceTimersByTime(50);
     player.countdownEnded();
+    // the lock (0.2 s) has 0.15 s left, far less than the 0.70 s to the contact
     expect(played).toEqual([
       { name: 'lock', delay: 0, at: 0 },
-      { name: 'attack-smash', delay: 0.59, at: 50 },
-      { name: 'win', delay: 0.99, at: 50 },
+      { name: 'attack-smash', delay: CONTACT_S, at: 50 },
+      { name: 'win', delay: 0.85, at: 50 },
     ]);
   });
 
-  it('plays the clash for a draw at the impact', () => {
+  it('plays the clash for a draw at the impact, where the stickers meet', () => {
     player.update(picking(), duelRoom('a0', 'rock', 'rock', 'draw'));
     vi.advanceTimersByTime(1260);
     expect(played.map(({ name, delay }) => [name, delay])).toEqual([
@@ -690,12 +735,22 @@ describe('the attack sound at the impact', () => {
     expect(played).toEqual([]);
   });
 
-  it('plays at once with the impact offset without a countdown', () => {
+  it('plays at once, with the offset to the contact, without a countdown', () => {
     motion.countdownBeatMs = 0;
     player.update(picking(), smash());
     expect(played).toEqual([
-      { name: 'attack-smash', delay: IMPACT_AT_S, at: 0 },
-      { name: 'win', delay: 0.84, at: 0 },
+      { name: 'attack-smash', delay: CONTACT_S, at: 0 },
+      { name: 'win', delay: 0.85, at: 0 },
+    ]);
+  });
+
+  it('lets a lock sound only delay the attack when it is still playing, without a countdown', () => {
+    motion.countdownBeatMs = 0;
+    player.update(makeRoom({ match: { yourPick: null } }), smash());
+    expect(played).toEqual([
+      { name: 'lock', delay: 0, at: 0 },
+      { name: 'attack-smash', delay: CONTACT_S, at: 0 },
+      { name: 'win', delay: 0.85, at: 0 },
     ]);
   });
 });

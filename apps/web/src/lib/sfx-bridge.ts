@@ -1,5 +1,5 @@
 import { matchupFor, type RoomView } from '@rps/shared';
-import { audio, SOUND_LENGTH, type SoundName } from './audio';
+import { audio, HIT_AT, SOUND_LENGTH, type SoundName } from './audio';
 import { room } from './connection';
 import { onCountdownEnded, shouldCountDown } from './countdown';
 import { countdownMs } from './motion';
@@ -10,15 +10,55 @@ const teamOf = (seat: string): string => seat.charAt(0);
 /** Moment of impact after the reveal starts in seconds. Must equal --impact-at in styles/tokens.css. */
 export const IMPACT_AT_S = 0.44;
 
+/** The attack of a scene connects this long after the impact. Must equal --fx-hit in styles/tokens.css. */
+export const FX_HIT_S = 0.26;
+
+/**
+ * When an attack scene visibly connects after the reveal starts: its graphics and the reaction of
+ * the struck sticker start at `--fx-delay + --fx-hit` (measured in Chromium: the first changed
+ * frame of the reaction is at 0.70-0.74 s, it is half done at 0.80-0.87 s). The clash has no such
+ * scene; its stickers meet at the impact (flash 0.45 s, shake 0.48 s).
+ */
+export const CONTACT_S = IMPACT_AT_S + FX_HIT_S;
+
+/**
+ * After the contact of an attack the result sound waits this long (the hit has to be heard, and
+ * the result headline pops up at 0.9 s); see `followUpAt`.
+ */
+export const RESULT_GAP_S = 0.15;
+
 /** The sound that introduces the reveal: an attack sound, the clash or the generic reveal. */
 const isRevealSound = (name: SoundName): boolean =>
   name === 'reveal' || name === 'clash' || name.startsWith('attack-');
 
+/** Seconds after the reveal start at which the hit of the sound is visible (null: generic reveal). */
+const contactOf = (name: SoundName): number | null =>
+  name === 'reveal' ? null : name === 'clash' ? IMPACT_AT_S : CONTACT_S;
+
 /**
- * The attack and clash sounds are built to start at the impact of the scene; the generic reveal
+ * Start of a reveal sound after the countdown end: the hit of the sound lands on the visible
+ * contact, so it starts `contact - HIT_AT` in (never before the countdown end). The generic reveal
  * sound brings its own lead-in (a whoosh) and starts with the reveal.
  */
-const impactOffset = (name: SoundName): number => (name === 'reveal' ? 0 : IMPACT_AT_S);
+const startOffset = (name: SoundName): number => {
+  const contact = contactOf(name);
+  return contact === null ? 0 : Math.max(0, contact - HIT_AT[name as keyof typeof HIT_AT]);
+};
+
+/**
+ * When the sound after a reveal sound (the result) starts. Normally that is the end of the sound,
+ * but an attack sound now starts later than it used to (its hit moved from the impact to the
+ * contact), and the result must not slip with it. So the result is anchored to the countdown end
+ * instead: where it used to be (the impact plus the length of the sound), but not before the hit
+ * has been heard (contact plus `RESULT_GAP_S`), and at the latest at the end of the sound.
+ */
+const followUpAt = (name: SoundName, start: number): number => {
+  const end = start + SOUND_LENGTH[name];
+  const contact = contactOf(name);
+  if (contact === null) return end;
+  const anchor = start - startOffset(name); // the countdown end (later when a lock sound delays the start)
+  return Math.min(end, Math.max(anchor + IMPACT_AT_S + SOUND_LENGTH[name], anchor + contact + RESULT_GAP_S));
+};
 
 /**
  * Sounds of the transition into a reveal (pure): the sound of the first decided duel's attack, or
@@ -87,23 +127,24 @@ export function diffRoomSounds(prev: RoomView | null, next: RoomView | null): So
 /**
  * Sounds with their start delay in seconds (as in `audio.play(name, delay)`). Follow-ups start
  * when the previous sound has finished; the reveal sound additionally waits for the countdown
- * when one introduces the reveal, and an attack or clash sound lands `IMPACT_AT_S` after that.
+ * when one introduces the reveal, and an attack or clash sound starts so that its hit lands on the
+ * visible contact (`startOffset`). A lock sound before it only delays it when it is still playing.
  */
 export function scheduleRoomSounds(
   prev: RoomView | null,
   next: RoomView | null,
 ): { name: SoundName; delay: number }[] {
-  const countdown = shouldCountDown(prev, next);
-  const countdownSeconds = countdownMs() / 1000;
+  const base = shouldCountDown(prev, next) ? countdownMs() / 1000 : 0;
   let delay = 0;
   return diffRoomSounds(prev, next).map((name) => {
-    if (isRevealSound(name)) {
-      if (countdown) delay = Math.max(delay, countdownSeconds);
-      delay += impactOffset(name);
+    if (!isRevealSound(name)) {
+      const entry = { name, delay };
+      delay += SOUND_LENGTH[name];
+      return entry;
     }
-    const entry = { name, delay };
-    delay += SOUND_LENGTH[name];
-    return entry;
+    const start = Math.max(delay, base + startOffset(name));
+    delay = followUpAt(name, start);
+    return { name, delay: start };
   });
 }
 
@@ -131,7 +172,9 @@ export function createRoomSoundPlayer(play: (name: SoundName, delay: number) => 
     drop();
     // Sounds already started (lock) still finish before the reveal chain begins.
     const lead = Math.max(0, (leadUntil - Date.now()) / 1000);
-    for (const { name, delay } of sounds) play(name, lead + delay);
+    // The first sound waits for the lock only if that is still playing; the chain keeps its spacing.
+    const push = sounds[0] ? Math.max(0, lead - sounds[0].delay) : 0;
+    for (const { name, delay } of sounds) play(name, delay + push);
   };
 
   const update = (prev: RoomView | null, next: RoomView | null) => {
@@ -144,7 +187,7 @@ export function createRoomSoundPlayer(play: (name: SoundName, delay: number) => 
       for (const { name, delay } of planned) play(name, delay);
       return;
     }
-    const revealStart = reveal.delay - impactOffset(reveal.name);
+    const revealStart = countdownMs() / 1000;
     const now = planned.slice(0, gate);
     for (const { name, delay } of now) play(name, delay);
     const last = now.at(-1);
@@ -152,8 +195,8 @@ export function createRoomSoundPlayer(play: (name: SoundName, delay: number) => 
     drop();
     pending = {
       phase,
-      // Relative to the end of the countdown, so an attack sound keeps its impact offset.
-      sounds: planned.slice(gate).map(({ name, delay }) => ({ name, delay: delay - revealStart })),
+      // Relative to the end of the countdown, so an attack sound keeps its offset to the contact.
+      sounds: planned.slice(gate).map(({ name, delay }) => ({ name, delay: Math.max(0, delay - revealStart) })),
       leadUntil: Date.now() + leadSeconds * 1000,
     };
     timer = setTimeout(countdownEnded, countdownMs());
