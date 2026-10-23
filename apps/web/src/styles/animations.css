@@ -811,13 +811,1285 @@
 
   /* ---- fx: burn / char, extinguish ---- */
 
+  /* Fire, dragon: draws a breath (rears back, swells) and lunges flame-first at --fx-hit, flickering. */
+  .player .reveal-art.attack-burn {
+    animation: fx-burn-lunge var(--fx-dur) linear var(--fx-delay) both;
+  }
+
+  /* Flames climb the struck sticker's rim and flicker, embers fly up, smoke rises as the fire dies down. */
+  .fx--burn .burn-flame {
+    animation: fx-burn-flame calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit) + var(--d)) both;
+  }
+
+  .fx--burn .burn-ember {
+    animation: fx-burn-ember 900ms ease-out calc(var(--fx-delay) + var(--fx-hit) + 80ms) both;
+  }
+
+  .fx--burn .burn-smoke {
+    animation: fx-burn-smoke 760ms ease-out calc(var(--fx-delay) + var(--fx-hit) + 420ms + var(--d)) both;
+  }
+
+  /* The burnt sticker jumps ("hot!"), shakes, blackens from the rim inwards, smokes and keels over. */
+  .player.loser .reveal-art.react-char {
+    animation: fx-char-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-char .char-soot {
+    animation: fx-char-soot calc(var(--fx-dur) - var(--fx-hit)) ease-in calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-char .char-marks {
+    animation: fx-char-marks calc(var(--fx-dur) - var(--fx-hit)) ease-in calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-char .char-smoke {
+    animation: fx-char-smoke calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  /* Fire doused by water (water>fire; the graphic is the splash): squashed flat, shivers, goes out and steams. */
+  .player.loser .reveal-art.react-extinguish {
+    animation: fx-extinguish-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-extinguish .extinguish-wash {
+    animation: fx-extinguish-wash calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-extinguish .extinguish-puff {
+    animation: fx-extinguish-puff calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit) + 120ms + var(--d)) both;
+  }
+
+  @keyframes fx-burn-lunge {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+    9% {
+      translate: -8% calc(-2% * var(--fx-toward));
+      scale: 1.1 0.92;
+      rotate: -10deg;
+      animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+    }
+    19% {
+      translate: 22% calc(30% * var(--fx-toward));
+      scale: 1.24 0.84;
+      rotate: 6deg;
+    }
+    28% {
+      translate: 17% calc(23% * var(--fx-toward));
+      scale: 1.12 0.94;
+      rotate: -4deg;
+    }
+    36% {
+      translate: 12% calc(16% * var(--fx-toward));
+      scale: 1.04 1.1;
+      rotate: 5deg;
+    }
+    46% {
+      translate: 5% calc(7% * var(--fx-toward));
+      scale: 0.97 1.04;
+      rotate: -3deg;
+    }
+    56% {
+      translate: 0 0;
+      scale: 1.02 0.99;
+      rotate: 1deg;
+    }
+    66%,
+    100% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  @keyframes fx-burn-flame {
+    0% {
+      opacity: 0;
+      scale: 0.1;
+    }
+    8% {
+      opacity: 1;
+      scale: 1.16 0.9;
+    }
+    18% {
+      scale: 0.9 1.14;
+    }
+    28% {
+      scale: 1.08 0.94;
+    }
+    38% {
+      scale: 0.94 1.1;
+    }
+    48% {
+      scale: 1.04 0.98;
+    }
+    62% {
+      opacity: 1;
+      scale: 0.96 1.04;
+    }
+    100% {
+      opacity: 0;
+      scale: 0.3 0.6;
+    }
+  }
+
+  @keyframes fx-burn-ember {
+    0% {
+      opacity: 0;
+      translate: 0 0;
+      scale: 0.5;
+    }
+    10% {
+      opacity: 1;
+    }
+    70% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      translate: var(--dx) var(--dy);
+      scale: 0.6;
+    }
+  }
+
+  @keyframes fx-burn-smoke {
+    0% {
+      opacity: 0;
+      translate: 0 12px;
+      scale: 0.4;
+    }
+    30% {
+      opacity: 0.9;
+    }
+    100% {
+      opacity: 0;
+      translate: 0 -30px;
+      scale: 1.4;
+    }
+  }
+
+  @keyframes fx-char-sticker {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+      filter: none;
+    }
+    5% {
+      translate: 0 -5%;
+      scale: 0.9 1.12;
+      rotate: 0deg;
+    }
+    12% {
+      translate: 3% 0;
+      scale: 1.06 0.94;
+      rotate: 4deg;
+    }
+    18% {
+      translate: -3% 0;
+      scale: 1;
+      rotate: -4deg;
+    }
+    24% {
+      translate: 2% 0;
+      rotate: 3deg;
+    }
+    30% {
+      translate: -1% 0;
+      rotate: -2deg;
+      filter: none;
+    }
+    50% {
+      translate: 0 2px;
+      rotate: 2deg;
+      filter: saturate(0.6);
+      animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5);
+    }
+    72% {
+      translate: 0 11px;
+      rotate: 14deg;
+      filter: saturate(0.3);
+      animation-timing-function: ease-out;
+    }
+    84% {
+      translate: 0 7px;
+      rotate: 10deg;
+    }
+    100% {
+      translate: 0 9px;
+      scale: 1;
+      rotate: 12deg;
+      filter: saturate(0.3);
+    }
+  }
+
+  @keyframes fx-char-soot {
+    0% {
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.3;
+    }
+    55%,
+    100% {
+      opacity: 0.72;
+    }
+  }
+
+  @keyframes fx-char-marks {
+    0%,
+    20% {
+      opacity: 0;
+    }
+    60%,
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fx-char-smoke {
+    0%,
+    30% {
+      translate: 0 10px;
+      scale: 0.6;
+    }
+    100% {
+      translate: 0 0;
+      scale: 1;
+    }
+  }
+
+  @keyframes fx-extinguish-sticker {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+      filter: none;
+    }
+    5% {
+      translate: 0 5%;
+      scale: 1.16 0.8;
+      rotate: 0deg;
+    }
+    12% {
+      translate: 0 0;
+      scale: 0.92 1.08;
+    }
+    18% {
+      translate: 2% 1%;
+      scale: 1.04 0.96;
+      rotate: 2deg;
+    }
+    24% {
+      translate: -2% 1%;
+      rotate: -2deg;
+    }
+    30% {
+      translate: 1% 1%;
+      scale: 1;
+      rotate: 1deg;
+      filter: saturate(0.5);
+      animation-timing-function: ease-out;
+    }
+    55% {
+      translate: 0 6px;
+      scale: 0.94;
+      rotate: 6deg;
+      filter: saturate(0.15);
+    }
+    75% {
+      translate: 0 10px;
+      scale: 0.9 0.88;
+      rotate: 9deg;
+    }
+    100% {
+      translate: 0 9px;
+      scale: 0.9;
+      rotate: 8deg;
+      filter: saturate(0.15);
+    }
+  }
+
+  @keyframes fx-extinguish-wash {
+    0% {
+      opacity: 0;
+    }
+    6% {
+      opacity: 0.7;
+    }
+    100% {
+      opacity: 0.45;
+    }
+  }
+
+  @keyframes fx-extinguish-puff {
+    0% {
+      opacity: 0;
+      translate: 0 10px;
+      scale: 0.3;
+    }
+    15% {
+      opacity: 1;
+    }
+    45% {
+      translate: 0 -4px;
+      scale: 1.15;
+    }
+    100% {
+      opacity: 1;
+      translate: 0 -2px;
+      scale: 1;
+    }
+  }
+
   /* ---- fx: splash / drench ---- */
+
+  /* Water: winds up like a wave and crashes into the other sticker at --fx-hit, sloshing back. */
+  .player .reveal-art.attack-splash {
+    animation: fx-splash-surge var(--fx-dur) linear var(--fx-delay) both;
+  }
+
+  /* A light blue splat bursts behind the struck sticker, drops fly off its rim, white spray in between. */
+  .fx--splash .splash-splat {
+    animation: fx-splash-splat calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .fx--splash .splash-drop {
+    animation: fx-splash-drop 900ms cubic-bezier(0.2, 0.7, 0.4, 1) calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .fx--splash .splash-spray {
+    animation: fx-splash-spray 700ms ease-out calc(var(--fx-delay) + var(--fx-hit) + 60ms) both;
+  }
+
+  /* The soaked sticker is knocked back by the wave, then sags, dripping, its colours washed out. */
+  .player.loser .reveal-art.react-drench {
+    animation: fx-drench-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-drench .drench-wash {
+    animation: fx-drench-wash calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-drench .drench-band {
+    animation: fx-drench-band calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-drench .drench-drop {
+    animation: fx-drench-drop calc(var(--fx-dur) - var(--fx-hit)) ease-in calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  @keyframes fx-splash-surge {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+    9% {
+      translate: -10% calc(-2% * var(--fx-toward));
+      scale: 0.92 1.06;
+      rotate: -12deg;
+      animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+    }
+    19% {
+      translate: 26% calc(36% * var(--fx-toward));
+      scale: 1.3 0.76;
+      rotate: 10deg;
+    }
+    27% {
+      translate: 20% calc(28% * var(--fx-toward));
+      scale: 0.86 1.16;
+      rotate: -4deg;
+    }
+    36% {
+      translate: 10% calc(14% * var(--fx-toward));
+      scale: 1.08 0.94;
+      rotate: 3deg;
+    }
+    48% {
+      translate: 0 0;
+      scale: 0.97 1.03;
+      rotate: -1deg;
+    }
+    60%,
+    100% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  @keyframes fx-splash-splat {
+    0% {
+      opacity: 0;
+      scale: 0.2;
+      rotate: -20deg;
+    }
+    8% {
+      opacity: 1;
+    }
+    18% {
+      scale: 1.12;
+      rotate: 4deg;
+    }
+    30% {
+      scale: 1;
+      rotate: 0deg;
+    }
+    60% {
+      opacity: 1;
+      scale: 1.04;
+    }
+    100% {
+      opacity: 0;
+      scale: 1.2;
+      rotate: 3deg;
+    }
+  }
+
+  @keyframes fx-splash-drop {
+    0% {
+      opacity: 0;
+      translate: 0 0;
+      scale: 0.5;
+    }
+    6% {
+      opacity: 1;
+    }
+    55% {
+      opacity: 1;
+      translate: 0 calc(var(--far) * 0.8);
+      scale: 1;
+    }
+    100% {
+      opacity: 0;
+      translate: 0 var(--far);
+      scale: 0.7;
+    }
+  }
+
+  @keyframes fx-splash-spray {
+    0% {
+      opacity: 0;
+      scale: 0.2;
+    }
+    20% {
+      opacity: 1;
+      scale: 1.2;
+    }
+    100% {
+      opacity: 0;
+      scale: 0.6;
+    }
+  }
+
+  @keyframes fx-drench-sticker {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+      filter: none;
+    }
+    5% {
+      translate: -6% calc(-6% * var(--fx-toward));
+      scale: 1.12 0.86;
+      rotate: -6deg;
+    }
+    14% {
+      translate: -3% calc(-3% * var(--fx-toward));
+      scale: 0.94 1.06;
+      rotate: 3deg;
+    }
+    24% {
+      translate: 0 0;
+      scale: 1.03 0.97;
+      rotate: -2deg;
+      filter: none;
+      animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5);
+    }
+    45% {
+      translate: 0 4px;
+      scale: 1.04 0.95;
+      rotate: 4deg;
+      filter: saturate(0.75);
+    }
+    70% {
+      translate: 0 12px;
+      scale: 1.08 0.9;
+      rotate: 10deg;
+      filter: saturate(0.6);
+      animation-timing-function: ease-out;
+    }
+    84% {
+      translate: 0 9px;
+      scale: 1.05 0.93;
+      rotate: 8deg;
+    }
+    100% {
+      translate: 0 10px;
+      scale: 1.06 0.92;
+      rotate: 9deg;
+      filter: saturate(0.6);
+    }
+  }
+
+  @keyframes fx-drench-wash {
+    0% {
+      opacity: 0;
+    }
+    8% {
+      opacity: 0.85;
+    }
+    100% {
+      opacity: 0.55;
+    }
+  }
+
+  @keyframes fx-drench-band {
+    0% {
+      opacity: 0;
+      translate: 0 -45px;
+    }
+    8% {
+      opacity: 0.9;
+      translate: 0 -18px;
+    }
+    36% {
+      translate: 0 3px;
+    }
+    100% {
+      opacity: 0.9;
+      translate: 0 0;
+    }
+  }
+
+  @keyframes fx-drench-drop {
+    0%,
+    30% {
+      opacity: 0;
+      translate: 0 -10px;
+    }
+    40% {
+      opacity: 1;
+      translate: 0 -4px;
+    }
+    100% {
+      opacity: 1;
+      translate: 0 var(--fall);
+    }
+  }
 
   /* ---- fx: gust / blow ---- */
 
+  /* Air: puffs itself up, then blows at --fx-hit, deflating as the gust leaves it. */
+  .player .reveal-art.attack-gust {
+    animation: fx-gust-blow var(--fx-dur) linear var(--fx-delay) both;
+  }
+
+  /* A puff cloud on the attacker's side, curly wind streaks sweeping past, leaves tumbling along. */
+  .fx--gust .gust-cloud {
+    animation: fx-gust-cloud calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .fx--gust .gust-streak {
+    animation: fx-gust-streak 900ms ease-out calc(var(--fx-delay) + var(--fx-hit) + var(--d)) both;
+  }
+
+  .fx--gust .gust-leaf {
+    animation: fx-gust-leaf 1000ms ease-in-out calc(var(--fx-delay) + var(--fx-hit) + var(--d)) both;
+  }
+
+  /* The blown sticker is shoved aside and leans away from the wind, hit by a second gust, then stays bent. */
+  .player.loser .reveal-art.react-blow {
+    animation: fx-blow-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-blow .blow-line {
+    animation: fx-blow-line calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  @keyframes fx-gust-blow {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+    11% {
+      translate: -5% calc(3% * var(--fx-toward));
+      scale: 1.14;
+      rotate: -6deg;
+      animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+    }
+    19% {
+      translate: 10% calc(14% * var(--fx-toward));
+      scale: 0.92 1.04;
+      rotate: 8deg;
+    }
+    30% {
+      translate: 12% calc(16% * var(--fx-toward));
+      scale: 0.9 1.02;
+      rotate: 6deg;
+    }
+    45% {
+      translate: 8% calc(10% * var(--fx-toward));
+      scale: 0.95;
+      rotate: 4deg;
+    }
+    60% {
+      translate: 0 0;
+      scale: 1.03;
+      rotate: -1deg;
+    }
+    72%,
+    100% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  @keyframes fx-gust-cloud {
+    0% {
+      opacity: 0;
+      translate: 0 0;
+      scale: 0.3;
+    }
+    10% {
+      opacity: 1;
+      scale: 1.15;
+    }
+    30% {
+      scale: 1;
+    }
+    60% {
+      opacity: 1;
+      translate: -6px 0;
+    }
+    100% {
+      opacity: 0;
+      translate: -16px 0;
+      scale: 1.2;
+    }
+  }
+
+  @keyframes fx-gust-streak {
+    0% {
+      opacity: 0;
+      translate: 70px 0;
+      scale: 0.6 1;
+    }
+    15% {
+      opacity: 1;
+    }
+    60% {
+      opacity: 1;
+      translate: -6px 0;
+      scale: 1;
+    }
+    100% {
+      opacity: 0;
+      translate: -40px 0;
+      scale: 1.05 1;
+    }
+  }
+
+  @keyframes fx-gust-leaf {
+    0% {
+      opacity: 0;
+      translate: 0 0;
+      rotate: 0deg;
+    }
+    10% {
+      opacity: 1;
+    }
+    50% {
+      translate: -80px -18px;
+      rotate: calc(var(--spin) * 0.5);
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      translate: -170px 10px;
+      rotate: var(--spin);
+    }
+  }
+
+  @keyframes fx-blow-sticker {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+      filter: none;
+    }
+    6% {
+      translate: -12% calc(2% * var(--fx-toward));
+      rotate: -18deg;
+    }
+    14% {
+      translate: -15% calc(2% * var(--fx-toward));
+      rotate: -22deg;
+    }
+    24% {
+      translate: -9% calc(1% * var(--fx-toward));
+      rotate: -12deg;
+    }
+    34% {
+      translate: -13% calc(2% * var(--fx-toward));
+      rotate: -19deg;
+      filter: none;
+    }
+    46% {
+      translate: -8% calc(1% * var(--fx-toward));
+      rotate: -10deg;
+      filter: saturate(0.6);
+    }
+    62% {
+      translate: -9% calc(1% * var(--fx-toward));
+      rotate: -15deg;
+      animation-timing-function: ease-out;
+    }
+    80% {
+      translate: -7% calc(1% * var(--fx-toward));
+      rotate: -12deg;
+    }
+    100% {
+      translate: -7% calc(1% * var(--fx-toward));
+      scale: 1;
+      rotate: -13deg;
+      filter: saturate(0.35);
+    }
+  }
+
+  @keyframes fx-blow-line {
+    0% {
+      opacity: 0;
+      translate: 40px 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    40% {
+      translate: -10px 0;
+    }
+    60%,
+    100% {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+
   /* ---- fx: zap / shock ---- */
 
+  /* Lightning, Spock: crackles with charge (a jitter), then thrusts at the other sticker at --fx-hit. */
+  .player .reveal-art.attack-zap {
+    animation: fx-zap-thrust var(--fx-dur) linear var(--fx-delay) both;
+  }
+
+  /* A bolt strikes from above and flickers, a white crackle ring flashes, sparks jump off. */
+  .fx--zap .zap-bolt {
+    animation: fx-zap-bolt calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .fx--zap .zap-crackle {
+    animation: fx-zap-crackle calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .fx--zap .zap-spark {
+    animation: fx-zap-spark 900ms ease-out calc(var(--fx-delay) + var(--fx-hit) + var(--d)) both;
+  }
+
+  /* The shocked sticker convulses and blinks dark like an X-ray, then keels over, sooty and still sparking. */
+  .player.loser .reveal-art.react-shock {
+    animation: fx-shock-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-shock .shock-flash {
+    animation: fx-shock-flash calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-shock .shock-soot {
+    animation: fx-shock-soot calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-shock .shock-spark {
+    animation: fx-shock-spark calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  @keyframes fx-zap-thrust {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+    3% {
+      translate: -2% 0;
+      scale: 1.04;
+      rotate: -3deg;
+    }
+    6% {
+      translate: 2% -1%;
+      rotate: 3deg;
+    }
+    9% {
+      translate: -2% 1%;
+      rotate: -3deg;
+    }
+    13% {
+      translate: -8% calc(1% * var(--fx-toward));
+      scale: 1.08;
+      rotate: -8deg;
+      animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+    }
+    19% {
+      translate: 18% calc(25% * var(--fx-toward));
+      scale: 1.18 0.88;
+      rotate: 6deg;
+    }
+    30% {
+      translate: 14% calc(20% * var(--fx-toward));
+      scale: 1.08;
+      rotate: 2deg;
+    }
+    42% {
+      translate: 4% calc(6% * var(--fx-toward));
+      scale: 0.98 1.03;
+      rotate: -2deg;
+    }
+    54% {
+      translate: 0 0;
+      scale: 1.01;
+      rotate: 1deg;
+    }
+    64%,
+    100% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  @keyframes fx-zap-bolt {
+    0% {
+      opacity: 0;
+      scale: 1 0.1;
+    }
+    4% {
+      opacity: 1;
+      scale: 1 1.06;
+    }
+    9% {
+      opacity: 0.5;
+      scale: 1;
+    }
+    13% {
+      opacity: 1;
+    }
+    18% {
+      opacity: 0.55;
+    }
+    23% {
+      opacity: 1;
+    }
+    48% {
+      opacity: 1;
+      scale: 1;
+    }
+    64%,
+    100% {
+      opacity: 0;
+      scale: 1 0.9;
+    }
+  }
+
+  @keyframes fx-zap-crackle {
+    0% {
+      opacity: 0;
+      scale: 0.6;
+      rotate: 0deg;
+    }
+    6% {
+      opacity: 1;
+      scale: 1.1;
+    }
+    13% {
+      opacity: 0.4;
+    }
+    20% {
+      opacity: 1;
+      scale: 1;
+      rotate: 8deg;
+    }
+    50% {
+      opacity: 1;
+      rotate: 12deg;
+    }
+    100% {
+      opacity: 0;
+      scale: 1.2;
+      rotate: 20deg;
+    }
+  }
+
+  @keyframes fx-zap-spark {
+    0% {
+      opacity: 0;
+      translate: 0 0;
+      scale: 0.4;
+    }
+    10% {
+      opacity: 1;
+      scale: 1.1;
+    }
+    25% {
+      opacity: 0.2;
+    }
+    35% {
+      opacity: 1;
+      translate: 8px 0;
+      scale: 1;
+    }
+    100% {
+      opacity: 0;
+      translate: 22px 0;
+      scale: 0.8;
+    }
+  }
+
+  @keyframes fx-shock-sticker {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+      filter: none;
+    }
+    3% {
+      translate: 4% -3%;
+      scale: 1.08;
+      rotate: 5deg;
+    }
+    6% {
+      translate: -4% 2%;
+      rotate: -5deg;
+    }
+    9% {
+      translate: 3% 3%;
+      scale: 0.96;
+      rotate: 4deg;
+    }
+    12% {
+      translate: -3% -3%;
+      scale: 1.06;
+      rotate: -4deg;
+    }
+    15% {
+      translate: 4% 1%;
+      rotate: 5deg;
+    }
+    18% {
+      translate: -4% -1%;
+      scale: 1;
+      rotate: -3deg;
+    }
+    21% {
+      translate: 2% 2%;
+      rotate: 3deg;
+    }
+    24% {
+      translate: -2% -1%;
+      rotate: -2deg;
+    }
+    28% {
+      translate: 0 0;
+      rotate: 0deg;
+      filter: none;
+      animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5);
+    }
+    50% {
+      translate: 0 2px;
+      rotate: 3deg;
+      filter: saturate(0.5);
+    }
+    72% {
+      translate: 0 12px;
+      rotate: 15deg;
+      filter: saturate(0.3);
+      animation-timing-function: ease-out;
+    }
+    84% {
+      translate: 0 8px;
+      rotate: 12deg;
+    }
+    100% {
+      translate: 0 10px;
+      scale: 0.96;
+      rotate: 13deg;
+      filter: saturate(0.3);
+    }
+  }
+
+  @keyframes fx-shock-flash {
+    0% {
+      opacity: 0;
+    }
+    3% {
+      opacity: 0.8;
+    }
+    6% {
+      opacity: 0;
+    }
+    9% {
+      opacity: 0.8;
+    }
+    12% {
+      opacity: 0;
+    }
+    15% {
+      opacity: 0.7;
+    }
+    18% {
+      opacity: 0;
+    }
+    22% {
+      opacity: 0.5;
+    }
+    26%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fx-shock-soot {
+    0%,
+    10% {
+      opacity: 0;
+    }
+    30%,
+    100% {
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes fx-shock-spark {
+    0% {
+      opacity: 0;
+      scale: 0.4;
+    }
+    4% {
+      opacity: 1;
+      scale: 1.2;
+    }
+    10% {
+      opacity: 0.2;
+    }
+    16% {
+      opacity: 1;
+      scale: 1;
+    }
+    30% {
+      opacity: 0.3;
+    }
+    40%,
+    100% {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
   /* ---- fx: absorb / squeeze ---- */
+
+  /*
+ * Sponge: leans in at --fx-hit, then swells up as it soaks up the other sticker's juice (staying leaned in, so
+ * it never grows into its own name tag), and wobbles back.
+ */
+  .player .reveal-art.attack-absorb {
+    animation: fx-absorb-soak var(--fx-dur) linear var(--fx-delay) both;
+  }
+
+  /* Dashed suction rings close in on the struck sticker; drops stream off it towards the sponge. */
+  .fx--absorb .absorb-ring {
+    animation: fx-absorb-ring calc(var(--fx-dur) - var(--fx-hit)) ease-in calc(var(--fx-delay) + var(--fx-hit) + var(--d)) both;
+  }
+
+  .fx--absorb .absorb-drop {
+    animation: fx-absorb-drop 900ms ease-in calc(var(--fx-delay) + var(--fx-hit) + 120ms + var(--d)) both;
+  }
+
+  /* The squeezed sticker is wrung back and forth, then shrinks, dried out and greyed. */
+  .player.loser .reveal-art.react-squeeze {
+    animation: fx-squeeze-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-squeeze .squeeze-dry {
+    animation: fx-squeeze-dry calc(var(--fx-dur) - var(--fx-hit)) ease-in calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-squeeze .squeeze-marks {
+    animation: fx-squeeze-marks calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  @keyframes fx-absorb-soak {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+    10% {
+      translate: -6% calc(-1% * var(--fx-toward));
+      scale: 0.96 1.04;
+      rotate: -6deg;
+      animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+    }
+    19% {
+      translate: 10% calc(14% * var(--fx-toward));
+      scale: 1.04;
+      rotate: 4deg;
+    }
+    34% {
+      translate: 8% calc(11% * var(--fx-toward));
+      scale: 1.08;
+      rotate: -3deg;
+    }
+    50% {
+      translate: 5% calc(9% * var(--fx-toward));
+      scale: 1.16 1.1;
+      rotate: 3deg;
+    }
+    60% {
+      translate: 3% calc(8% * var(--fx-toward));
+      scale: 1.1 1.15;
+      rotate: -2deg;
+    }
+    72% {
+      translate: 0 0;
+      scale: 1.06 0.96;
+      rotate: 1deg;
+    }
+    84%,
+    100% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  @keyframes fx-absorb-ring {
+    0% {
+      opacity: 0;
+      scale: 1.15;
+      rotate: 0deg;
+    }
+    15% {
+      opacity: 1;
+    }
+    60% {
+      opacity: 1;
+      scale: 0.86;
+      rotate: 40deg;
+    }
+    100% {
+      opacity: 0;
+      scale: 0.74;
+      rotate: 70deg;
+    }
+  }
+
+  @keyframes fx-absorb-drop {
+    0% {
+      opacity: 0;
+      translate: 0 0;
+      scale: 0.4;
+    }
+    15% {
+      opacity: 1;
+      scale: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      translate: var(--dx) var(--dy);
+      scale: 0.5;
+    }
+  }
+
+  @keyframes fx-squeeze-sticker {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+      filter: none;
+    }
+    6% {
+      scale: 0.78 1.14;
+      rotate: 10deg;
+    }
+    14% {
+      scale: 1.1 0.84;
+      rotate: -12deg;
+    }
+    22% {
+      scale: 0.8 1.1;
+      rotate: 12deg;
+    }
+    30% {
+      translate: 0 0;
+      scale: 1.06 0.88;
+      rotate: -8deg;
+      filter: none;
+    }
+    44% {
+      translate: 0 2px;
+      scale: 0.9 0.96;
+      rotate: 4deg;
+      filter: saturate(0.6);
+    }
+    60% {
+      translate: 0 6px;
+      scale: 0.84 0.86;
+      rotate: 8deg;
+      filter: saturate(0.35);
+      animation-timing-function: ease-out;
+    }
+    76% {
+      translate: 0 10px;
+      scale: 0.88 0.84;
+      rotate: 6deg;
+    }
+    100% {
+      translate: 0 8px;
+      scale: 0.86 0.84;
+      rotate: 8deg;
+      filter: saturate(0.3);
+    }
+  }
+
+  @keyframes fx-squeeze-dry {
+    0% {
+      opacity: 0;
+    }
+    40% {
+      opacity: 0.3;
+    }
+    100% {
+      opacity: 0.55;
+    }
+  }
+
+  @keyframes fx-squeeze-marks {
+    0%,
+    4% {
+      opacity: 0;
+    }
+    14%,
+    100% {
+      opacity: 1;
+    }
+  }
 
   /* ---- fx: curse / hexed ---- */
 
@@ -1573,13 +2845,94 @@
 
 /* ---- fx static: burn / char, extinguish ---- */
 
+/* Burnt: tilted and greyed, blackened from the rim inwards, smoke curling off it. */
+.player.loser .reveal-art.react-char {
+  translate: 0 9px;
+  rotate: 12deg;
+  filter: saturate(0.3);
+}
+
+.react-char .char-soot {
+  opacity: 0.72;
+}
+
+/* Put out (water>fire): shrunk, tilted, nearly grey under a wet film, steam still over it. */
+.player.loser .reveal-art.react-extinguish {
+  translate: 0 9px;
+  scale: 0.9;
+  rotate: 8deg;
+  filter: saturate(0.15);
+}
+
+.react-extinguish .extinguish-wash {
+  opacity: 0.45;
+}
+
+.react-extinguish .extinguish-puff {
+  translate: 0 -2px;
+}
+
 /* ---- fx static: splash / drench ---- */
+
+/* Soaked: sagging and tilted, washed-out colours under a blue film, water hanging off its top in drips. */
+.player.loser .reveal-art.react-drench {
+  translate: 0 10px;
+  scale: 1.06 0.92;
+  rotate: 9deg;
+  filter: saturate(0.6);
+}
+
+.react-drench .drench-wash {
+  opacity: 0.55;
+}
+
+.react-drench .drench-drop {
+  translate: 0 var(--fall);
+}
 
 /* ---- fx static: gust / blow ---- */
 
+/*
+ * Blown back: shoved sideways away from the wind (never towards its own name tag) and leaning away
+ * from it, greyed, swoosh marks on its far side.
+ */
+.player.loser .reveal-art.react-blow {
+  translate: -7% calc(1% * var(--fx-toward));
+  rotate: -13deg;
+  filter: saturate(0.35);
+}
+
 /* ---- fx static: zap / shock ---- */
 
+/* Shocked: tilted, greyed and sooty at the rim, sparks still crackling on it (the dark flash is gone). */
+.player.loser .reveal-art.react-shock {
+  translate: 0 10px;
+  scale: 0.96;
+  rotate: 13deg;
+  filter: saturate(0.3);
+}
+
+.react-shock .shock-flash {
+  opacity: 0;
+}
+
+.react-shock .shock-soot {
+  opacity: 0.5;
+}
+
 /* ---- fx static: absorb / squeeze ---- */
+
+/* Squeezed dry: shrunk, squashed and tilted, greyed and dusty, with twist lines and dry cracks. */
+.player.loser .reveal-art.react-squeeze {
+  translate: 0 8px;
+  scale: 0.86 0.84;
+  rotate: 8deg;
+  filter: saturate(0.3);
+}
+
+.react-squeeze .squeeze-dry {
+  opacity: 0.55;
+}
 
 /* ---- fx static: curse / hexed ---- */
 
