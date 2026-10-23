@@ -828,8 +828,16 @@
   /* ---- fx: clash ---- */
 
   /* ==== RESULT and LOBBY ==== */
-  /* The losing avatar on the result screen; the reveal screen reuses this keyframe for its losing sticker. */
+  /*
+   * The losing avatar on the result screen; the reveal screen reuses this keyframe for its losing sticker.
+   * The start is explicit: that sticker rests in the end pose when nothing moves (see FX static).
+   */
   @keyframes loser-droop {
+    from {
+      rotate: 0deg;
+      translate: 0 0;
+      filter: none;
+    }
     to {
       rotate: 16deg;
       translate: 0 12px;
@@ -844,6 +852,16 @@
  * sees, and where the scene comes to rest otherwise (its 100% keyframe equals this pose). Nothing here may
  * move; the effect graphic itself (ClashFx) is simply not shown without motion. One sub-section per scene.
  */
+
+/*
+ * Every losing sticker: the end of loser-droop, so a reaction without its own pose still reads as beaten.
+ * Each reaction overrides it with `.player.loser .reveal-art.react-<reaction>` (more specific).
+ */
+.player.loser .reveal-art {
+  translate: 0 12px;
+  rotate: 16deg;
+  filter: saturate(0.25);
+}
 
 /* ---- fx static: smash / crumble ---- */
 
