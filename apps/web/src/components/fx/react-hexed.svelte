@@ -1,9 +1,9 @@
 <script lang="ts">
   /*
    * Hexed (struck by curse): a dark veil falls over the sticker and a ring of pink hex stars keeps circling
-   * its face, inside a dotted seal with rune marks branded round its rim. --veil is the veil's end opacity and --orbit how far the star ring has turned: the static end
-   * pose and the last keyframe both read them (animations.css, "fx: curse / hexed" and
-   * "fx static: curse / hexed"). Markup only.
+   * its face, inside a dotted seal with rune marks branded round its rim. --veil is the veil's end opacity and
+   * --orbit how far the star ring has turned: the static end pose and the last keyframe both read them
+   * (animations.css, "fx: curse / hexed" and "fx static: curse / hexed"). Markup only.
    */
   interface Props {
     gesture: string;
@@ -26,7 +26,8 @@
   const GLYPHS = ['M-4,-5 L4,-5 L0,5 Z', 'M-5,0 L5,0 M0,-5 L0,5', 'M-4,-4 L4,4 M4,-4 L-4,4'];
   const RUNES = [36, 108, 180, 252, 324].map((angle, i) => {
     const rad = ((angle - 90) * Math.PI) / 180;
-    return { at: `translate(${(50 + 38 * Math.cos(rad)).toFixed(1)} ${(50 + 38 * Math.sin(rad)).toFixed(1)}) rotate(${angle})`, d: GLYPHS[i % 3] };
+    const [x, y] = [(50 + 38 * Math.cos(rad)).toFixed(1), (50 + 38 * Math.sin(rad)).toFixed(1)];
+    return { at: `translate(${x} ${y}) rotate(${angle})`, d: GLYPHS[i % 3] };
   });
 </script>
 

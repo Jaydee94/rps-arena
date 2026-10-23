@@ -15,7 +15,10 @@
     'M83,35 C76,44 76,56 83,65',
   ];
   /** Wrinkles crumpling its top and bottom rim (zigzag folds), clear of the icon in the middle. */
-  const CREASES = ['26,14 33,20 40,13 47,20 54,13 61,20 68,13 75,19', '26,86 33,80 40,87 47,80 54,87 61,80 68,87 75,81'];
+  const CREASES = [
+    '26,14 33,20 40,13 47,20 54,13 61,20 68,13 75,19',
+    '26,86 33,80 40,87 47,80 54,87 61,80 68,87 75,81',
+  ];
 </script>
 
 <span class="squeeze" aria-hidden="true">
