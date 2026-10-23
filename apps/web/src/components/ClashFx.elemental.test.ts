@@ -20,7 +20,7 @@ const SCENES: { attack: Attack; reaction: Reaction; parts: string[] }[] = [
   { attack: 'splash', reaction: 'drench', parts: ['splash-splat', 'splash-drop', 'splash-spray'] },
   { attack: 'gust', reaction: 'blow', parts: ['gust-cloud', 'gust-streak', 'gust-leaf'] },
   { attack: 'zap', reaction: 'shock', parts: ['zap-bolt', 'zap-crackle', 'zap-spark'] },
-  { attack: 'absorb', reaction: 'squeeze', parts: ['absorb-ring', 'absorb-drop'] },
+  { attack: 'absorb', reaction: 'squeeze', parts: ['absorb-ring', 'absorb-stream', 'absorb-drop'] },
 ];
 const REACTIONS: Reaction[] = [...SCENES.map((s) => s.reaction), 'extinguish'];
 

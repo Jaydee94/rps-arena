@@ -103,13 +103,14 @@
     stroke-width: 6;
   }
 
+  /* A bold flash along the cut, so it still reads as a blade stroke on the small 2v2 sticker. */
   .split-flash {
-    stroke-width: 5;
+    stroke-width: 8;
   }
 
   /* Dark underlay of the yellow flash line: an outlined tube. */
   .split-flash .split-glow {
-    stroke-width: 10;
+    stroke-width: 15;
   }
 
   /* One cut per card. */
