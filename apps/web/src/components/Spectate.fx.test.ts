@@ -39,11 +39,12 @@ describe('Spectate matchup effects (shared RevealPanel)', () => {
     expect(screen.getByText('Stein zerquetscht Schere')).toBeInTheDocument();
   });
 
-  it('shows no sentence or scene for a draw and for a missing pick', () => {
+  it('shows only the clash scene for a draw, and no sentence or scene for a missing pick', () => {
     feed(reveal({ picks: { a0: 'rock', b0: 'rock' }, duels: [{ seats: ['a0', 'b0'], result: 'draw' }], winner: 'draw' }));
     const { container, unmount } = render(Spectate);
     expect(container.querySelector('.rule')).toBeNull();
-    expect(container.querySelector('.fx')).toBeNull();
+    expect(container.querySelectorAll('.fx')).toHaveLength(1);
+    expect(container.querySelector('.fx-centre > .fx')).toHaveClass('fx--clash', 'fx--at-centre');
     expect(container.querySelectorAll('[data-fx="draw"]')).toHaveLength(2);
     unmount();
 

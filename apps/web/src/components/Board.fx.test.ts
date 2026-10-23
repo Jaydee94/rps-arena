@@ -79,7 +79,7 @@ describe('Board matchup effects', () => {
     expect(screen.getByText('Rock crushes Scissors')).toHaveClass('rule');
   });
 
-  it('gives a draw only the clash hooks, no attack, reaction, scene or sentence', () => {
+  it('gives a draw only the clash hooks and the clash scene, no attack, reaction or sentence', () => {
     feed(
       reveal({ picks: { a0: 'rock', b0: 'rock' }, duels: [{ seats: ['a0', 'b0'], result: 'draw' }], winner: 'draw' }),
     );
@@ -90,7 +90,8 @@ describe('Board matchup effects', () => {
       expect(art).toHaveClass('fx-clash');
       expect(art.className).not.toMatch(/attack-|react-/);
     }
-    expect(container.querySelector('.fx')).toBeNull();
+    expect(container.querySelectorAll('.fx')).toHaveLength(1);
+    expect(container.querySelector('.fx-centre > .fx')).toHaveClass('fx--clash', 'fx--at-centre');
     expect(container.querySelector('.rule')).toBeNull();
   });
 
@@ -102,8 +103,7 @@ describe('Board matchup effects', () => {
     const slot = screen.getByTestId('duel').querySelector(':scope > .fx-centre');
     expect(slot).not.toBeNull();
     expect(slot).toHaveAttribute('aria-hidden', 'true');
-    // Empty until Task 4c adds fx/clash.svelte; then ClashFx renders `.fx.fx--clash.fx--at-centre` in it.
-    expect(slot?.querySelector('.fx')).toBeNull();
+    expect(slot?.querySelector(':scope > .fx.fx--clash.fx--at-centre')).not.toBeNull();
     unmount();
 
     feed(reveal(rockBeatsScissors));

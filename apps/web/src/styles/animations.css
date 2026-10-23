@@ -821,11 +821,691 @@
 
   /* ---- fx: curse / hexed ---- */
 
+  /* Devil: rises, rubs its hands with a wiggle, and flings the hex at the other sticker at --fx-hit. */
+  .player .reveal-art.attack-curse {
+    animation: fx-curse-cast var(--fx-dur) ease-in-out var(--fx-delay) both;
+  }
+
+  /* A pink rune ring snaps shut around the struck sticker and turns; dark smoke rises, pink sparks pop. */
+  .fx--curse .curse-ring {
+    animation: fx-curse-ring calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .fx--curse .curse-wisp {
+    animation: fx-curse-wisp 1100ms ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .fx--curse .curse-spark {
+    animation: fx-curse-spark 900ms ease-out calc(var(--fx-delay) + var(--fx-hit) + 120ms) both;
+  }
+
+  /* The hexed sticker shrinks, reels from side to side under a dark veil and greys out; hex stars circle it. */
+  .player.loser .reveal-art.react-hexed {
+    animation: fx-hexed-sticker calc(var(--fx-dur) - var(--fx-hit)) ease-in-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-hexed .hexed-veil {
+    animation: fx-hexed-veil calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-hexed .hexed-orbit {
+    animation: fx-hexed-orbit calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  @keyframes fx-curse-cast {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+    6% {
+      translate: -5% calc(-1% * var(--fx-toward));
+      scale: 1.04;
+      rotate: -6deg;
+    }
+    10% {
+      rotate: 6deg;
+    }
+    14% {
+      translate: -8% calc(-2% * var(--fx-toward));
+      scale: 1.04;
+      rotate: -6deg;
+      animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+    }
+    19% {
+      translate: 12% calc(16% * var(--fx-toward));
+      scale: 1.12 0.92;
+      rotate: 4deg;
+      animation-timing-function: ease-out;
+    }
+    30% {
+      translate: 4% calc(6% * var(--fx-toward));
+      scale: 1;
+      rotate: 0deg;
+    }
+    45% {
+      translate: 0 0;
+      rotate: -3deg;
+    }
+    60%,
+    100% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  @keyframes fx-curse-ring {
+    0% {
+      opacity: 0;
+      scale: 1.8;
+      rotate: -120deg;
+    }
+    14% {
+      opacity: 1;
+      scale: 0.92;
+      rotate: -10deg;
+    }
+    22% {
+      scale: 1.04;
+      rotate: 0deg;
+    }
+    70% {
+      opacity: 1;
+      scale: 1;
+      rotate: 40deg;
+    }
+    100% {
+      opacity: 0;
+      scale: 0.9;
+      rotate: 70deg;
+    }
+  }
+
+  @keyframes fx-curse-wisp {
+    0% {
+      opacity: 0;
+      translate: 0 0;
+      scale: 0.3;
+    }
+    15% {
+      opacity: 1;
+    }
+    60% {
+      opacity: 0.9;
+      translate: calc(var(--dx) * 0.7) calc(var(--dy) * 0.7);
+      scale: 1.2;
+    }
+    100% {
+      opacity: 0;
+      translate: var(--dx) var(--dy);
+      scale: 1.5;
+    }
+  }
+
+  @keyframes fx-curse-spark {
+    0% {
+      opacity: 0;
+      scale: 0;
+      rotate: 0deg;
+    }
+    30% {
+      opacity: 1;
+      scale: calc(var(--s) * 1.2);
+      rotate: 45deg;
+    }
+    100% {
+      opacity: 0;
+      scale: calc(var(--s) * 0.6);
+      rotate: 120deg;
+    }
+  }
+
+  @keyframes fx-hexed-sticker {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+      filter: none;
+    }
+    5% {
+      scale: 0.84;
+      rotate: -8deg;
+    }
+    12% {
+      scale: 0.9;
+      rotate: 10deg;
+    }
+    20% {
+      rotate: -10deg;
+    }
+    28% {
+      rotate: 8deg;
+      filter: saturate(0.5);
+    }
+    40% {
+      scale: 0.86;
+      rotate: -4deg;
+    }
+    60% {
+      translate: 0 4px;
+      rotate: 6deg;
+    }
+    100% {
+      translate: 0 8px;
+      scale: 0.88;
+      rotate: -10deg;
+      filter: saturate(0.35);
+    }
+  }
+
+  @keyframes fx-hexed-veil {
+    0% {
+      opacity: 0;
+    }
+    10% {
+      opacity: calc(var(--veil) * 1.6);
+    }
+    100% {
+      opacity: var(--veil);
+    }
+  }
+
+  @keyframes fx-hexed-orbit {
+    0% {
+      opacity: 0;
+      scale: 1.4;
+      rotate: 0deg;
+    }
+    12% {
+      opacity: 1;
+      scale: 1;
+    }
+    100% {
+      opacity: 1;
+      scale: 1;
+      rotate: var(--orbit);
+    }
+  }
+
   /* ---- fx: poison / wobble ---- */
+
+  /* Lizard: rears back and spits venom at the other sticker at --fx-hit, then wiggles back. */
+  .player .reveal-art.attack-poison {
+    animation: fx-poison-spit var(--fx-dur) linear var(--fx-delay) both;
+  }
+
+  /* A green venom splat behind the struck sticker, drops spraying out, toxic bubbles rising and popping. */
+  .fx--poison .poison-splat {
+    animation: fx-poison-splat calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .fx--poison .poison-drop {
+    animation: fx-poison-drop 800ms cubic-bezier(0.2, 0.7, 0.4, 1) calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .fx--poison .poison-bubble {
+    animation: fx-poison-bubble 1000ms ease-out calc(var(--fx-delay) + var(--fx-hit) + 80ms) both;
+  }
+
+  /* The poisoned sticker turns green and wobbles like jelly, slime running down it, then sags greyed. */
+  .player.loser .reveal-art.react-wobble {
+    animation: fx-wobble-sticker calc(var(--fx-dur) - var(--fx-hit)) ease-in-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-wobble .wobble-tint {
+    animation: fx-wobble-tint calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-wobble .wobble-slime {
+    animation: fx-wobble-slime calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-wobble .wobble-bubbles {
+    animation: fx-wobble-bubbles calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  @keyframes fx-poison-spit {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+    10% {
+      translate: -6% calc(-8% * var(--fx-toward));
+      scale: 0.92 1.08;
+      rotate: -6deg;
+      animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+    }
+    18% {
+      translate: 14% calc(18% * var(--fx-toward));
+      scale: 1.14 0.88;
+      rotate: 6deg;
+      animation-timing-function: ease-out;
+    }
+    28% {
+      translate: 2% calc(3% * var(--fx-toward));
+      scale: 1;
+      rotate: -4deg;
+    }
+    38% {
+      rotate: 4deg;
+    }
+    48% {
+      translate: 0 0;
+      rotate: -2deg;
+    }
+    58%,
+    100% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  @keyframes fx-poison-splat {
+    0% {
+      opacity: 0;
+      scale: 0.3;
+      rotate: -20deg;
+    }
+    10% {
+      opacity: 1;
+      scale: 1.12;
+    }
+    20% {
+      scale: 0.96;
+    }
+    30% {
+      scale: 1;
+      rotate: 0deg;
+    }
+    65% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      scale: 1.06;
+      rotate: 0deg;
+    }
+  }
+
+  @keyframes fx-poison-drop {
+    0% {
+      opacity: 0;
+      translate: 0 0;
+      scale: 0.5;
+    }
+    8% {
+      opacity: 1;
+    }
+    60% {
+      opacity: 1;
+      translate: 0 -46px;
+      scale: 1;
+    }
+    100% {
+      opacity: 0;
+      translate: 0 -60px;
+      scale: 0.8;
+    }
+  }
+
+  @keyframes fx-poison-bubble {
+    0% {
+      opacity: 0;
+      translate: 0 0;
+      scale: 0.2;
+    }
+    20% {
+      opacity: 1;
+      scale: 1;
+    }
+    75% {
+      opacity: 1;
+      translate: 0 calc(var(--rise) * 0.8);
+      scale: 1.15;
+    }
+    100% {
+      opacity: 0;
+      translate: 0 var(--rise);
+      scale: 1.6;
+    }
+  }
+
+  @keyframes fx-wobble-sticker {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+      filter: none;
+    }
+    6% {
+      scale: 1.16 0.84;
+    }
+    13% {
+      scale: 0.88 1.12;
+      rotate: -6deg;
+    }
+    20% {
+      scale: 1.1 0.9;
+      rotate: 5deg;
+    }
+    27% {
+      scale: 0.94 1.06;
+      rotate: -4deg;
+    }
+    34% {
+      scale: 1.05 0.95;
+      rotate: 3deg;
+    }
+    42% {
+      translate: 0 0;
+      scale: 0.98 1.02;
+      rotate: 0deg;
+      filter: saturate(0.7);
+    }
+    58% {
+      translate: 0 6px;
+      scale: 1.06 0.94;
+      rotate: -14deg;
+    }
+    74% {
+      translate: 0 8px;
+      scale: 1.02 0.98;
+      rotate: -10deg;
+    }
+    100% {
+      translate: 0 8px;
+      scale: 1.04 0.96;
+      rotate: -12deg;
+      filter: saturate(0.6);
+    }
+  }
+
+  @keyframes fx-wobble-tint {
+    0% {
+      opacity: 0;
+    }
+    20% {
+      opacity: calc(var(--tint) * 0.6);
+    }
+    100% {
+      opacity: var(--tint);
+    }
+  }
+
+  @keyframes fx-wobble-slime {
+    0% {
+      opacity: 0;
+      scale: 1 0;
+    }
+    8% {
+      opacity: 1;
+      scale: 1 0.4;
+    }
+    50% {
+      scale: 1 calc(var(--ooze) * 1.1);
+    }
+    100% {
+      opacity: 1;
+      scale: 1 var(--ooze);
+    }
+  }
+
+  @keyframes fx-wobble-bubbles {
+    0%,
+    35% {
+      opacity: 0;
+      scale: 0.4;
+    }
+    55% {
+      opacity: 1;
+      scale: 1.1;
+    }
+    100% {
+      opacity: 1;
+      scale: 1;
+    }
+  }
 
   /* ---- fx: entangle / bind ---- */
 
+  /* Tree: rustles, rears up and reaches for the other sticker at --fx-hit, holds the pull, settles. */
+  .player .reveal-art.attack-entangle {
+    animation: fx-entangle-reach var(--fx-dur) ease-in-out var(--fx-delay) both;
+  }
+
+  /* Leafy vines shoot in from the corners of the frame and curl round the struck sticker as it is hit. */
+  .fx--entangle .entangle-vine {
+    animation: fx-entangle-vine var(--fx-dur) cubic-bezier(0.2, 0.8, 0.3, 1) var(--fx-delay) both;
+  }
+
+  /* The bound sticker is squeezed, struggles against the vines lashed across it, then hangs greyed. */
+  .player.loser .reveal-art.react-bind {
+    animation: fx-bind-sticker calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-bind .bind-band {
+    animation: fx-bind-band 480ms ease-out calc(var(--fx-delay) + var(--fx-hit) + var(--i) * 90ms) both;
+  }
+
+  @keyframes fx-entangle-reach {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+    6% {
+      translate: 0 calc(-4% * var(--fx-toward));
+      scale: 1.04 1.08;
+      rotate: -7deg;
+    }
+    11% {
+      rotate: 5deg;
+      animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+    }
+    19% {
+      translate: 8% calc(12% * var(--fx-toward));
+      scale: 1.1 0.94;
+      rotate: -3deg;
+    }
+    36% {
+      translate: 6% calc(9% * var(--fx-toward));
+      scale: 1.06 0.97;
+      rotate: 2deg;
+    }
+    55% {
+      translate: 0 0;
+      scale: 1;
+      rotate: -2deg;
+    }
+    70%,
+    100% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  @keyframes fx-entangle-vine {
+    0% {
+      opacity: 0;
+      scale: 0;
+    }
+    3% {
+      opacity: 1;
+    }
+    18% {
+      scale: 1.06;
+    }
+    26% {
+      scale: 1;
+    }
+    75% {
+      opacity: 1;
+      scale: 1;
+    }
+    100% {
+      opacity: 0;
+      scale: 1;
+    }
+  }
+
+  @keyframes fx-bind-sticker {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+      filter: none;
+    }
+    6% {
+      scale: 0.9 1.06;
+    }
+    12% {
+      translate: -3% 0;
+      rotate: -6deg;
+    }
+    18% {
+      translate: 3% 0;
+      rotate: 6deg;
+    }
+    24% {
+      translate: -2% 0;
+      rotate: -5deg;
+    }
+    30% {
+      translate: 2% 0;
+      rotate: 4deg;
+    }
+    38% {
+      translate: 0 0;
+      scale: 0.94 1.02;
+      rotate: -2deg;
+    }
+    55% {
+      translate: 0 3px;
+      rotate: 3deg;
+      filter: saturate(0.6);
+    }
+    100% {
+      translate: 0 6px;
+      scale: 0.94 1;
+      rotate: 5deg;
+      filter: saturate(0.4);
+    }
+  }
+
+  @keyframes fx-bind-band {
+    0% {
+      opacity: 0;
+      scale: 0 1;
+    }
+    5% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 1;
+      scale: var(--wrap) 1;
+    }
+  }
+
   /* ---- fx: clash ---- */
+
+  /* A draw: both stickers squash into each other at the impact and bounce apart, then spring back. */
+  .reveal-art.fx-clash {
+    animation: fx-clash-bounce var(--fx-dur) linear var(--fx-delay) both;
+  }
+
+  /* At the seam: a white shock ring spreads past the burst, sparks squirt out sideways along the seam. */
+  .fx--clash .clash-ring {
+    animation: fx-clash-ring 900ms ease-out var(--fx-delay) both;
+  }
+
+  .fx--clash .clash-spark {
+    animation: fx-clash-spark 800ms cubic-bezier(0.2, 0.7, 0.4, 1) var(--fx-delay) both;
+  }
+
+  @keyframes fx-clash-bounce {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+    4% {
+      translate: 4% calc(5% * var(--fx-toward));
+      scale: 1.12 0.86;
+      rotate: 0deg;
+      animation-timing-function: ease-out;
+    }
+    16% {
+      translate: -10% calc(-4% * var(--fx-toward));
+      scale: 0.94 1.06;
+      rotate: -14deg;
+      animation-timing-function: ease-in-out;
+    }
+    28% {
+      translate: -11% calc(-5% * var(--fx-toward));
+      scale: 1;
+      rotate: -6deg;
+      animation-timing-function: ease-in;
+    }
+    42% {
+      translate: -1% 0;
+      scale: 1.05 0.95;
+      rotate: 3deg;
+      animation-timing-function: ease-out;
+    }
+    54% {
+      translate: -3% calc(-1% * var(--fx-toward));
+      scale: 1;
+      rotate: -2deg;
+    }
+    66%,
+    100% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  @keyframes fx-clash-ring {
+    0% {
+      opacity: 0;
+      scale: 0.6;
+    }
+    10% {
+      opacity: 1;
+      scale: 0.9;
+    }
+    100% {
+      opacity: 0;
+      scale: 1.9;
+    }
+  }
+
+  @keyframes fx-clash-spark {
+    0% {
+      opacity: 0;
+      translate: 0 0;
+      scale: calc(var(--s) * 0.4);
+      rotate: 0deg;
+    }
+    8% {
+      opacity: 1;
+    }
+    60% {
+      opacity: 1;
+      translate: calc(var(--dx) * 0.85) calc(var(--dy) * 0.85);
+      scale: var(--s);
+    }
+    100% {
+      opacity: 0;
+      translate: var(--dx) var(--dy);
+      scale: calc(var(--s) * 0.7);
+      rotate: var(--spin);
+    }
+  }
 
   /* ==== RESULT and LOBBY ==== */
   /*
@@ -903,8 +1583,54 @@
 
 /* ---- fx static: curse / hexed ---- */
 
+/* Shrunk, reeling, greyed under a dark veil, the hex stars still circling its face. */
+.player.loser .reveal-art.react-hexed {
+  translate: 0 8px;
+  scale: 0.88;
+  rotate: -10deg;
+  filter: saturate(0.35);
+}
+
+.react-hexed .hexed-veil {
+  opacity: var(--veil);
+}
+
+.react-hexed .hexed-orbit {
+  rotate: var(--orbit);
+}
+
 /* ---- fx static: poison / wobble ---- */
+
+/* Sagging and sickly green, slime run down its face, a few bubbles on it. */
+.player.loser .reveal-art.react-wobble {
+  translate: 0 8px;
+  scale: 1.04 0.96;
+  rotate: -12deg;
+  filter: saturate(0.6);
+}
+
+.react-wobble .wobble-tint {
+  opacity: var(--tint);
+}
+
+.react-wobble .wobble-slime {
+  scale: 1 var(--ooze);
+}
 
 /* ---- fx static: entangle / bind ---- */
 
+/* Held tight by the vines across its face: squeezed, slightly tipped, greyed. */
+.player.loser .reveal-art.react-bind {
+  translate: 0 6px;
+  scale: 0.94 1;
+  rotate: 5deg;
+  filter: saturate(0.4);
+}
+
+.react-bind .bind-band {
+  scale: var(--wrap) 1;
+}
+
 /* ---- fx static: clash ---- */
+
+/* A draw has no end pose: both stickers spring back to rest where they landed (and stay put without motion). */
