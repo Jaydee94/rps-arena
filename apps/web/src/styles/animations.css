@@ -579,7 +579,8 @@
     animation: fx-crumble-hide 1ms linear calc(var(--fx-delay) + var(--fx-hit)) both;
   }
 
-  .react-crumble .crumble-gap {
+  .react-crumble .crumble-gap,
+  .react-crumble .crumble-cracks {
     animation: fx-crumble-show 1ms linear calc(var(--fx-delay) + var(--fx-hit)) both;
   }
 
@@ -599,9 +600,9 @@
       rotate: 2deg;
     }
     14% {
-      translate: -10% calc(-16% * var(--fx-toward));
-      scale: 0.92 1.12;
-      rotate: -16deg;
+      translate: -12% calc(-2% * var(--fx-toward));
+      scale: 0.95 1.04;
+      rotate: -18deg;
       animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
     }
     19% {
@@ -684,10 +685,13 @@
 
   @keyframes fx-smash-chunk {
     0% {
-      opacity: 1;
+      opacity: 0;
       translate: 0 0;
       rotate: 0deg;
       scale: 0.6;
+    }
+    4% {
+      opacity: 1;
     }
     55% {
       opacity: 1;

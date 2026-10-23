@@ -14,19 +14,31 @@
   }
 
   let { gesture, size }: Props = $props();
+
+  // Hairline cracks running off the main crack, in % of the sticker; every shard carries them (clipped to it).
+  const CRACKS = [
+    '48,52 37,45 31,49 19,38',
+    '52,18 41,13 36,4',
+    '60,34 71,29 79,33',
+    '56,70 68,79 72,92',
+    '44,88 33,84 26,90',
+  ];
 </script>
+
+{#snippet shard(kind: string, sx: string, sy: string, sr: string)}
+  <span class="crumble-shard crumble-shard--{kind}" style:--sx={sx} style:--sy={sy} style:--sr={sr}>
+    <GestureIcon id={gesture} {size} copy />
+    <svg class="art crumble-cracks" viewBox="0 0 100 100" focusable="false">
+      {#each CRACKS as points (points)}<polyline {points} />{/each}
+    </svg>
+  </span>
+{/snippet}
 
 <span class="crumble" aria-hidden="true">
   <span class="crumble-gap"></span>
-  <span class="crumble-shard crumble-shard--left" style:--sx="-3px" style:--sy="2px" style:--sr="-6deg">
-    <GestureIcon id={gesture} {size} copy />
-  </span>
-  <span class="crumble-shard crumble-shard--top" style:--sx="5px" style:--sy="-2px" style:--sr="8deg">
-    <GestureIcon id={gesture} {size} copy />
-  </span>
-  <span class="crumble-shard crumble-shard--bottom" style:--sx="5px" style:--sy="13px" style:--sr="15deg">
-    <GestureIcon id={gesture} {size} copy />
-  </span>
+  {@render shard('left', '-4px', '2px', '-7deg')}
+  {@render shard('top', '7px', '-3px', '9deg')}
+  {@render shard('bottom', '7px', '16px', '17deg')}
 </span>
 
 <style>
@@ -39,6 +51,19 @@
 
   .crumble {
     pointer-events: none;
+  }
+
+  .crumble-shard {
+    position: relative;
+  }
+
+  /* Out of the grid flow, so it takes the sticker's size instead of setting it. */
+  .crumble-cracks {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    stroke-width: 3;
   }
 
   /* What shows through the cracks: a dark disc, slightly smaller than the sticker. */

@@ -126,6 +126,11 @@
     display: grid;
   }
 
+  /* One cell: reaction art (components/fx/react-*.svelte) stacks exactly on the sticker. */
+  .reveal-art > :global(*) {
+    grid-area: 1 / 1;
+  }
+
   .none {
     display: grid;
     place-items: center;

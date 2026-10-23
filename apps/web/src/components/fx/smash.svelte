@@ -14,23 +14,24 @@
     return `${(radius * Math.cos(angle)).toFixed(1)},${(radius * Math.sin(angle)).toFixed(1)}`;
   }).join(' ');
 
-  /** Dust puffs on the rim: position and size. */
+  /** Dust puffs all around the rim (one side is always hidden by the name tag): position and size. */
   const PUFFS = [
-    { x: -52, y: 40, r: 17 },
-    { x: 54, y: 36, r: 15 },
-    { x: -14, y: 62, r: 19 },
-    { x: 26, y: 58, r: 14 },
-    { x: -60, y: -18, r: 12 },
+    { x: -60, y: 26, r: 17 },
+    { x: 58, y: -30, r: 15 },
+    { x: -34, y: -54, r: 14 },
+    { x: 46, y: 46, r: 16 },
+    { x: -56, y: -16, r: 12 },
+    { x: 20, y: -62, r: 12 },
   ];
 
   /** Rock chunks: where they fly (px of the 200-unit frame), how far they spin, and their outline. */
   const CHUNKS = [
-    { dx: -96, dy: -58, rot: -220, points: '-8,-6 4,-9 9,1 3,8 -7,5' },
-    { dx: -40, dy: -104, rot: 160, points: '-6,-7 7,-5 6,6 -5,7' },
-    { dx: 70, dy: -86, rot: 260, points: '-9,-3 0,-9 8,-4 6,7 -6,6' },
-    { dx: 104, dy: 10, rot: -180, points: '-5,-8 8,-6 7,5 -7,6' },
-    { dx: -104, dy: 30, rot: 200, points: '-7,-5 5,-8 8,3 -2,8' },
-    { dx: 36, dy: 96, rot: -140, points: '-6,-6 6,-7 7,5 -6,6' },
+    { dx: -104, dy: -62, rot: -220, points: '-13,-10 6,-14 14,2 5,13 -11,8' },
+    { dx: -44, dy: -112, rot: 160, points: '-10,-11 11,-8 10,10 -8,11' },
+    { dx: 78, dy: -92, rot: 260, points: '-14,-5 0,-14 13,-6 10,11 -10,10' },
+    { dx: 112, dy: 8, rot: -180, points: '-8,-12 12,-9 11,8 -11,10' },
+    { dx: -112, dy: 34, rot: 200, points: '-11,-8 8,-12 12,5 -3,12' },
+    { dx: 40, dy: 104, rot: -140, points: '-9,-9 9,-11 11,8 -9,9' },
   ];
 </script>
 
