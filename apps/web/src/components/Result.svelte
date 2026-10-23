@@ -31,10 +31,12 @@
       {/if}
     </div>
     {#if abandoned}
-      <h2 class="headline">{t('result.abandoned.title')}</h2>
+      <div class="panel headline-box"><h2 class="headline">{t('result.abandoned.title')}</h2></div>
       <p class="hint">{t('result.abandoned.hint')}</p>
     {:else}
-      <h2 class="headline">{t(won ? 'result.match_win' : 'result.match_lose')}</h2>
+      <div class="panel headline-box">
+        <h2 class="headline">{t(won ? 'result.match_win' : 'result.match_lose')}</h2>
+      </div>
     {/if}
     {#if match.winner && view.config.mode === 'team2v2'}
       <p class="team">{t('result.team_win', { team: match.winner.toUpperCase() })}</p>
@@ -89,9 +91,15 @@
     translate: 0 -1rem;
   }
 
+  .headline-box {
+    max-width: 100%;
+    padding: var(--space-3) var(--space-5);
+    background: var(--sticker);
+    color: var(--on-bright);
+  }
+
   h2 {
     font-size: var(--text-hero);
-    text-shadow: var(--print-slip);
     text-wrap: balance;
   }
 

@@ -1,0 +1,12 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <circle class="blue" cx="32" cy="32" r="29"/>
+  <path class="pink" d="M20 18 C8 22 8 42 14 54 C20 48 22 40 22 30 Z"/>
+  <path class="yellow" d="M32 2 L40 22 L24 22 Z"/>
+  <path class="white" d="M17 24 L15 11 L27 19 Z"/><path class="white" d="M47 24 L49 11 L37 19 Z"/>
+  <path class="white" d="M32 17 C46 17 53 27 52 38 C51 50 43 58 32 58 C21 58 13 50 12 38 C11 27 18 17 32 17 Z"/>
+  <path class="pink" d="M32 17 C24 18 18 24 18 34 C25 33 33 28 40 18 Z"/>
+  <ellipse class="line" style="stroke:none" cx="24" cy="41" rx="3.2" ry="4"/><ellipse class="line" style="stroke:none" cx="40" cy="41" rx="3.2" ry="4"/>
+  <circle class="white" style="stroke:none" cx="25.2" cy="39.5" r="1.2"/><circle class="white" style="stroke:none" cx="41.2" cy="39.5" r="1.2"/>
+  <path class="n" style="stroke-width:3" d="M28 51 Q32 54 36 51"/>
+  <circle class="pink" style="stroke:none;opacity:.6" cx="17" cy="48" r="3"/><circle class="pink" style="stroke:none;opacity:.6" cx="47" cy="48" r="3"/>
+</svg>

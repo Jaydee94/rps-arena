@@ -1,0 +1,10 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <circle class="orange" cx="32" cy="32" r="29"/>
+  <rect class="grey" x="19" y="48" width="26" height="10" rx="4"/>
+  <rect class="red" x="7" y="28" width="8" height="12" rx="3"/><rect class="red" x="49" y="28" width="8" height="12" rx="3"/>
+  <circle class="white" cx="32" cy="31" r="23"/>
+  <ellipse class="blue" cx="32" cy="32" rx="16.5" ry="13"/>
+  <circle class="line" style="stroke:none" cx="25.5" cy="32" r="3"/><circle class="line" style="stroke:none" cx="38.5" cy="32" r="3"/>
+  <path class="n" style="stroke-width:3" d="M28 38 Q32 41 36 38"/>
+  <ellipse class="white" style="stroke:none" cx="23" cy="25" rx="4" ry="2" transform="rotate(-30 23 25)"/>
+</svg>

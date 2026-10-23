@@ -7,9 +7,11 @@
   interface Props {
     nickname: string;
     avatar: string;
+    /** Position among the screen's panels; staggers the entrance. */
+    index?: number;
   }
 
-  let { nickname, avatar }: Props = $props();
+  let { nickname, avatar, index = 0 }: Props = $props();
 
   const BEST_OF = [3, 5, 7] as const;
   const LEVELS: readonly BotLevel[] = ['easy', 'medium', 'hard'];
@@ -33,27 +35,29 @@
   }
 </script>
 
-<section class="card create" aria-labelledby="create-heading">
+<section class="panel create" aria-labelledby="create-heading" style:--i={index}>
   <h2 id="create-heading" class="ribbon">{t('home.create_heading')}</h2>
   <ModePicker bind:value={mode} />
 
   <fieldset class="group">
     <legend>{t('home.format')}</legend>
-    <div class="row">
+    <div class="segmented">
       {#each BEST_OF as n (n)}
-        <label class="chip">
-          <input type="radio" name="best-of" value={n} bind:group={bestOf} />
-          <span>{t('home.best_of', { n })}</span>
+        <label class="segment">
+          <input type="radio" name="best-of" value={n} bind:group={bestOf} aria-label={t('home.best_of', { n })} />
+          <span aria-hidden="true">{n}</span>
         </label>
       {/each}
     </div>
   </fieldset>
 
   {#if botAllowed}
-    <label class="bot">
-      <input type="checkbox" bind:checked={withBot} />
-      <span>{t('home.vs_bot')}</span>
-    </label>
+    <div class="dashed-box">
+      <label class="bot">
+        <span class="switch"><input type="checkbox" bind:checked={withBot} /></span>
+        <span class="bot-text">{t('home.vs_bot')}</span>
+      </label>
+    </div>
     {#if withBot}
       <fieldset class="group">
         <legend>{t('home.bot_level')}</legend>
@@ -69,7 +73,7 @@
     {/if}
   {/if}
 
-  <button type="button" class="btn btn-primary" disabled={nickname.trim() === ''} onclick={create}>
+  <button type="button" class="btn btn-primary cta" disabled={nickname.trim() === ''} onclick={create}>
     {t('home.create')}
   </button>
 </section>
@@ -89,13 +93,24 @@
   .bot {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-3);
+    min-width: 0;
     font-weight: 700;
+    cursor: pointer;
   }
 
-  .bot input {
-    width: 1.5rem;
-    height: 1.5rem;
-    accent-color: var(--blue);
+  .bot-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .cta {
+    width: 100%;
+    min-height: 3.75rem;
+    box-shadow: var(--shadow-panel);
+  }
+
+  .cta:disabled {
+    box-shadow: none;
   }
 </style>

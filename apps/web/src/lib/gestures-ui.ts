@@ -3,6 +3,8 @@
  * src/assets/{gestures,avatars}/<id>.svg and is inlined as raw markup so it can be
  * themed through the tokens (see styles/art.css). Ids match @rps/shared.
  */
+import { t } from './i18n';
+
 function byId(files: Record<string, string>): Record<string, string> {
   return Object.fromEntries(
     Object.entries(files).map(([path, svg]) => [path.slice(path.lastIndexOf('/') + 1, -'.svg'.length), svg]),
@@ -22,3 +24,5 @@ export const gestureIcon = (id: string): string | null => GESTURE_ICONS[id] ?? n
 export const gestureKey = (id: string): string => `gesture.${id}`;
 /** The SVG markup of an avatar, or null for an unknown id. */
 export const avatarIcon = (id: string): string | null => AVATAR_ICONS[id] ?? null;
+/** Localised gesture names joined for a sentence, e.g. "Scissors, Lizard". */
+export const gestureNames = (ids: readonly string[]): string => ids.map((id) => t(gestureKey(id))).join(', ');

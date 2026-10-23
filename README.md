@@ -1,62 +1,81 @@
+<p align="center"><img src="docs/images/logo.svg" alt="RPS Arena logo" width="720"></p>
+
+<p align="center"><strong>Comic-panel rock-paper-scissors for the browser: no account, no install, just a room code.</strong></p>
+
+<p align="center">
+  <a href="https://github.com/Jaydee94/rps-arena/actions/workflows/release.yml"><img src="https://github.com/Jaydee94/rps-arena/actions/workflows/release.yml/badge.svg" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Jaydee94/rps-arena" alt="MIT license"></a>
+</p>
+
 # RPS Arena
 
-Schere-Stein-Papier im Comic-Look für den Browser: ohne Account, ohne Installation, mit einem Raum-Code oder
-Link. Der Server wertet alle Runden aus und hält die Wahl jeder Seite geheim, bis alle gewählt haben. Das
-Projekt läuft auf Kubernetes (Helm, Redis) und wird bei jedem releasewürdigen Merge nach `main` automatisch
-released (semantic-release, Image und Chart auf GHCR).
+Rock-paper-scissors in a comic look for the browser: no account, no installation, just a room code or a link.
+The server settles every round and keeps each side's pick secret until everyone has picked. The project runs on
+Kubernetes (Helm, Redis) and is released automatically on every release-worthy merge to `main`
+(semantic-release, image and chart on GHCR).
 
-## Inhalt
+## Contents
 
-1. [Kurzbeschreibung und Features](#kurzbeschreibung-und-features)
-2. [Spielmodi im Detail](#spielmodi-im-detail)
-3. [Architektur](#architektur)
-4. [Lokal entwickeln](#lokal-entwickeln)
-5. [Lokal testen mit Docker Compose](#lokal-testen-mit-docker-compose)
-6. [Deployment mit Helm](#deployment-mit-helm)
-7. [Betrieb und Datenschutz](#betrieb-und-datenschutz)
-8. [Release und CI](#release-und-ci)
-9. [Einmalige manuelle Schritte nach dem ersten Push](#einmalige-manuelle-schritte-nach-dem-ersten-push)
-10. [Lizenzen und Assets](#lizenzen-und-assets)
-11. [Entscheidungen](#entscheidungen)
+1. [Overview and Features](#overview-and-features)
+2. [Game Modes in Detail](#game-modes-in-detail)
+3. [Architecture](#architecture)
+4. [Local Development](#local-development)
+5. [Local Testing with Docker Compose](#local-testing-with-docker-compose)
+6. [Deployment with Helm](#deployment-with-helm)
+7. [Operations and Privacy](#operations-and-privacy)
+8. [Release and CI](#release-and-ci)
+9. [One-Time Manual Steps After the First Push](#one-time-manual-steps-after-the-first-push)
+10. [Licenses and Assets](#licenses-and-assets)
+11. [Decisions](#decisions)
 
-## Kurzbeschreibung und Features
+## Overview and Features
 
-- **Modi:** Klassik, Lizard-Spock, Wheel 7 / 9 / 15, Bluff und 2v2 Team.
-- **Räume:** Wer einen Raum erstellt, bekommt einen 5-stelligen Code und einen teilbaren Link. Die anderen
-  treten per Code oder Link bei. Nickname und Comic-Avatar (8 zur Auswahl) wählt man beim Beitritt, gespeichert
-  wird nichts dauerhaft.
-- **Bot:** Solo-Spiel gegen einen Bot in drei Stufen (leicht, mittel, schwer), in allen Duell-Modi (nicht 2v2).
-- **Matchformat:** Best of 3, 5 oder 7, vom Raum-Ersteller gewählt.
-- **Sprachen:** Deutsch und Englisch, umschaltbar. Die Vorgabe folgt dem Browser.
-- **Audio:** Comic-SFX und eine optionale Musik-Schleife, beides einzeln stummschaltbar. Der Ton startet erst
-  nach einer Nutzeraktion.
-- **Kamera-Steuerung (experimentell):** Stein, Papier und Schere per Handgeste, Erkennung vollständig im Browser
-  (MediaPipe). Siehe [Betrieb und Datenschutz](#betrieb-und-datenschutz).
-- **Wiederverbinden:** Wer kurz wegbricht (Reload, Netzwechsel), kommt mit demselben Browser-Tab in seinen Platz
-  zurück (Sitzungs-Token im `sessionStorage`).
-- Bedienbar per Maus, Touch und Tastatur, auch in Handybreite. `prefers-reduced-motion` wird respektiert.
+- **Comic-panel look:** Every screen is built like a comic page out of panels, with sticker-style buttons,
+  animations and a stronger impact when the result is revealed.
+- **Reveal countdown:** Before each result is revealed, a short "Rock, Paper, Scissors" countdown plays (three
+  beats, about 1.26 s; in German "Schnick, Schnack, Schnuck"). It is skipped entirely for users with
+  `prefers-reduced-motion: reduce`, who get the static result straight away.
+- **Modes:** Classic, Lizard-Spock, Wheel 7 / 9 / 15, Bluff and 2v2 Team.
+- **Rule hints:** Hovering or focusing a gesture tile shows what it beats. A collapsible "Rules" panel in the lobby
+  and on the pick screen lists the same for the whole mode (the way to see it on touch screens).
+- **Rooms:** Whoever creates a room gets a 5-character code and a shareable link. The others join with the code
+  or the link. Nickname and comic avatar (32 to choose from) are picked when joining; nothing is stored
+  permanently.
+- **Bot:** Solo play against a bot on three levels (easy, medium, hard), in all duel modes (not 2v2).
+- **Match format:** Best of 3, 5 or 7, chosen by the room creator.
+- **Reveal time:** The round result stays on screen for 5.5 s (`REVEAL_MS`), including the countdown. If all
+  connected players click "next", the next round starts sooner.
+- **Languages:** German and English, switchable. The default follows the browser.
+- **Audio:** Comic sound effects and an optional music loop, each can be muted separately. Sound only starts
+  after a user action.
+- **Camera control (experimental):** Rock, paper and scissors by hand gesture, recognition runs entirely in the
+  browser (MediaPipe). See [Operations and Privacy](#operations-and-privacy).
+- **Reconnecting:** Anyone who drops briefly (reload, network change) returns to their seat in the same browser
+  tab (session token in `sessionStorage`).
+- Usable with mouse, touch and keyboard, also at phone width. `prefers-reduced-motion` is respected: all
+  animations and the countdown are switched off.
 
-## Spielmodi im Detail
+## Game Modes in Detail
 
-Alle Modi sind serverseitig autoritativ: Der Client schickt nur seine Wahl, der Server deckt erst auf, wenn alle
-gewählt haben (oder die Zeit abgelaufen ist), und wertet aus.
+All modes are server-authoritative: The client only sends its pick, and the server reveals once everyone has
+picked (or time has run out) and settles the round.
 
-| Modus (`ModeId`) | Gestenset | Regel |
+| Mode (`ModeId`) | Gesture set | Rule |
 | --- | --- | --- |
-| Klassik (`classic`) | `classic` (3) | Stein schlägt Schere, Schere schlägt Papier, Papier schlägt Stein. |
-| Lizard-Spock (`lizard-spock`) | `lizard-spock` (5) | Die 5er-Variante mit den Standardregeln. |
-| Wheel 7 (`wheel7`) | `wheel7` (7) | Gesten auf einem Kreis, siehe unten. |
-| Wheel 9 (`wheel9`) | `wheel9` (9) | Wie Wheel 7, mit 9 Gesten. |
-| Wheel 15 (`wheel15`) | `wheel15` (15) | Wie Wheel 7, mit 15 Gesten. |
-| Bluff (`bluff`) | `lizard-spock` (5) | Klassisches Duell mit vorgeschalteter, unverbindlicher Ansage. |
-| 2v2 Team (`team2v2`) | `classic` (3) | Vier Personen, zwei gleichzeitige Duelle pro Runde. |
+| Classic (`classic`) | `classic` (3) | Rock beats scissors, scissors beats paper, paper beats rock. |
+| Lizard-Spock (`lizard-spock`) | `lizard-spock` (5) | The 5-gesture variant with the standard rules. |
+| Wheel 7 (`wheel7`) | `wheel7` (7) | Gestures on a circle, see below. |
+| Wheel 9 (`wheel9`) | `wheel9` (9) | Like Wheel 7, with 9 gestures. |
+| Wheel 15 (`wheel15`) | `wheel15` (15) | Like Wheel 7, with 15 gestures. |
+| Bluff (`bluff`) | `lizard-spock` (5) | Classic duel preceded by a non-binding announcement. |
+| 2v2 Team (`team2v2`) | `classic` (3) | Four players, two simultaneous duels per round. |
 
-### Gestensets
+### Gesture Sets
 
-Die Gesten stehen in `packages/shared/src/gestures.ts` in Kreisreihenfolge. Jede Geste schlägt die nächsten
-(n-1)/2 Gesten im Uhrzeigersinn und verliert gegen die übrigen.
+The gestures are listed in circle order in `packages/shared/src/gestures.ts`. Each gesture beats the next (n-1)/2
+gestures clockwise and loses to the rest.
 
-| Set | Gesten (Kreisreihenfolge) |
+| Set | Gestures (circle order) |
 | --- | --- |
 | `classic` | rock, scissors, paper |
 | `lizard-spock` | rock, scissors, lizard, paper, spock |
@@ -64,260 +83,256 @@ Die Gesten stehen in `packages/shared/src/gestures.ts` in Kreisreihenfolge. Jede
 | `wheel9` | rock, scissors, snake, tree, sponge, paper, water, devil, lightning |
 | `wheel15` | rock, fire, scissors, snake, human, tree, wolf, sponge, paper, air, water, dragon, devil, lightning, gun |
 
-`wheel7` und `wheel9` sind gleichmäßig verteilte Teilmengen von `wheel15` (in derselben Reihenfolge), damit
-Icons und Übersetzungen wiederverwendet werden.
+`wheel7` and `wheel9` are evenly spaced subsets of `wheel15` (in the same order), so icons and translations can
+be reused.
 
 ### Bluff
 
-Jede Runde hat zwei Phasen. Zuerst gibt es eine **Ansage-Phase** (8 Sekunden): Jede Seite kann ein Emote
-(eine Geste des Lizard-Spock-Sets als Sprechblase) ansagen oder darauf verzichten. Die Ansage steht für die
-Gegenseite sofort sichtbar im Raum und ist **unverbindlich**, man darf lügen. Es gibt keinen Freitext. Danach
-wählen beide wie gewohnt geheim aus dem Lizard-Spock-Set. Der Bot sagt zufällig an (in etwa einem Viertel der
-Runden gar nichts) und wertet die Ansage des Menschen nicht aus.
+Each round has two phases. First comes an **announcement phase** (8 seconds): Each side can announce an emote (a
+gesture of the Lizard-Spock set, shown as a speech bubble) or skip it. The announcement is immediately visible
+to the other side in the room and is **non-binding**, so lying is allowed. There is no free text. After that,
+both sides pick secretly from the Lizard-Spock set as usual. The bot announces at random (in about a quarter of
+the rounds it says nothing at all) and does not evaluate the human's announcement.
 
 ### 2v2 Team
 
-Vier Plätze: `a0`, `a1` (Team A) und `b0`, `b1` (Team B). Man wählt in der Lobby selbst einen freien Platz, der
-Raum-Ersteller kann Spielende umsetzen. Der Raum-Ersteller startet das Match, sobald alle vier Plätze besetzt
-sind. Jede Person wählt pro Runde geheim eine Geste aus dem Klassik-Set. Es gibt zwei Duelle, `a0` gegen `b0`
-und `a1` gegen `b1`. Das Team mit mehr gewonnenen Duellen gewinnt die Runde, bei 1:1 ist die Runde
-unentschieden. Einen Bot gibt es in diesem Modus nicht.
+Four seats: `a0`, `a1` (team A) and `b0`, `b1` (team B). In the lobby, players choose a free seat themselves, and
+the room creator can move players around. The room creator starts the match as soon as all four seats are
+taken. Each player secretly picks one gesture from the Classic set per round. There are two duels, `a0` against
+`b0` and `a1` against `b1`. The team with more duels won takes the round; at 1:1 the round is a draw. There is no
+bot in this mode.
 
-### Unentschieden, Sudden Death und Zeiten
+### Draws, Sudden Death and Timings
 
-- Unentschiedene Runden zählen nicht und werden wiederholt. Ein Match endet, sobald eine Seite
-  `ceil(bestOf / 2)` Runden gewonnen hat. Weil nur Siege zählen und `bestOf` ungerade ist, kann es keinen
-  Gleichstand nach der Serie geben: Die Wiederholungsregel ersetzt ein separates "Sudden Death".
-- Die Zeiten stehen in `packages/shared/src/constants.ts`:
+- Drawn rounds do not count and are replayed. A match ends as soon as one side has won `ceil(bestOf / 2)`
+  rounds. Because only wins count and `bestOf` is odd, the series can never end level: The replay rule takes
+  the place of a separate "sudden death".
+- The timings are defined in `packages/shared/src/constants.ts`:
 
-| Konstante | Wert | Bedeutung |
+| Constant | Value | Meaning |
 | --- | --- | --- |
-| `PICK_TIMEOUT_MS` | 20 s | Zeit für die Wahl einer Geste. Wer nicht wählt, verliert sein Duell. Wählt niemand, ist die Runde unentschieden. |
-| `ANNOUNCE_TIMEOUT_MS` | 8 s | Zeit für die Ansage im Bluff-Modus. Wer schweigt, sagt nichts an. |
-| `REVEAL_MS` | 4 s | So lange bleibt das Rundenergebnis stehen. Sind alle verbundenen Spielenden "weiter", geht es früher los. |
-| `RECONNECT_GRACE_MS` | 30 s | So lange kann eine getrennte Person zurückkehren. Danach verliert sie ihr Duell in dieser und allen weiteren Runden (Aufgabe). |
-| `IDLE_ROUNDS_LIMIT` | 3 | Siehe unten. |
-| `ROOM_TTL_S` | 1800 s | Inaktive Räume verschwinden nach 30 Minuten aus Redis. |
+| `PICK_TIMEOUT_MS` | 20 s | Time to pick a gesture. Whoever does not pick loses their duel. If nobody picks, the round is a draw. |
+| `ANNOUNCE_TIMEOUT_MS` | 8 s | Time for the announcement in Bluff mode. Whoever stays silent announces nothing. |
+| `REVEAL_MS` | 5.5 s | How long the round result stays on screen. The client first shows a short countdown ("Rock, Paper, Scissors", in German "Schnick, Schnack, Schnuck", about 1.26 s, skipped with reduced motion), so the result stays visible for the remainder. If all connected players are "next", the next round starts sooner. |
+| `RECONNECT_GRACE_MS` | 30 s | How long a disconnected player can return. After that they lose their duel in this and all further rounds (forfeit). |
+| `IDLE_ROUNDS_LIMIT` | 3 | See below. |
+| `ROOM_TTL_S` | 1800 s | Inactive rooms disappear from Redis after 30 minutes. |
 
-### Abgebrochene Matches
+### Abandoned Matches
 
-Eine Runde, die ohne jede menschliche Wahl oder Ansage abläuft, zählt als "leer". Nach drei leeren Runden in
-Folge (`IDLE_ROUNDS_LIMIT`) endet das Match ohne Gewinner, damit verlassene Räume nicht endlos weiterlaufen. Die
-Ergebnisansicht zeigt dann statt Sieg oder Niederlage "Spiel vorzeitig beendet" ("Match ended early") mit dem
-Hinweis, dass das Spiel nicht weitergeführt werden konnte. Sind alle Menschen nach Ablauf der Karenzzeit
-weg, löscht der Server den Raum.
+A round that runs out without any human pick or announcement counts as "idle". After three idle rounds in a row
+(`IDLE_ROUNDS_LIMIT`), the match ends without a winner so that abandoned rooms do not run forever. The result
+screen then shows "Spiel vorzeitig beendet" ("Match ended early") instead of victory or defeat, with a note that
+the game could not be continued. If all humans are gone after the grace period, the server deletes the room.
 
-**Vorzeitiges Ende durch Aufgabe:** Wer das Match endgültig verlässt (oder nach der Karenzzeit nicht
-zurückkehrt), gibt auf und verliert ab dann jedes seiner Duelle. Das Match endet sofort, sobald kein Duell mehr
-zwei aktive Teilnehmende hat (Regel `drawGuard` in `apps/server/src/settle.ts`):
+**Ending early by forfeit:** Whoever leaves the match for good (or does not return after the grace period)
+forfeits and loses each of their duels from then on. The match ends immediately as soon as no duel has two
+active participants any more (rule `drawGuard` in `apps/server/src/settle.ts`):
 
-- **1v1 (auch gegen den Bot):** Gibt eine Seite auf, gewinnt die andere. Geben beide auf, gibt es keinen Gewinner
-  (bzw. gewinnt bei Punktunterschied die führende Seite).
-- **2v2:** Solange noch ein Duell mit zwei aktiven Personen übrig ist (z. B. `a1` gegen `b1`, wenn `a0` geht),
-  läuft das Match weiter, das verlassene Duell geht jede Runde an die Gegenseite. Sonst (beide Plätze eines Teams
-  weg, oder `a0` und `b1` bzw. `a1` und `b0` weg) gewinnt das Team mit mehr aktiven Plätzen, bei Gleichstand das
-  mit mehr Punkten, sonst gibt es keinen Gewinner.
+- **1v1 (also against the bot):** If one side forfeits, the other wins. If both forfeit, there is no winner
+  (or, if the scores differ, the leading side wins).
+- **2v2:** As long as a duel with two active players remains (for example `a1` against `b1` when `a0` leaves),
+  the match continues, and the abandoned duel goes to the opposing side every round. Otherwise (both seats of a
+  team gone, or `a0` and `b1` or `a1` and `b0` gone), the team with more active seats wins, on a tie the one
+  with more points, otherwise there is no winner.
 
-Nach dem Ende eines Matches kann jede Person im Raum eine Revanche starten. Wer das Match aufgegeben hat, gibt
-dabei seinen Platz frei.
+After a match ends, anyone in the room can start a rematch. Anyone who forfeited the match gives up their seat
+in the process.
 
-## Architektur
+## Architecture
 
 ```text
  Browser (Svelte SPA)                       Kubernetes
  ┌──────────────────┐   WebSocket    ┌──────────────────────────┐
- │ UI, i18n, Audio  │ ─────────────► │ Pod 1: Node-Server       │──┐
- │ Kamera (lokal)   │ ◄───────────── │ HTTP + Socket.IO         │  │
- └──────────────────┘  nur "Views"   ├──────────────────────────┤  ├──► Redis
-        ▲                            │ Pod 2 ... N (gleich)     │──┘   Räume, Timer,
-        └── statische Dateien (/) ───┴──────────────────────────┘      Pub/Sub
+ │ UI, i18n, audio  │ ─────────────► │ Pod 1: Node server       │──┐
+ │ Camera (local)   │ ◄───────────── │ HTTP + Socket.IO         │  │
+ └──────────────────┘  only "views"  ├──────────────────────────┤  ├──► Redis
+        ▲                            │ Pod 2 ... N (identical)  │──┘   rooms, timers,
+        └── static files (/) ────────┴──────────────────────────┘      Pub/Sub
 ```
 
-Monorepo mit npm-Workspaces:
+Monorepo with npm workspaces:
 
-| Pfad | Inhalt |
+| Path | Contents |
 | --- | --- |
-| `packages/shared` | Spiellogik (`match.ts`, `gestures.ts`, `constants.ts`), Protokoll mit zod-Schemas, Raum-Codes. Von Client und Server genutzt. |
-| `apps/server` | Node 24, Socket.IO mit Redis-Adapter, Räume, Ticker, Bot, HTTP (statische Dateien, `/healthz`, `/readyz`). |
-| `apps/web` | Svelte-5-SPA mit Vite. Styles in `src/styles` (Design-Tokens als CSS-Variablen), SVG-Assets in `src/assets`. |
-| `charts/rps-arena` | Helm-Chart (Deployment, Service, optional Ingress, optionaler Redis). |
-| `e2e` | Playwright-End-to-End-Tests. |
-| `scripts` | Release-Skript, Compose- und Helm-Checks, Modell-Download. |
+| `packages/shared` | Game logic (`match.ts`, `gestures.ts`, `constants.ts`), protocol with zod schemas, room codes. Used by client and server. |
+| `apps/server` | Node 24, Socket.IO with Redis adapter, rooms, ticker, bot, HTTP (static files, `/healthz`, `/readyz`). |
+| `apps/web` | Svelte 5 SPA with Vite. Styles in `src/styles` (design tokens as CSS variables), SVG assets in `src/assets`. |
+| `charts/rps-arena` | Helm chart (Deployment, Service, optional Ingress, optional Redis). |
+| `e2e` | Playwright end-to-end tests. |
+| `scripts` | Release script, Compose and Helm checks, model download. |
 
-Wichtige Eigenschaften:
+Key properties:
 
-- **Geheime Wahl:** Der Client bekommt nie den Rohzustand. `apps/server/src/view.ts` baut pro Platz eine
-  eigene Sicht aus einer Allow-List. Von anderen Plätzen ist nur sichtbar, *ob* sie gewählt haben
-  (`lockedSeats`), nie *was*. Erst nach dem Aufdecken steht die Wahl in `lastRound`. Session-Token anderer
-  Spielender sind nie Teil einer Sicht.
-- **Redis ist der einzige Zustand:** Räume, Spielstand und Fristen liegen in Redis. Die Server-Pods halten
-  nichts, was ein Neustart verlieren würde. Updates eines Raums sind atomare Read-Modify-Write-Vorgänge, die
-  Pods verteilen Ereignisse über den Socket.IO-Redis-Adapter. Es sind mehrere Replicas ohne Sticky Sessions
-  möglich, weil der Transport nur WebSocket ist (kein HTTP-Long-Polling, das an einen Pod gebunden wäre).
-- **Fristen im Raum:** Jeder Raum trägt seine nächste Frist (`deadline`). Jeder Pod prüft alle 500 ms, welche
-  Räume fällig sind, und führt die Frist atomar aus. Der Pod, der das Rennen verliert, ändert nichts. Bei einem
-  Pod-Neustart verbinden die Clients automatisch neu und setzen aus dem Redis-Zustand fort. Ohne Redis
-  (beim Start noch nicht erreichbar oder später ausgefallen) bleibt der Prozess am Leben: `/healthz` antwortet
-  weiter mit 200, `/readyz` mit 503, und sobald Redis wieder antwortet, verbinden sich alle Verbindungen
-  selbstständig neu und `/readyz` wird wieder 200. Ein Helm-Install, bei dem die App vor Redis startet, braucht
-  deshalb keinen Neustart.
-- **Zustand kurzlebig:** Redis-Schlüssel laufen nach 30 Minuten Inaktivität ab. Der mitgelieferte Redis hat
-  standardmäßig keine Persistenz (siehe [Deployment mit Helm](#deployment-mit-helm)).
+- **Secret picks:** The client never receives the raw state. `apps/server/src/view.ts` builds a separate view per
+  seat from an allow-list. For other seats, only *whether* they have picked is visible (`lockedSeats`), never
+  *what*. Only after the reveal does the pick appear in `lastRound`. Other players' session tokens are never part
+  of a view.
+- **Redis is the only state:** Rooms, scores and deadlines live in Redis. The server pods hold nothing that a
+  restart would lose. Updates to a room are atomic read-modify-write operations, and the pods distribute events
+  through the Socket.IO Redis adapter. Several replicas without sticky sessions are possible because the
+  transport is WebSocket only (no HTTP long-polling, which would be tied to one pod).
+- **Deadlines in the room:** Each room carries its next deadline (`deadline`). Every pod checks every 500 ms
+  which rooms are due and executes the deadline atomically. The pod that loses the race changes nothing. When a
+  pod restarts, clients reconnect automatically and continue from the Redis state. Without Redis (not yet
+  reachable at startup, or failed later), the process stays alive: `/healthz` keeps answering 200, `/readyz`
+  answers 503, and as soon as Redis answers again, all connections reconnect on their own and `/readyz` returns
+  to 200. A Helm install where the app starts before Redis therefore needs no restart.
+- **Short-lived state:** Redis keys expire after 30 minutes of inactivity. The bundled Redis has no persistence
+  by default (see [Deployment with Helm](#deployment-with-helm)).
 
-Das ausführliche Design steht in
+The detailed design is in
 [`docs/superpowers/specs/2026-10-22-rps-arena-design.md`](docs/superpowers/specs/2026-10-22-rps-arena-design.md).
 
-## Lokal entwickeln
+## Local Development
 
-Voraussetzungen: Node 24 (siehe [`.nvmrc`](.nvmrc), z. B. `nvm use`) und Docker (nur für Compose, für
-Image-Builds und optional für einen lokalen Redis).
+Prerequisites: Node 24 (see [`.nvmrc`](.nvmrc), for example `nvm use`) and Docker (only for Compose, for image
+builds and optionally for a local Redis).
 
 ```bash
 npm install
 ```
 
-### Dev-Server
+### Dev Server
 
-Zwei Prozesse, je ein Terminal:
+Two processes, one terminal each:
 
 ```bash
-# Terminal 1: Spielserver auf :8080 (tsx watch)
+# Terminal 1: game server on :8080 (tsx watch)
 RPS_DEV_MEMORY_STORE=1 npm run dev -w @rps/server
 
-# Terminal 2: Vite-Dev-Server der Web-App (Standardport 5173)
+# Terminal 2: Vite dev server of the web app (default port 5173)
 npm run dev -w @rps/web
 ```
 
-Die Web-App läuft auf `http://localhost:5173`. Vite leitet `/socket.io` (inklusive WebSocket) an
-`http://localhost:8080` weiter (`apps/web/vite.config.ts`). Der `predev`-Hook der Web-App ruft
-`scripts/fetch-model.mjs` auf (lädt das Kamera-Modell und kopiert die WASM-Dateien, braucht beim ersten Mal
-Netzwerk, siehe [Betrieb und Datenschutz](#betrieb-und-datenschutz)).
+The web app runs on `http://localhost:5173`. Vite forwards `/socket.io` (including WebSocket) to
+`http://localhost:8080` (`apps/web/vite.config.ts`). The web app's `predev` hook calls
+`scripts/fetch-model.mjs` (downloads the camera model and copies the WASM files, needs network access the first
+time, see [Operations and Privacy](#operations-and-privacy)).
 
-`RPS_DEV_MEMORY_STORE=1` hält die Räume im Arbeitsspeicher des Prozesses. Das ist **nur für Entwicklung und
-Tests** gedacht: ein einziger Prozess, alle Räume gehen beim Neustart verloren, keine Replicas. Ohne
-`REDIS_URL` und ohne dieses Flag verweigert der Server den Start mit einer Konfigurationsfehlermeldung. Ist
-`REDIS_URL` gesetzt, wird Redis genutzt und das Flag ignoriert. Mit einem echten Redis (z. B. aus
-[Docker Compose](#lokal-testen-mit-docker-compose)) startet man den Server mit `REDIS_URL=redis://127.0.0.1:6380`.
+`RPS_DEV_MEMORY_STORE=1` keeps rooms in the process's memory. It is intended **for development and tests only**:
+a single process, all rooms are lost on restart, no replicas. Without `REDIS_URL` and without this flag, the
+server refuses to start with a configuration error message. If `REDIS_URL` is set, Redis is used and the flag is
+ignored. With a real Redis (for example from [Docker Compose](#local-testing-with-docker-compose)), start the
+server with `REDIS_URL=redis://127.0.0.1:6380`.
 
-Den gebauten Stand (Server liefert die SPA selbst aus) prüft man so:
+To check the built version (the server serves the SPA itself):
 
 ```bash
 npm run build
 RPS_DEV_MEMORY_STORE=1 npm start -w @rps/server   # http://localhost:8080
 ```
 
-### Demo-Ansichten (nur Dev)
+### Demo Views (Dev Only)
 
-Im Vite-Dev-Server rendert `?demo=<screen>` einen Bildschirm aus Mock-Daten, ohne Server. Das dient zum Prüfen
-des Looks. Der Code steht in `apps/web/src/lib/demo.ts` und wird nur bei `import.meta.env.DEV` geladen, ein
-Produktions-Build enthält ihn nicht.
+In the Vite dev server, `?demo=<screen>` renders a screen from mock data, without a server. This is for checking
+the look. The code is in `apps/web/src/lib/demo.ts` and is only loaded when `import.meta.env.DEV` is true; a
+production build does not contain it.
 
 ```text
 http://localhost:5173/?demo=home|lobby|board|reveal|result|gallery
 ```
 
-Weitere Parameter: `mode=<Modus-ID>`, `outcome=win|lose|draw`, `picked=1`, `phase=announce`, `left=<Sekunden>`,
-`bot=1`, z. B. `?demo=board&mode=wheel15`.
+Further parameters: `mode=<mode ID>`, `outcome=win|lose|draw`, `picked=1`, `phase=announce`, `left=<seconds>`,
+`bot=1`, for example `?demo=board&mode=wheel15`.
 
-### Prüfen und bauen
+### Checking and Building
 
-| Befehl | Zweck |
+| Command | Purpose |
 | --- | --- |
-| `npm run lint` | ESLint über das Repo und alle Workspaces |
-| `npm run typecheck` | `tsc` bzw. `svelte-check` in allen Workspaces und `tsc -p e2e` |
-| `npm test` | Vitest für alle Workspaces und `scripts/` |
-| `npm run build` | Server-Bundle (esbuild) und Web-App (Vite) bauen, lädt zuerst das Kamera-Modell |
-| `npm run e2e` | `npm run build`, dann Playwright (Chromium) |
+| `npm run lint` | ESLint across the repo and all workspaces |
+| `npm run typecheck` | `tsc` or `svelte-check` in all workspaces and `tsc -p e2e` |
+| `npm test` | Vitest for all workspaces and `scripts/` |
+| `npm run build` | Build the server bundle (esbuild) and the web app (Vite), downloads the camera model first |
+| `npm run e2e` | `npm run build`, then Playwright (Chromium) |
 
-Die Redis-Tests (`apps/server/src/redis-store.test.ts`) laufen nur, wenn `REDIS_URL` gesetzt ist, und werden
-sonst übersprungen. `npm run compose:test` führt sie mit einem echten Redis aus.
+The Redis tests (`apps/server/src/redis-store.test.ts`) only run when `REDIS_URL` is set and are skipped
+otherwise. `npm run compose:test` runs them against a real Redis.
 
-Für `npm run e2e` einmalig den Browser installieren: `npx playwright install chromium`. Der Test startet den
-gebauten Server selbst (mit `RPS_DEV_MEMORY_STORE=1`) auf Port 47831, anpassbar mit `E2E_PORT`. Die Szenarien
-decken u. a. ein Klassik-Match zu zweit, die Geheimhaltung der Wahl, ein Bot-Match, Wheel 15, Fehlerfälle,
-Wiederverbinden, Sprachwechsel und Handybreite ab.
+For `npm run e2e`, install the browser once: `npx playwright install chromium`. The test starts the built server
+itself (with `RPS_DEV_MEMORY_STORE=1`) on port 47831, adjustable with `E2E_PORT`. The scenarios cover, among
+others, a two-player Classic match, the secrecy of picks, a bot match, Wheel 15, error cases, reconnecting,
+language switching and phone width.
 
-## Lokal testen mit Docker Compose
+## Local Testing with Docker Compose
 
-Voraussetzung: Docker mit Compose v2. Für `compose:smoke` und `compose:check` läuft ein Skript auf dem Host und
-braucht die Abhängigkeiten: einmalig `npm ci` im Repo ausführen. Alle Ports sind nur an `127.0.0.1` gebunden.
+Prerequisite: Docker with Compose v2. For `compose:smoke` and `compose:check`, a script runs on the host and
+needs the dependencies: run `npm ci` in the repo once. All ports are bound to `127.0.0.1` only.
 
 ```bash
-npm run compose:up      # baut das Image, startet Redis + App auf http://127.0.0.1:8080
-npm run compose:test    # gesamte Testsuite in einem Container, mit Redis (Redis-Tests laufen)
-npm run compose:smoke   # Redis + App + zweite Instanz (:8081), dann Smoke-Test über beide
-npm run compose:check   # kompletter Ablauf inklusive Aufräumen
-npm run compose:down    # alles stoppen, Volumes und verwaiste Container entfernen
+npm run compose:up      # builds the image, starts Redis + app on http://127.0.0.1:8080
+npm run compose:test    # whole test suite in one container, with Redis (Redis tests run)
+npm run compose:smoke   # Redis + app + second instance (:8081), then smoke test across both
+npm run compose:check   # complete run including cleanup
+npm run compose:down    # stop everything, remove volumes and orphaned containers
 ```
 
-Die Services in [`compose.yaml`](compose.yaml):
+The services in [`compose.yaml`](compose.yaml):
 
-| Service | Profil | Zweck |
+| Service | Profile | Purpose |
 | --- | --- | --- |
-| `redis` | (immer) | Redis 7, Host-Port `REDIS_PORT` (Standard 6380, bewusst nicht 6379) |
-| `app` | (immer) | Das Runtime-Image des Dockerfiles, read-only Root-Dateisystem, `/tmp` als tmpfs, Port `APP_PORT` (8080) |
-| `app2` | `replicas` | Zweite Instanz auf demselben Redis, Port `APP2_PORT` (8081) |
-| `tests` | `test` | Testsuite aus der `test`-Stage des Dockerfiles |
+| `redis` | (always) | Redis 7, host port `REDIS_PORT` (default 6380, deliberately not 6379) |
+| `app` | (always) | The runtime image of the Dockerfile, read-only root file system, `/tmp` as tmpfs, port `APP_PORT` (8080) |
+| `app2` | `replicas` | Second instance on the same Redis, port `APP2_PORT` (8081) |
+| `tests` | `test` | Test suite from the `test` stage of the Dockerfile |
 
-- **Ports und Namen:** Belegte Ports lassen sich mit `APP_PORT`, `APP2_PORT` und `REDIS_PORT` ändern, z. B.
-  `APP_PORT=18080 npm run compose:up`. Kein Service hat einen festen Containernamen, mehrere Checkouts laufen
-  mit unterschiedlichem `COMPOSE_PROJECT_NAME` und eigenen Ports nebeneinander.
-- **Eigene Ports bei `compose:smoke`:** Das Smoke-Skript läuft auf dem Host und spricht standardmäßig
-  `127.0.0.1:8080` und `127.0.0.1:8081` an. Mit geänderten Ports müssen deshalb zusätzlich `APP_URL` und
-  `APP2_URL` gesetzt werden. Nur `compose:check` reicht `APP_PORT`, `APP2_PORT` und `REDIS_PORT` selbst an das
-  Skript weiter.
+- **Ports and names:** Occupied ports can be changed with `APP_PORT`, `APP2_PORT` and `REDIS_PORT`, for example
+  `APP_PORT=18080 npm run compose:up`. No service has a fixed container name; multiple checkouts run side by
+  side with different `COMPOSE_PROJECT_NAME` values and their own ports.
+- **Custom ports with `compose:smoke`:** The smoke script runs on the host and by default talks to
+  `127.0.0.1:8080` and `127.0.0.1:8081`. With changed ports, `APP_URL` and `APP2_URL` must therefore be set as
+  well. Only `compose:check` passes `APP_PORT`, `APP2_PORT` and `REDIS_PORT` on to the script itself.
 
   ```bash
   export APP_PORT=18080 APP2_PORT=18081
   APP_URL=http://127.0.0.1:18080 APP2_URL=http://127.0.0.1:18081 npm run compose:smoke
   ```
 
-- **`tests`-Service:** Wird aus der `test`-Stage des [`Dockerfile`](Dockerfile) gebaut. Quellcode und
-  Abhängigkeiten stecken im Image, es gibt **keinen Bind-Mount**, und nichts wird in den Arbeitsordner
-  geschrieben. `compose:test` baut mit `--build` bei jedem Aufruf neu (Docker-Cache greift). Mit
-  `COMPOSE_TEST_CMD` lässt sich ein anderer Befehl setzen:
+- **`tests` service:** Built from the `test` stage of the [`Dockerfile`](Dockerfile). Source code and
+  dependencies are inside the image, there is **no bind mount**, and nothing is written to the working
+  directory. `compose:test` rebuilds with `--build` on every call (the Docker cache applies). A different
+  command can be set with `COMPOSE_TEST_CMD`:
   `COMPOSE_TEST_CMD="npm test -w @rps/server" npm run compose:test`.
-- **`compose:smoke`** startet `redis`, `app` und `app2` und führt
-  [`scripts/compose-smoke.mjs`](scripts/compose-smoke.mjs) aus. Der Stack läuft danach weiter, aufräumen mit
+- **`compose:smoke`** starts `redis`, `app` and `app2` and runs
+  [`scripts/compose-smoke.mjs`](scripts/compose-smoke.mjs). The stack keeps running afterwards; clean up with
   `npm run compose:down`.
-- **`compose:check`** ([`scripts/compose-check.sh`](scripts/compose-check.sh)) prüft die Compose-Konfiguration
-  (alle Profile), baut und startet die App, prüft `/healthz` und `/readyz`, führt die Tests gegen Redis aus
-  (und stellt sicher, dass die Redis-Tests wirklich laufen, nicht übersprungen werden), startet die zweite
-  Instanz und führt den Smoke-Test aus. Danach räumt es immer auf. Es hängt an `COMPOSE_TEST_CMD` automatisch
-  `-- --reporter=verbose` an. Wird der Befehl überschrieben, müssen darin die `@rps/server`-Tests enthalten sein,
-  weil die Prüfung "Redis-Tests liefen" sie im Log sucht. Es nutzt standardmäßig das Projekt
-  `rps-arena-check`, damit ein laufender Dev-Stack nicht abgebaut wird (`COMPOSE_PROJECT_NAME` überschreibt das).
-  Es braucht auf dem Host `docker`, `curl`, `node` und die per `npm ci` installierten Abhängigkeiten.
+- **`compose:check`** ([`scripts/compose-check.sh`](scripts/compose-check.sh)) validates the Compose
+  configuration (all profiles), builds and starts the app, checks `/healthz` and `/readyz`, runs the tests
+  against Redis (and makes sure the Redis tests really run and are not skipped), starts the second instance and
+  runs the smoke test. It always cleans up afterwards. It automatically appends `-- --reporter=verbose` to
+  `COMPOSE_TEST_CMD`. If the command is overridden, it must still include the `@rps/server` tests, because the
+  "Redis tests ran" check looks for them in the log. By default it uses the project `rps-arena-check`, so a
+  running dev stack is not torn down (`COMPOSE_PROJECT_NAME` overrides this). It needs `docker`, `curl`, `node`
+  and the dependencies installed via `npm ci` on the host.
 
-**Was der Smoke-Test beweist:** Zwei Clients verbinden sich mit *verschiedenen* Instanzen derselben Redis-Datenbank
-und spielen einen Raum. Geprüft wird, dass (1) Erstellen und Beitreten über Instanzen hinweg funktioniert,
-(2) die geheime Wahl von A bei B nicht ankommt, bevor B gewählt hat, (3) das Aufdecken per Redis-Adapter an
-beide Instanzen verteilt wird und (4) ein Wiederverbinden über die andere Instanz mit dem Sitzungs-Token den Platz
-wiederherstellt.
+**What the smoke test proves:** Two clients connect to *different* instances of the same Redis database and play
+a room. It checks that (1) creating and joining works across instances, (2) A's secret pick does not reach B
+before B has picked, (3) the reveal is distributed to both instances via the Redis adapter, and (4) reconnecting
+through the other instance with the session token restores the seat.
 
-## Deployment mit Helm
+## Deployment with Helm
 
-Das Chart liegt in [`charts/rps-arena`](charts/rps-arena) und wird bei jedem Release als OCI-Artefakt nach
-`ghcr.io/jaydee94/charts/rps-arena` veröffentlicht (Chart-Name `rps-arena`, `version` und `appVersion` sind die
-Release-Version). Das Chart im Repository trägt den Platzhalter `0.0.0`. Es deployt die App (Server mit
-eingebetteter Web-App), einen Service, optional einen Ingress und standardmäßig einen einfachen Redis.
+The chart lives in [`charts/rps-arena`](charts/rps-arena) and is published on every release as an OCI artifact
+to `ghcr.io/jaydee94/charts/rps-arena` (chart name `rps-arena`, `version` and `appVersion` are the release
+version). The chart in the repository carries the placeholder `0.0.0`. It deploys the app (server with embedded
+web app), a Service, optionally an Ingress and, by default, a simple Redis.
 
 ```bash
 helm install rps oci://ghcr.io/jaydee94/charts/rps-arena --version 1.0.0 \
   --namespace rps --create-namespace -f values.yaml
 ```
 
-Die Version (`--version`) ist ein veröffentlichtes Release. Ist das Chart-Paket privat, vorher mit
-`helm registry login ghcr.io` anmelden. Mit dem Release-Namen `rps` heißen die Ressourcen `rps-rps-arena`
-(und `rps-rps-arena-redis`).
+The version (`--version`) is a published release. If the chart package is private, log in first with
+`helm registry login ghcr.io`. With the release name `rps`, the resources are named `rps-rps-arena` (and
+`rps-rps-arena-redis`).
 
-Beispiel `values.yaml`:
+Example `values.yaml`:
 
 ```yaml
 replicaCount: 2
 
 image:
-  tag: ""            # leer = appVersion des Charts
+  tag: ""            # empty = appVersion of the chart
 
 resources:
   requests: { cpu: 100m, memory: 128Mi }
@@ -329,136 +344,133 @@ ingress:
   host: rps.example.com
   tls:
     enabled: true
-    clusterIssuer: letsencrypt-prod   # setzt die Annotation cert-manager.io/cluster-issuer
+    clusterIssuer: letsencrypt-prod   # sets the annotation cert-manager.io/cluster-issuer
 
-# Eigener Redis statt des mitgelieferten (URL ohne Passwort; mit Passwort siehe redis.existingSecret unten):
+# Your own Redis instead of the bundled one (URL without password; with a password see redis.existingSecret below):
 redis:
   enabled: false
   externalUrl: redis://redis.example.internal:6379
 ```
 
-Alle Werte mit Standards stehen in [`charts/rps-arena/values.yaml`](charts/rps-arena/values.yaml). Weitere
-Umgebungsvariablen für den Container gehen über die Map `env`. Ohne Ingress erreicht man das Spiel per
-`kubectl --namespace rps port-forward svc/rps-rps-arena 8080:80` (die Hinweise nach `helm install` zeigen den
-passenden Befehl).
+All values with their defaults are in [`charts/rps-arena/values.yaml`](charts/rps-arena/values.yaml). Further
+environment variables for the container go through the `env` map. Without an Ingress, the game is reachable via
+`kubectl --namespace rps port-forward svc/rps-rps-arena 8080:80` (the notes shown after `helm install` print the
+matching command).
 
-**Redis:** Mit `redis.enabled: true` (Standard) startet das Chart einen einzelnen Redis (`redis:7-alpine`) ohne
-Authentifizierung und ohne Persistenz. Fällt er aus, gehen laufende Räume verloren. Mit
-`redis.persistence.enabled=true` entsteht ein PVC (`redis.persistence.size`, `storageClass`). Mit
-`redis.enabled: false` ist `redis.externalUrl` oder `redis.existingSecret` Pflicht, sonst bricht `helm template`
-mit einer klaren Meldung ab. `redis.externalUrl` steht im Klartext in der Deployment-Umgebung (und in
-`helm get values`), taugt also nur für eine URL ohne Passwort. Mit Passwort legt man die URL in ein eigenes Secret
-und verweist darauf:
+**Redis:** With `redis.enabled: true` (the default), the chart starts a single Redis (`redis:7-alpine`) without
+authentication and without persistence. If it fails, running rooms are lost. With
+`redis.persistence.enabled=true`, a PVC is created (`redis.persistence.size`, `storageClass`). With
+`redis.enabled: false`, either `redis.externalUrl` or `redis.existingSecret` is required, otherwise
+`helm template` aborts with a clear message. `redis.externalUrl` appears in plain text in the Deployment
+environment (and in `helm get values`), so it is only suitable for a URL without a password. With a password,
+put the URL in a Secret of your own and reference it:
 
 ```bash
 kubectl --namespace rps create secret generic rps-redis \
-  --from-literal=redis-url='rediss://user:passwort@redis.example.internal:6379'
+  --from-literal=redis-url='rediss://user:password@redis.example.internal:6379'
 helm upgrade --install rps ... --set redis.enabled=false --set redis.existingSecret=rps-redis
 ```
 
-`REDIS_URL` kommt dann per `secretKeyRef` aus dem Secret (Schlüssel `redis.existingSecretKey`, Standard
-`redis-url`), `redis.externalUrl` wird nicht gebraucht und das Secret gewinnt, falls beides gesetzt ist. Die
-Hinweise nach `helm install` und `upgrade` (und damit die CI-Logs) nennen die URL nie, nur ob ein externer
-Redis konfiguriert ist.
+`REDIS_URL` then comes from the Secret via `secretKeyRef` (key `redis.existingSecretKey`, default `redis-url`),
+`redis.externalUrl` is not needed, and the Secret wins if both are set. The notes after `helm install` and
+`upgrade` (and therefore the CI logs) never print the URL, only whether an external Redis is configured.
 
-**Anforderungen an den Ingress:**
+**Ingress requirements:**
 
-- **WebSocket-Timeouts:** Die Annotationen `nginx.ingress.kubernetes.io/proxy-read-timeout` und
-  `proxy-send-timeout` stehen standardmäßig auf 3600 s (ingress-nginx). Bei anderen Controllern über
-  `ingress.annotations` anpassen.
-- **`Host`-Header muss erhalten bleiben:** Der Server akzeptiert eine WebSocket-Verbindung nur, wenn der
-  `Origin` des Browsers zum `Host` der Anfrage passt (kein CORS, `apps/server/src/io.ts`). Ein Proxy, der den
-  `Host` umschreibt, führt zu abgewiesenen Verbindungen.
-- **Keine Sticky Sessions nötig.** Der Zustand liegt in Redis, mehrere Replicas sind der Normalfall.
-- Nur Ingress, keine Gateway API.
+- **WebSocket timeouts:** The annotations `nginx.ingress.kubernetes.io/proxy-read-timeout` and
+  `proxy-send-timeout` default to 3600 s (ingress-nginx). With other controllers, adjust them via
+  `ingress.annotations`.
+- **The `Host` header must be preserved:** The server only accepts a WebSocket connection if the browser's
+  `Origin` matches the request's `Host` (no CORS, `apps/server/src/io.ts`). A proxy that rewrites the `Host`
+  causes rejected connections.
+- **No sticky sessions needed.** The state is in Redis, several replicas are the normal case.
+- Ingress only, no Gateway API.
 
-**Probes und Sicherheit:** Liveness `GET /healthz`, Readiness `GET /readyz` (200 nur, wenn Redis antwortet). Der
-Container läuft als Nicht-Root (UID/GID 1000), mit `readOnlyRootFilesystem`, ohne Privilege Escalation, ohne
-Linux-Capabilities und mit dem Seccomp-Profil `RuntimeDefault`. `/tmp` ist ein `emptyDir`. Standard-Ressourcen:
-50m CPU / 96Mi Request, 500m CPU / 256Mi Limit.
+**Probes and security:** Liveness `GET /healthz`, readiness `GET /readyz` (200 only if Redis answers). The
+container runs as non-root (UID/GID 1000), with `readOnlyRootFilesystem`, without privilege escalation, without
+Linux capabilities and with the seccomp profile `RuntimeDefault`. `/tmp` is an `emptyDir`. Default resources:
+50m CPU / 96Mi request, 500m CPU / 256Mi limit.
 
-**Chart prüfen:**
+**Checking the chart:**
 
 ```bash
 helm lint charts/rps-arena
-bash scripts/helm-check.sh   # braucht helm und yq, dazu kubeconform oder Docker
+bash scripts/helm-check.sh   # needs helm and yq, plus kubeconform or Docker
 ```
 
-[`scripts/helm-check.sh`](scripts/helm-check.sh) lintet das Chart in mehreren Varianten, rendert es mit
-`helm template`, prüft per `yq` die wichtigsten Eigenschaften (Security-Kontext, Probes, Redis-Varianten,
-Ingress, keine Sticky-Annotationen) und validiert die Manifeste mit kubeconform.
+[`scripts/helm-check.sh`](scripts/helm-check.sh) lints the chart in several variants, renders it with
+`helm template`, uses `yq` to check the most important properties (security context, probes, Redis variants,
+Ingress, no sticky annotations) and validates the manifests with kubeconform.
 
-## Betrieb und Datenschutz
+## Operations and Privacy
 
-### Umgebungsvariablen
+### Environment Variables
 
-Gelesen in [`apps/server/src/config.ts`](apps/server/src/config.ts):
+Read in [`apps/server/src/config.ts`](apps/server/src/config.ts):
 
-| Variable | Standard | Bedeutung |
+| Variable | Default | Meaning |
 | --- | --- | --- |
-| `PORT` | `8080` | HTTP- und WebSocket-Port (ganze Zahl 1 bis 65535) |
-| `REDIS_URL` | (keiner) | Pflicht in Produktion. Muss mit `redis://` oder `rediss://` beginnen. Die URL wird nie geloggt. |
-| `RPS_DEV_MEMORY_STORE` | (aus) | `1` = Räume im Arbeitsspeicher, nur Entwicklung und Tests (siehe oben) |
-| `STATIC_DIR` | `apps/web/dist` relativ zum Server | Verzeichnis der gebauten Web-App. Das Image legt sie passend ab, die Variable ist dort nicht nötig. |
+| `PORT` | `8080` | HTTP and WebSocket port (integer 1 to 65535) |
+| `REDIS_URL` | (none) | Required in production. Must start with `redis://` or `rediss://`. The URL is never logged. |
+| `RPS_DEV_MEMORY_STORE` | (off) | `1` = rooms in memory, development and tests only (see above) |
+| `STATIC_DIR` | `apps/web/dist` relative to the server | Directory of the built web app. The image places it accordingly, so the variable is not needed there. |
 
-Das Image setzt `NODE_ENV=production` und `PORT=8080`. Der Server fährt bei `SIGTERM` geordnet herunter
-(Clients verbinden sich mit einem anderen Pod neu).
+The image sets `NODE_ENV=production` and `PORT=8080`. On `SIGTERM`, the server shuts down gracefully (clients
+reconnect to another pod).
 
 ### Redis
 
-Redis ist Pflicht (außer im Dev-Modus) und der einzige Zustand. Jeder Raum ist ein Schlüssel mit einer
-Inaktivitäts-TTL von 30 Minuten (`ROOM_TTL_S`). Es werden keine Spielverläufe, Accounts oder Ranglisten
-gespeichert. Der Bot merkt sich höchstens die letzten 50 Runden eines Raums (auch über Rematches hinweg), ein
-Raum wächst im Redis also nicht mit der Spieldauer.
+Redis is required (except in dev mode) and is the only state. Each room is a key with an inactivity TTL of 30
+minutes (`ROOM_TTL_S`). No game histories, accounts or leaderboards are stored. The bot remembers at most the
+last 50 rounds of a room (also across rematches), so a room does not grow in Redis with the length of play.
 
-Der mitgelieferte Redis hat begrenzten Speicher: `--maxmemory 100mb` mit der Richtlinie `volatile-lru`
-(`redis.maxmemory`, `redis.maxmemoryPolicy`, das Container-Limit von 128Mi liegt darüber). Ist die Grenze
-erreicht, verdrängt Redis die am längsten ungenutzten *Räume* (nur diese tragen eine TTL), statt vom Kernel
-beendet zu werden und alle Räume zu verlieren. Der kleine Fristen-Index `rps:deadlines` hat keine TTL und wird nie
-verdrängt. Beim Anheben von `redis.maxmemory` das Container-Limit `redis.resources.limits.memory` mit anheben.
-Für einen externen Redis gilt dieselbe Empfehlung (`maxmemory` plus `volatile-lru`), das Chart kann sie dort nicht
-setzen.
+The bundled Redis has limited memory: `--maxmemory 100mb` with the policy `volatile-lru` (`redis.maxmemory`,
+`redis.maxmemoryPolicy`; the container limit of 128Mi is above it). When the limit is reached, Redis evicts the
+least recently used *rooms* (only these carry a TTL) instead of being killed by the kernel and losing all rooms.
+The small deadline index `rps:deadlines` has no TTL and is never evicted. When raising `redis.maxmemory`, also
+raise the container limit `redis.resources.limits.memory`. The same recommendation (`maxmemory` plus
+`volatile-lru`) applies to an external Redis; the chart cannot set it there.
 
-### Sicherheits-Header
+### Security Headers
 
-Der Server setzt eine strenge Content-Security-Policy (`default-src 'self'`, `script-src 'self'
-'wasm-unsafe-eval'`, `worker-src 'self' blob:` für MediaPipe), `X-Content-Type-Options`, `Referrer-Policy:
-no-referrer`, `X-Frame-Options: DENY` und `Permissions-Policy: camera=(self), microphone=(), geolocation=()`.
-Hashed Assets unter `/assets/` werden langfristig gecacht, alles andere muss revalidiert werden. Nachrichten sind
-auf 10 kB begrenzt, pro Verbindung gibt es ein Ratenlimit.
+The server sets a strict Content-Security-Policy (`default-src 'self'`, `script-src 'self'
+'wasm-unsafe-eval'`, `worker-src 'self' blob:` for MediaPipe), `X-Content-Type-Options`, `Referrer-Policy:
+no-referrer`, `X-Frame-Options: DENY` and `Permissions-Policy: camera=(self), microphone=(), geolocation=()`.
+Hashed assets under `/assets/` are cached long-term, everything else must be revalidated. Messages are limited
+to 10 kB, and there is a rate limit per connection.
 
-### Kamera-Steuerung
+### Camera Control
 
-- **Alles im Browser:** Die Handgesten-Erkennung läuft mit MediaPipe (`@mediapipe/tasks-vision`) vollständig
-  im Browser. Es verlässt **kein Videobild** das Gerät, gesendet wird nur die bestätigte Wahl (Stein, Papier
-  oder Schere). Library, WASM-Dateien und Modell kommen vom eigenen Server, es gibt keine Anfrage an ein CDN
-  oder an Google.
-- **Nur auf Wunsch:** Die Library und das Modell werden erst geladen, wenn man die Kamera einschaltet. Die
-  Kamera wird erst geöffnet, nachdem das Modell geladen ist. Ohne Kamera oder bei verweigerter Berechtigung
-  zeigt die App eine Meldung, die Klick-Steuerung bleibt unberührt.
-- **Umfang:** Experimentell und nur für Spiele mit dem Klassik-Set (Klassik und 2v2). Erkannt werden
-  `Closed_Fist` (Stein), `Open_Palm` (Papier) und `Victory` (Schere). Eine Geste zählt erst, wenn sie
-  900 ms ununterbrochen gehalten wird.
-- **Pinned auf 0.10.x:** `@mediapipe/tasks-vision` steht in `apps/web/package.json` exakt auf `0.10.35`.
-  Versionen ab 1.0 liefern eine eingebaute Telemetrie mit (ein POST an einen Google-Logging-Endpunkt, so
-  beschreibt es auch die Renovate-Regel). Bei der Analyse von 1.1.1 fand sich dieser Logger im Bundle, in 0.10.x
-  sind keine externen URLs enthalten. Das widerspräche der Zusage "keine Anfragen an Dritte". Die Version darf
-  deshalb nicht auf 1.x angehoben werden, ohne das zu prüfen. Renovate ist per Regel in `renovate.json` darauf
-  eingestellt, die Version nicht auf 1.x zu heben (`allowedVersions: "<1"`).
-- **Modell-Download beim Build:** `scripts/fetch-model.mjs` (läuft als `predev`/`prebuild` der Web-App und damit
-  auch im Docker-Build) lädt `gesture_recognizer.task` von `storage.googleapis.com`, prüft die SHA-256-Summe und
-  bricht bei Abweichung ab. Der Build braucht deshalb **Netzwerk**. Ein vorhandenes, geprüftes Modell wird nicht
-  erneut geladen. Zur Laufzeit ist kein Netzwerkzugriff nötig. Die WASM-Dateien kopiert das Skript aus dem
-  npm-Paket nach `apps/web/public/mediapipe-wasm/`.
-- **`.wasm`:** Der Server liefert `.wasm` als `application/wasm` aus. Wer die statischen Dateien hinter einem
-  anderen Server ausliefert, muss das ebenfalls sicherstellen und `wasm-unsafe-eval` in der CSP erlauben.
+- **Everything in the browser:** Hand-gesture recognition runs with MediaPipe (`@mediapipe/tasks-vision`)
+  entirely in the browser. **No video image** leaves the device; only the confirmed pick (rock, paper or
+  scissors) is sent. The library, WASM files and model come from your own server; there is no request to a CDN
+  or to Google.
+- **Only on request:** The library and the model are only loaded when the camera is switched on. The camera is
+  only opened after the model has loaded. Without a camera or with a denied permission, the app shows a
+  message, and click control is unaffected.
+- **Scope:** Experimental and only for games with the Classic set (Classic and 2v2). Recognized are
+  `Closed_Fist` (rock), `Open_Palm` (paper) and `Victory` (scissors). A gesture only counts once it has been
+  held without interruption for 900 ms.
+- **Pinned to 0.10.x:** `@mediapipe/tasks-vision` is pinned exactly to `0.10.35` in `apps/web/package.json`.
+  Versions from 1.0 on ship built-in telemetry (a POST to a Google logging endpoint, as the Renovate rule also
+  describes it). In the analysis of 1.1.1, this logger was found in the bundle; 0.10.x contains no external
+  URLs. That would contradict the promise "no requests to third parties". The version must therefore not be
+  raised to 1.x without checking this. Renovate is configured by a rule in `renovate.json` not to raise the
+  version to 1.x (`allowedVersions: "<1"`).
+- **Model download at build time:** `scripts/fetch-model.mjs` (runs as `predev`/`prebuild` of the web app and
+  therefore also in the Docker build) downloads `gesture_recognizer.task` from `storage.googleapis.com`,
+  verifies the SHA-256 checksum and aborts on a mismatch. The build therefore needs **network access**. An
+  existing, verified model is not downloaded again. No network access is needed at runtime. The script copies
+  the WASM files from the npm package to `apps/web/public/mediapipe-wasm/`.
+- **`.wasm`:** The server serves `.wasm` as `application/wasm`. Anyone serving the static files behind a
+  different server must ensure this as well and allow `wasm-unsafe-eval` in the CSP.
 
-## Release und CI
+## Release and CI
 
-### Conventional Commits und Releaseplan
+### Conventional Commits and Release Plan
 
-Commit-Nachrichten (bei Squash-Merges der PR-Titel) folgen den
-[Conventional Commits](https://www.conventionalcommits.org/). Die Regeln stehen in
+Commit messages (for squash merges, the PR title) follow
+[Conventional Commits](https://www.conventionalcommits.org/). The rules are in
 [`.releaserc.json`](.releaserc.json):
 
 | Commit | Release |
@@ -466,156 +478,156 @@ Commit-Nachrichten (bei Squash-Merges der PR-Titel) folgen den
 | `feat` | minor |
 | `fix`, `perf` | patch |
 | `fix(deps)` (Renovate) | patch |
-| Breaking Change (`feat!:` oder Footer `BREAKING CHANGE:`) | major |
-| `docs`, `ci`, `chore`, `test`, `refactor`, `build`, `style` | kein Release |
+| Breaking change (`feat!:` or footer `BREAKING CHANGE:`) | major |
+| `docs`, `ci`, `chore`, `test`, `refactor`, `build`, `style` | no release |
 
-Das erste Release ist `1.0.0`. Jeder Push auf `main` startet den Workflow
-[`release.yml`](.github/workflows/release.yml): Er installiert die Abhängigkeiten und führt als Qualitätstor
-`npm run lint && npm run typecheck && npm test` aus. Erst danach läuft semantic-release. Der End-to-End-Test läuft
-nur in der PR-CI. Wenn die Commits ein Release rechtfertigen, entstehen:
+The first release is `1.0.0`. Every push to `main` starts the workflow
+[`release.yml`](.github/workflows/release.yml): It installs the dependencies and runs
+`npm run lint && npm run typecheck && npm test` as a quality gate. Only after that does semantic-release run.
+The end-to-end test only runs in the PR CI. If the commits justify a release, the following are produced:
 
-- der Git-Tag `vX.Y.Z` und ein GitHub Release mit Changelog,
-- das Multi-Arch-Image (linux/amd64 und linux/arm64) `ghcr.io/jaydee94/rps-arena:X.Y.Z`, bei stabilen
-  Versionen zusätzlich `:latest`,
-- das Helm-Chart als OCI-Artefakt `oci://ghcr.io/jaydee94/charts/rps-arena` in Version `X.Y.Z` (mit `appVersion`
-  `X.Y.Z`).
+- the Git tag `vX.Y.Z` and a GitHub Release with a changelog,
+- the multi-arch image (linux/amd64 and linux/arm64) `ghcr.io/jaydee94/rps-arena:X.Y.Z`, plus `:latest` for
+  stable versions,
+- the Helm chart as OCI artifact `oci://ghcr.io/jaydee94/charts/rps-arena` in version `X.Y.Z` (with
+  `appVersion` `X.Y.Z`).
 
-Das Dockerfile baut `source`, `build`, `test` und `deps` auf der Build-Plattform (`--platform=$BUILDPLATFORM`),
-sodass `npm ci` und der Vite-Build für die arm64-Variante nicht unter QEMU laufen. Das ist möglich, weil
-Server-Bundle, SPA und die Produktionsabhängigkeiten reines JavaScript sind (der Test
-[`scripts/dockerfile-deps.test.ts`](scripts/dockerfile-deps.test.ts) schlägt an, sobald eine Produktionsabhängigkeit
-plattformspezifisch wird). Nur die letzte Stufe `runtime` entsteht für die Zielplattform und enthält kein `RUN`.
+The Dockerfile builds `source`, `build`, `test` and `deps` on the build platform (`--platform=$BUILDPLATFORM`),
+so that `npm ci` and the Vite build for the arm64 variant do not run under QEMU. This is possible because the
+server bundle, the SPA and the production dependencies are pure JavaScript (the test
+[`scripts/dockerfile-deps.test.ts`](scripts/dockerfile-deps.test.ts) fails as soon as a production dependency
+becomes platform-specific). Only the final stage `runtime` is built for the target platform and contains no
+`RUN`.
 
-semantic-release committet **nichts** zurück nach `main`. Es setzt nur Tag und GitHub Release, das Chart bekommt
-seine Version erst beim Verpacken in [`scripts/publish.sh`](scripts/publish.sh). Dadurch braucht `main` keine
-Ausnahme in der Branch-Protection und keinen Bot-Token. `publish.sh` überschreibt nie ein bereits vorhandenes
-Image oder Chart und bricht ab, wenn die Registry nicht eindeutig antwortet.
+semantic-release commits **nothing** back to `main`. It only sets the tag and GitHub Release; the chart gets its
+version only when it is packaged in [`scripts/publish.sh`](scripts/publish.sh). As a result, `main` needs no
+exception in branch protection and no bot token. `publish.sh` never overwrites an existing image or chart and
+aborts if the registry does not answer unambiguously.
 
 ### Pull Requests
 
-Gemergt wird per **Squash-Merge** mit einem Conventional-Commit-Titel. Der Workflow
-[`pr-title.yml`](.github/workflows/pr-title.yml) prüft den PR-Titel (erlaubte Typen: `feat`, `fix`, `perf`,
-`docs`, `ci`, `chore`, `test`, `refactor`, `build`, `style`). Die PR-CI [`ci.yml`](.github/workflows/ci.yml)
-läuft bei Pull Requests gegen `main` (und manuell) mit diesen Jobs:
+Merging is done by **squash merge** with a Conventional Commit title. The workflow
+[`pr-title.yml`](.github/workflows/pr-title.yml) checks the PR title (allowed types: `feat`, `fix`, `perf`,
+`docs`, `ci`, `chore`, `test`, `refactor`, `build`, `style`). The PR CI [`ci.yml`](.github/workflows/ci.yml)
+runs on pull requests against `main` (and manually) with these jobs:
 
-| Job | Inhalt |
+| Job | Contents |
 | --- | --- |
-| `test` | `npm ci`, Lint, Typprüfung, Tests (mit einem Redis-Service, die Redis-Tests laufen also) |
-| `e2e` | Build und Playwright-Tests mit Chromium (bei Fehlern wird der Report als Artefakt hochgeladen) |
-| `image` | Docker-Build ohne Push |
-| `chart` | `scripts/helm-check.sh` (Helm-Lint, `helm template`, kubeconform) |
-| `renovate-config` | Validiert `renovate.json` mit dem Renovate-Config-Validator (`--strict`) |
+| `test` | `npm ci`, lint, type check, tests (with a Redis service, so the Redis tests run) |
+| `e2e` | Build and Playwright tests with Chromium (on failure, the report is uploaded as an artifact) |
+| `image` | Docker build without push |
+| `chart` | `scripts/helm-check.sh` (Helm lint, `helm template`, kubeconform) |
+| `renovate-config` | Validates `renovate.json` with the Renovate config validator (`--strict`) |
 
-### Wenn das Veröffentlichen fehlschlägt
+### When Publishing Fails
 
-semantic-release legt Tag und GitHub Release an, *bevor* es `scripts/publish.sh` aufruft. Schlägt das
-Veröffentlichen von Image oder Chart fehl, findet ein erneuter Lauf nichts Neues und tut nichts. Stattdessen:
-**Actions → release → Run workflow** und die vorhandene Version ohne `v` eintragen, z. B. `1.2.3`. Der Job
-`republish` checkt den Tag aus, baut Image und Chart neu und veröffentlicht beides. Vorhandene Artefakte werden
-nicht überschrieben, ein halb fertiger Release lässt sich so vervollständigen. Alternativ von Hand (braucht
-`docker`, `helm` und `git` sowie einen buildx-Builder, der Multi-Plattform-Images bauen kann, z. B. mit QEMU):
+semantic-release creates the tag and GitHub Release *before* it calls `scripts/publish.sh`. If publishing the
+image or chart fails, a re-run finds nothing new and does nothing. Instead: **Actions → release → Run
+workflow** and enter the existing version without the `v`, for example `1.2.3`. The `republish` job checks out
+the tag, rebuilds image and chart and publishes both. Existing artifacts are not overwritten, so a half-finished
+release can be completed this way. Alternatively by hand (needs `docker`, `helm` and `git` as well as a buildx
+builder that can build multi-platform images, for example with QEMU):
 
 ```bash
 git checkout v1.2.3
 docker login ghcr.io
 bash scripts/publish.sh 1.2.3
-# Trockenlauf: baut lokal nur für die eigene Plattform, pusht nichts, kontaktiert die Registry nicht
+# Dry run: builds locally for your own platform only, pushes nothing, does not contact the registry
 bash scripts/publish.sh 1.2.3 --dry-run
 ```
 
-**Erstes Veröffentlichen:** GHCR antwortet für Pakete, die es noch nicht gibt, mit `403 denied`. Das lässt sich
-nicht von einem echten Rechteproblem unterscheiden, deshalb bricht `publish.sh` bei so einer Antwort normalerweise
-ab und pusht nichts. Beim allerersten Release gibt es aber nichts, was überschrieben werden könnte: Die
-`publishCmd` in [`.releaserc.json`](.releaserc.json) setzt `PUBLISH_ASSUME_MISSING=1` genau dann, wenn
-semantic-release keinen früheren Release kennt (`lastRelease.version` ist leer), und lässt es bei jedem
-weiteren Release leer. Das erste Release braucht deshalb **keinen manuellen Schritt**. Eine Autorisierungsantwort
-gilt dann als "Paket existiert noch nicht" (Warnzeile im Log), Netzwerkfehler, Timeouts und Serverfehler
-brechen weiter ab. Ein leerer Wert schaltet nichts frei, nur genau `1` zählt. Der Test
-[`scripts/release-config.test.ts`](scripts/release-config.test.ts) rendert die `publishCmd` mit derselben
-lodash-Funktion wie semantic-release und prüft beide Fälle.
+**First publish:** For packages that do not exist yet, GHCR answers with `403 denied`. This cannot be told apart
+from a real permission problem, so `publish.sh` normally aborts on such an answer and pushes nothing. At the very
+first release, however, there is nothing that could be overwritten: The `publishCmd` in
+[`.releaserc.json`](.releaserc.json) sets `PUBLISH_ASSUME_MISSING=1` exactly when semantic-release knows no
+earlier release (`lastRelease.version` is empty) and leaves it empty for every later release. The first release
+therefore needs **no manual step**. An authorization response is then treated as "package does not exist yet"
+(warning line in the log); network errors, timeouts and server errors still abort. An empty value unlocks
+nothing, only exactly `1` counts. The test [`scripts/release-config.test.ts`](scripts/release-config.test.ts)
+renders the `publishCmd` with the same lodash function as semantic-release and checks both cases.
 
-Scheitert der allererste Lauf trotzdem im Veröffentlichen (Tag und GitHub Release existieren dann schon, z. B.
-wegen einer unerwarteten Registry-Antwort), bleibt der Weg von oben: manueller Lauf mit der erzeugten Version
-(z. B. `1.0.0`) und zusätzlich **`first_publish = true`**. Von Hand geht dasselbe mit
-`bash scripts/publish.sh 1.0.0 --assume-missing` (oder der Umgebungsvariable `PUBLISH_ASSUME_MISSING=1`).
-`first_publish` nie für spätere Releases setzen. Der Lauf bei einem Push kann das Flag nur über die erste
-Release-Regel oben setzen, nie sonst.
+If the very first run still fails while publishing (the tag and GitHub Release then already exist, for example
+because of an unexpected registry response), the route from above remains: a manual run with the generated
+version (for example `1.0.0`) and additionally **`first_publish = true`**. By hand, the same works with
+`bash scripts/publish.sh 1.0.0 --assume-missing` (or the environment variable `PUBLISH_ASSUME_MISSING=1`).
+Never set `first_publish` for later releases. The run on a push can only set the flag through the first-release
+rule above, never otherwise.
 
 ### Renovate
 
-[`renovate.json`](renovate.json) erweitert `config:recommended` und gilt für npm, Dockerfile, GitHub Actions und
-Helm sowie für zwei Custom Manager (Node-Image im Dockerfile und die angepinnte Renovate-Version im Job
-`renovate-config`). Die Regeln im Überblick, Details und Begründungen stehen als `description` in der Datei:
+[`renovate.json`](renovate.json) extends `config:recommended` and applies to npm, Dockerfile, GitHub Actions and
+Helm as well as two custom managers (the Node image in the Dockerfile and the pinned Renovate version in the
+job `renovate-config`). The rules at a glance; details and rationale are in the `description` fields in the
+file:
 
-- Renovate-Commits haben das Präfix `fix(deps)`, ein Update erzeugt also einen Patch-Release. Ausnahmen mit
-  `build(deps)` (kein Release): das Release-Tooling (siehe unten) und die in `ci.yml` angepinnte Renovate-Version,
-  die nur die CI-Validierung betrifft und kein Spielupdate ist. Automerge gilt dafür wie sonst (Minor und Patch).
-- Minor- und Patch-Updates der npm-Abhängigkeiten werden in einem PR gruppiert. Minor- und Patch-Updates werden
-  automatisch gemergt (Platform-Automerge), sobald die Required Checks grün sind. **Major-Updates bleiben
-  manuell.**
-- Das Release-Tooling (`semantic-release` und seine Plugins) bekommt eine eigene Gruppe, keinen Automerge und
-  das Präfix `build(deps)`, löst also kein Release aus und wird von Hand geprüft.
-- Versionsgrenzen: `@mediapipe/tasks-vision` bleibt unter 1.0 (Telemetrie, siehe oben) und
-  `conventional-changelog-conventionalcommits` unter 10 (inkompatibel mit dem Release-Notes-Generator).
-- Der Node-Major des Dockerfile-Images folgt `.nvmrc` und wird von Hand angehoben.
+- Renovate commits have the prefix `fix(deps)`, so an update produces a patch release. Exceptions with
+  `build(deps)` (no release): the release tooling (see below) and the Renovate version pinned in `ci.yml`, which
+  only affects the CI validation and is not a game update. Automerge applies to it as usual (minor and patch).
+- Minor and patch updates of the npm dependencies are grouped into one PR. Minor and patch updates are merged
+  automatically (platform automerge) as soon as the required checks are green. **Major updates stay manual.**
+- The release tooling (`semantic-release` and its plugins) gets its own group, no automerge and the prefix
+  `build(deps)`, so it triggers no release and is reviewed by hand.
+- Version limits: `@mediapipe/tasks-vision` stays below 1.0 (telemetry, see above) and
+  `conventional-changelog-conventionalcommits` below 10 (incompatible with the release notes generator).
+- The Node major version of the Dockerfile image follows `.nvmrc` and is raised by hand.
 
-Die Konfiguration wird in der CI validiert (Job `renovate-config`).
+The configuration is validated in CI (job `renovate-config`).
 
-## Einmalige manuelle Schritte nach dem ersten Push
+## One-Time Manual Steps After the First Push
 
-- [ ] **Repository** `Jaydee94/rps-arena` auf GitHub anlegen bzw. verbinden und `main` pushen.
-- [ ] **Renovate** installieren: die Renovate GitHub App für das Repository freigeben. Sie liest die vorhandene
-  `renovate.json` und öffnet danach die Update-PRs.
-- [ ] **Merge-Einstellungen** (Settings → General → Pull Requests): nur *Squash merging* erlauben, als
-  Commit-Nachricht "Pull request title" wählen. Merge-Commits und Rebase-Merge deaktivieren.
-- [ ] **Auto-Merge** erlauben (Settings → General → Pull Requests → *Allow auto-merge*). Renovate nutzt
-  `platformAutomerge` und braucht diese Einstellung.
-- [ ] **Ersten Pull Request öffnen** (z. B. eine kleine Doku-Änderung), damit `ci.yml` und `pr-title.yml` einmal
-  laufen. GitHub bietet Status-Checks in der Branch-Protection erst zur Auswahl an, nachdem sie gelaufen sind.
-- [ ] **Branch-Protection** für `main` (Settings → Branches oder Rulesets), nach dem ersten PR: Pull Request
-  vorschreiben und diese Status-Checks verlangen (die Namen der Jobs): `test`, `e2e`, `image`, `chart`,
-  `renovate-config` (aus `ci.yml`) und `pr-title` (aus `pr-title.yml`).
-  Der Renovate-Automerge wartet dann auf grüne Checks. Eine Ausnahme für den Release-Bot ist nicht nötig,
-  weil nichts nach `main` zurückgeschrieben wird.
-- [ ] **Actions-Rechte** (Settings → Actions → General → Workflow permissions): Die Workflows fordern ihre Rechte
-  selbst per `permissions:` an (`contents: write`, `packages: write`, `issues: write`, `pull-requests: write` im
-  Release-Job). Eine Org- oder Repo-Einstellung darf das nicht kappen, damit `GITHUB_TOKEN` Tags, Releases und
-  Pakete anlegen kann. Gibt es Tag-Rulesets, müssen sie das Anlegen von `v*`-Tags durch GitHub Actions erlauben.
-- [ ] **GHCR-Pakete:** Nach dem ersten Veröffentlichen entstehen zwei Pakete, `rps-arena` (Image) und
-  `charts/rps-arena` (Chart). Neue GHCR-Pakete sind privat. Auf Wunsch unter *Package settings* auf öffentlich
-  stellen (dann ist für `helm install` und `docker pull` keine Anmeldung nötig), jedes Paket mit dem Repository
-  verknüpfen (*Connect repository*) und dem Repository Schreibzugriff für Actions geben (*Manage Actions
-  access*). Das Image trägt das Label `org.opencontainers.image.source`, das Chart-Paket sollte man prüfen.
-- [ ] **Erstes Release:** Der erste Push auf `main` mit `feat`-Commits erzeugt `1.0.0` und veröffentlicht Image
-  und Chart ohne manuellen Schritt. Scheitert das Veröffentlichen trotzdem, den manuellen Lauf mit
-  `first_publish = true` starten (siehe [Release und CI](#release-und-ci)).
+- [ ] **Repository:** Create or connect the `Jaydee94/rps-arena` repository on GitHub and push `main`.
+- [ ] **Renovate:** Install it by granting the Renovate GitHub App access to the repository. It reads the existing
+  `renovate.json` and then opens the update PRs.
+- [ ] **Merge settings** (Settings → General → Pull Requests): allow only *Squash merging* and choose "Pull
+  request title" as the commit message. Disable merge commits and rebase merging.
+- [ ] **Auto-merge:** Allow it (Settings → General → Pull Requests → *Allow auto-merge*). Renovate uses
+  `platformAutomerge` and needs this setting.
+- [ ] **Open the first pull request** (for example a small docs change) so that `ci.yml` and `pr-title.yml` run
+  once. GitHub only offers status checks for selection in branch protection after they have run.
+- [ ] **Branch protection** for `main` (Settings → Branches or Rulesets), after the first PR: require a pull
+  request and require these status checks (the job names): `test`, `e2e`, `image`, `chart`,
+  `renovate-config` (from `ci.yml`) and `pr-title` (from `pr-title.yml`).
+  Renovate automerge then waits for green checks. An exception for the release bot is not necessary, because
+  nothing is written back to `main`.
+- [ ] **Actions permissions** (Settings → Actions → General → Workflow permissions): The workflows request their
+  permissions themselves via `permissions:` (`contents: write`, `packages: write`, `issues: write`,
+  `pull-requests: write` in the release job). An org or repo setting must not cap these, so that `GITHUB_TOKEN`
+  can create tags, releases and packages. If there are tag rulesets, they must allow GitHub Actions to create
+  `v*` tags.
+- [ ] **GHCR packages:** After the first publish, two packages appear, `rps-arena` (image) and
+  `charts/rps-arena` (chart). New GHCR packages are private. If desired, make them public under *Package
+  settings* (then no login is needed for `helm install` and `docker pull`), link each package to the
+  repository (*Connect repository*) and give the repository write access for Actions (*Manage Actions
+  access*). The image carries the label `org.opencontainers.image.source`; the chart package should be checked.
+- [ ] **First release:** The first push to `main` with `feat` commits produces `1.0.0` and publishes image and
+  chart without a manual step. If publishing fails anyway, start the manual run with
+  `first_publish = true` (see [Release and CI](#release-and-ci)).
 
-## Lizenzen und Assets
+## Licenses and Assets
 
-Der Quellcode steht unter der [MIT-Lizenz](LICENSE). Alle Illustrationen (Avatare, Gesten) sind selbst
-gezeichnete SVGs und stehen unter derselben Lizenz. Die Schriften Bangers und Comic Neue sind
-selbst gehostet (SIL Open Font License 1.1, Lizenztexte liegen neben den Dateien). SFX und Musik werden zur
-Laufzeit mit der Web-Audio-API erzeugt, es gibt keine Audiodateien. Zur Laufzeit wird kein Asset von Dritten
-geladen. Quellen und Lizenzen stehen in [`docs/assets.md`](docs/assets.md).
+The source code is under the [MIT license](LICENSE). All illustrations (avatars, gestures) are self-drawn SVGs
+and are under the same license. The fonts Bangers and Comic Neue are self-hosted (SIL Open Font License 1.1,
+the license texts sit next to the files). SFX and music are generated at runtime with the Web Audio API; there
+are no audio files. No third-party asset is loaded at runtime. Sources and licenses are in
+[`docs/assets.md`](docs/assets.md).
 
-## Entscheidungen
+## Decisions
 
-Nicht offensichtliche Festlegungen (Details im [Design](docs/superpowers/specs/2026-10-22-rps-arena-design.md)):
+Non-obvious commitments (details in the [design](docs/superpowers/specs/2026-10-22-rps-arena-design.md)):
 
-- **Bluff nutzt das Lizard-Spock-Set** (die Emotes der Ansage sind dessen fünf Gesten). Die Ansage ist
-  unverbindlich und eine feste Emote-Auswahl, kein Freitext, damit es keine Moderation und keine Längenlimits
-  braucht.
-- **2v2 nutzt das Klassik-Set.** Das Datenmodell trennt Modus und Gestenset (`gestureSetFor`), andere
-  Kombinationen sind später möglich. Im 2v2 gibt es keinen Bot.
-- **Redis ist der einzige Zustand.** Es gibt keinen Zustand im Prozess, deshalb funktionieren mehrere
-  Replicas, Pod-Neustarts und Rolling Updates ohne Sticky Sessions. `RPS_DEV_MEMORY_STORE=1` ist nur ein
-  Entwicklungs- und Testwerkzeug.
-- **Nur WebSocket**, kein Long-Polling-Fallback, damit kein Pod an eine Sitzung gebunden ist.
-- **Abbruchregel:** Drei leere Runden in Folge beenden ein Match ohne Gewinner, damit verlassene Räume nicht
-  endlos laufen und ihre TTL erneuern.
-- **Kein Sudden Death als eigene Phase:** Unentschiedene Runden werden wiederholt, ein Seriengleichstand ist
-  bei ungeradem `bestOf` nicht möglich.
-- **Kamera nur für das Klassik-Set**, als experimentelle, abschaltbare Funktion, mit Halte-Zeit gegen
-  Fehlerkennungen. Die Library ist auf 0.10.x gepinnt (Telemetrie in 1.x).
-- **Keine Rückschreibung nach `main`:** Die Chart-Version wird erst beim Verpacken gesetzt.
-- **Keine Accounts, keine Rangliste, kein Matchmaking** mit Fremden, kein Hot-Seat-Modus.
+- **Bluff uses the Lizard-Spock set** (the announcement emotes are its five gestures). The announcement is
+  non-binding and a fixed emote selection, not free text, so that no moderation and no length limits are
+  needed.
+- **2v2 uses the Classic set.** The data model separates mode and gesture set (`gestureSetFor`), so other
+  combinations are possible later. There is no bot in 2v2.
+- **Redis is the only state.** There is no in-process state, so multiple replicas, pod restarts and rolling
+  updates work without sticky sessions. `RPS_DEV_MEMORY_STORE=1` is only a development and test tool.
+- **WebSocket only**, no long-polling fallback, so that no pod is tied to a session.
+- **Abort rule:** Three idle rounds in a row end a match without a winner, so that abandoned rooms do not run
+  forever and keep renewing their TTL.
+- **No sudden death as a separate phase:** Drawn rounds are replayed, and a series tie is impossible with an
+  odd `bestOf`.
+- **Camera only for the Classic set**, as an experimental feature that can be switched off, with a hold time
+  against misrecognition. The library is pinned to 0.10.x (telemetry in 1.x).
+- **No write-back to `main`:** The chart version is only set when packaging.
+- **No accounts, no leaderboard, no matchmaking** with strangers, no hot-seat mode.

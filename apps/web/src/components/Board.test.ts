@@ -111,6 +111,47 @@ describe('Board', () => {
     });
   });
 
+  describe('rule hints and rules panel', () => {
+    const described = (radio: HTMLElement) =>
+      document.getElementById(radio.getAttribute('aria-describedby') ?? '')?.textContent?.trim();
+
+    it('gives every tile a description "schlägt: …" and Rock names Schere', () => {
+      feed(makeRoom());
+      render(Board);
+      for (const radio of screen.getAllByRole('radio')) expect(described(radio)).toMatch(/^schlägt: .+/);
+      expect(described(screen.getByRole('radio', { name: 'Stein' }))).toBe('schlägt: Schere');
+    });
+
+    it('gives each wheel15 tile a description with 7 names', () => {
+      feed(makeRoom({ config: { mode: 'wheel15', bestOf: 3 } }));
+      render(Board);
+      for (const radio of screen.getAllByRole('radio')) expect(described(radio)?.split(', ')).toHaveLength(7);
+    });
+
+    it('shows the rules panel of the mode under the pad', () => {
+      feed(makeRoom({ config: { mode: 'lizard-spock', bestOf: 3 } }));
+      const { container } = render(Board);
+      const details = container.querySelector('details.rules');
+      expect(details).toBeInTheDocument();
+      expect(within(details as HTMLElement).getAllByRole('listitem')).toHaveLength(5);
+      expect(screen.getByRole('radiogroup').compareDocumentPosition(details as Node)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    });
+
+    it('uses the lizard-spock rules for bluff, including the announce phase', () => {
+      feed(makeRoom({ config: { mode: 'bluff', bestOf: 3 }, match: { phase: 'announce' } }));
+      const { container } = render(Board);
+      expect(within(container.querySelector('details.rules') as HTMLElement).getAllByRole('listitem')).toHaveLength(5);
+    });
+
+    it('does not show the rules panel in the reveal', () => {
+      feed(makeRoom({ match: { phase: 'reveal', lastRound: { picks: { a0: 'rock', b0: 'scissors' }, duels: [{ seats: ['a0', 'b0'], result: 'a' }], winner: 'a' } } }));
+      const { container } = render(Board);
+      expect(container.querySelector('details.rules')).not.toBeInTheDocument();
+    });
+  });
+
   describe('bluff announce phase', () => {
     const bluff = () => makeRoom({ config: { mode: 'bluff', bestOf: 3 }, match: { phase: 'announce' } });
 
@@ -226,6 +267,192 @@ describe('Board', () => {
       render(Board);
       expect(screen.getAllByTestId('duel')).toHaveLength(2);
       expect(screen.getByRole('status')).toHaveTextContent('Unentschieden!');
+    });
+
+    it('explains the round with a rule line under the panel', () => {
+      feed(revealed('a0'));
+      render(Board);
+      expect(screen.getByText('Stein schlägt Schere')).toBeInTheDocument();
+    });
+
+    it('names the winning gesture first from the losing side too', () => {
+      feed(revealed('b0'));
+      render(Board);
+      expect(screen.getByText('Stein schlägt Schere')).toBeInTheDocument();
+    });
+
+    it('shows no rule line for a draw', () => {
+      feed(
+        makeRoom({
+          match: {
+            phase: 'reveal',
+            lastRound: { picks: { a0: 'rock', b0: 'rock' }, duels: [{ seats: ['a0', 'b0'], result: 'draw' }], winner: 'draw' },
+          },
+        }),
+      );
+      const { container } = render(Board);
+      expect(screen.getAllByTestId('duel')).toHaveLength(1);
+      expect(screen.queryByText(/schlägt/)).not.toBeInTheDocument();
+      expect(container.textContent).not.toContain('undefined');
+    });
+
+    it('shows no rule line and no "undefined" when a pick is missing (timeout)', () => {
+      feed(
+        makeRoom({
+          match: {
+            phase: 'reveal',
+            lastRound: { picks: { a0: 'rock' }, duels: [{ seats: ['a0', 'b0'], result: 'a' }], winner: 'a' },
+          },
+        }),
+      );
+      const { container } = render(Board);
+      expect(within(opponentPanel()).getByText('Nichts gewählt')).toBeInTheDocument();
+      expect(within(opponentPanel()).queryByText(/undefined/)).not.toBeInTheDocument();
+      expect(opponentPanel().querySelector('[data-gesture]')).toBeNull();
+      expect(screen.queryByText(/schlägt/)).not.toBeInTheDocument();
+      expect(container.textContent).not.toContain('undefined');
+    });
+
+    it('labels the reveal stickers with name and gesture, one region per name', () => {
+      feed(revealed('a0'));
+      render(Board);
+      expect(screen.getAllByRole('region', { name: 'Du' })).toHaveLength(1);
+      expect(screen.getAllByRole('region', { name: 'Gegner' })).toHaveLength(1);
+      expect(screen.getByRole('region', { name: 'Du' })).toHaveTextContent('Du · Stein');
+      expect(opponentPanel()).toHaveTextContent('Gegner · Schere');
+      expect(screen.getByRole('region', { name: 'Du' }).querySelector('[data-gesture="rock"]')).not.toBeNull();
+      // The losing side droops; the winner does not.
+      expect(opponentPanel()).toHaveClass('loser');
+      expect(screen.getByRole('region', { name: 'Du' })).not.toHaveClass('loser');
+    });
+
+    it('draws the panel with speed lines, an impact flash and a burst in each duel', () => {
+      feed(revealed('a0'));
+      render(Board);
+      const duel = screen.getByTestId('duel');
+      expect(duel).toHaveClass('clash');
+      expect(duel.querySelector('.speed-lines[aria-hidden="true"]')).not.toBeNull();
+      expect(duel.querySelector('.impact-flash[aria-hidden="true"]')).not.toBeNull();
+      expect(duel.querySelector('.burst--pow')).toHaveTextContent('POW!');
+    });
+
+    it('keeps the named regions of both duels in team2v2', () => {
+      feed(
+        makeRoom({
+          config: { mode: 'team2v2', bestOf: 3 },
+          match: {
+            phase: 'reveal',
+            lastRound: {
+              picks: { a0: 'rock', b0: 'scissors', a1: 'paper', b1: 'scissors' },
+              duels: [
+                { seats: ['a0', 'b0'], result: 'a' },
+                { seats: ['a1', 'b1'], result: 'b' },
+              ],
+              winner: 'draw',
+            },
+          },
+        }),
+      );
+      render(Board);
+      const [first, second] = screen.getAllByTestId('duel') as [HTMLElement, HTMLElement];
+      expect(within(first).getByRole('region', { name: 'Spieler-a0' })).toHaveTextContent('Stein');
+      expect(within(first).getByRole('region', { name: 'Spieler-b0' })).toHaveTextContent('Schere');
+      expect(within(second).getByRole('region', { name: 'Spieler-a1' })).toHaveTextContent('Papier');
+      expect(within(second).getByRole('region', { name: 'Spieler-b1' })).toHaveTextContent('Schere');
+      expect(screen.getAllByRole('region', { name: 'Spieler-a0' })).toHaveLength(1);
+      expect(screen.getByText('Stein schlägt Schere')).toBeInTheDocument();
+      expect(screen.getByText('Schere schlägt Papier')).toBeInTheDocument();
+    });
+
+    it('shows the same rule twice when both 2v2 duels end alike', () => {
+      feed(
+        makeRoom({
+          config: { mode: 'team2v2', bestOf: 3 },
+          match: {
+            phase: 'reveal',
+            lastRound: {
+              picks: { a0: 'rock', b0: 'scissors', a1: 'rock', b1: 'scissors' },
+              duels: [
+                { seats: ['a0', 'b0'], result: 'a' },
+                { seats: ['a1', 'b1'], result: 'a' },
+              ],
+              winner: 'a',
+            },
+          },
+        }),
+      );
+      render(Board);
+      expect(screen.getAllByText('Stein schlägt Schere')).toHaveLength(2);
+    });
+  });
+
+  describe('comic pick screen', () => {
+    it('swaps the thinking bubble for a ZACK star once the opponent has chosen', () => {
+      feed(makeRoom());
+      const { unmount } = render(Board);
+      expect(opponentPanel().querySelector('.burst--zack')).toBeNull();
+      unmount();
+
+      feed(makeRoom({ match: { lockedSeats: ['b0'] } }));
+      render(Board);
+      const panel = within(opponentPanel());
+      expect(panel.getByText('Gegner hat gewählt')).toBeInTheDocument();
+      expect(opponentPanel().querySelector('.burst--zack')).toHaveTextContent('ZACK!');
+    });
+
+    it('puts the seconds inside the timer track', () => {
+      feed(makeRoom({ deadline: Date.now() + 5_000 }));
+      render(Board);
+      const track = screen.getByRole('timer').querySelector('.track');
+      expect(track).not.toBeNull();
+      expect(within(track as HTMLElement).getByText(/^\d+ s$/)).toBeInTheDocument();
+    });
+
+    it('gives each of the 15 wheel gestures a tile tone', () => {
+      feed(makeRoom({ config: { mode: 'wheel15', bestOf: 3 } }));
+      render(Board);
+      const radios = screen.getAllByRole('radio');
+      expect(radios).toHaveLength(15);
+      for (const radio of radios) expect(radio.className).toMatch(/\btone-[0-6]\b/);
+    });
+
+    it('keeps the own nickname in the "Du" region during the pick phase', () => {
+      feed(makeRoom());
+      render(Board);
+      const mine = screen.getByRole('region', { name: 'Du' });
+      expect(mine).toHaveTextContent('Spieler-a0');
+      expect(screen.getByRole('status')).toHaveTextContent('Wähle deine Geste!');
+      expect(opponentPanel()).toHaveTextContent('Spieler-b0');
+    });
+
+    it('keeps one status node, and its focus, from the pick to the reveal', async () => {
+      feed(makeRoom());
+      render(Board);
+      const status = screen.getByRole('status');
+      status.focus();
+      expect(status).toHaveFocus();
+
+      feed(
+        makeRoom({
+          match: {
+            phase: 'reveal',
+            score: { a: 1, b: 0 },
+            lastRound: { picks: { a0: 'rock', b0: 'scissors' }, duels: [{ seats: ['a0', 'b0'], result: 'a' }], winner: 'a' },
+          },
+        }),
+      );
+      await tick();
+
+      expect(screen.getByRole('status')).toBe(status);
+      expect(status).toHaveTextContent('Runde gewonnen!');
+      expect(status).toHaveFocus();
+    });
+
+    it('shows team dots instead of avatars in the 2v2 scoreboard', () => {
+      feed(makeRoom({ config: { mode: 'team2v2', bestOf: 3 } }));
+      const { container } = render(Board);
+      expect(container.querySelectorAll('.scoreboard .team-dot')).toHaveLength(2);
+      expect(container.querySelector('.scoreboard [data-avatar]')).toBeNull();
     });
   });
 

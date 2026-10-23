@@ -38,6 +38,24 @@ describe('ComicBurst', () => {
     expect(screen.getByText('ZAP!')).toBeInTheDocument();
   });
 
+  it('renders the zack variant', () => {
+    mockMotion(false);
+    render(ComicBurst, { text: 'ZACK!', variant: 'zack' });
+    expect(screen.getByText('ZACK!').closest('.burst')).toHaveClass('burst--zack');
+  });
+
+  it('marks a long word so the zack star can shrink it', () => {
+    mockMotion(false);
+    render(ComicBurst, { text: 'LOCKED!', variant: 'zack' });
+    expect(screen.getByText('LOCKED!').closest('.burst')).toHaveClass('burst--long');
+  });
+
+  it('does not mark a short word as long', () => {
+    mockMotion(false);
+    render(ComicBurst, { text: 'ZACK!', variant: 'zack' });
+    expect(screen.getByText('ZACK!').closest('.burst')).not.toHaveClass('burst--long');
+  });
+
   it('draws a jagged star behind the text', () => {
     mockMotion(false);
     const { container } = render(ComicBurst, { text: 'WIN!', variant: 'win' });

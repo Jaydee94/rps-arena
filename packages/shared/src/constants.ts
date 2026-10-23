@@ -4,8 +4,11 @@ import { getGestureSet } from './gestures';
 export const PICK_TIMEOUT_MS = 20_000;
 /** Time a player has to announce (or skip) a bluff emote. */
 export const ANNOUNCE_TIMEOUT_MS = 8_000;
-/** How long a round result stays on screen before the next round. */
-export const REVEAL_MS = 4_000;
+/**
+ * How long a round result stays on screen before the next round. Includes the client-side
+ * reveal countdown (Schnick, Schnack, Schnuck) of about 1.26 s.
+ */
+export const REVEAL_MS = 5_500;
 /** How long a disconnected player may rejoin before forfeiting. */
 export const RECONNECT_GRACE_MS = 30_000;
 /**

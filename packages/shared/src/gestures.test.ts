@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { duel, getGestureSet, gestureSetFor } from './gestures';
+import { duel, gestureBeats, getGestureSet, gestureSetFor } from './gestures';
 import type { GestureSetId, ModeId } from './gestures';
 
 const SET_IDS: GestureSetId[] = ['classic', 'lizard-spock', 'wheel7', 'wheel9', 'wheel15'];
@@ -118,5 +118,39 @@ describe('duel', () => {
         expect(results.filter((r) => r === 'draw')).toHaveLength(1);
       }
     });
+  });
+});
+
+describe('gestureBeats', () => {
+  it('lists what each classic gesture beats', () => {
+    const classic = getGestureSet('classic');
+    expect(gestureBeats(classic, 'rock')).toEqual(['scissors']);
+    expect(gestureBeats(classic, 'paper')).toEqual(['rock']);
+    expect(gestureBeats(classic, 'scissors')).toEqual(['paper']);
+  });
+
+  it('lets every lizard-spock gesture beat exactly 2 in circle order', () => {
+    const set = getGestureSet('lizard-spock');
+    for (const g of set.gestures) expect(gestureBeats(set, g)).toHaveLength(2);
+    expect(gestureBeats(set, 'rock')).toEqual(['scissors', 'lizard']);
+    expect(gestureBeats(set, 'spock')).toEqual(['rock', 'scissors']);
+  });
+
+  it('lets every wheel15 gesture beat exactly 7', () => {
+    const set = getGestureSet('wheel15');
+    for (const g of set.gestures) expect(gestureBeats(set, g)).toHaveLength(7);
+  });
+
+  it.each(SET_IDS)('agrees with duel for every pair in %s', (id) => {
+    const set = getGestureSet(id);
+    for (const a of set.gestures) {
+      for (const b of set.gestures) {
+        expect(gestureBeats(set, a).includes(b)).toBe(duel(set, a, b) === 'a');
+      }
+    }
+  });
+
+  it('throws on a gesture outside the set', () => {
+    expect(() => gestureBeats(getGestureSet('classic'), 'lizard')).toThrow(/Unknown gesture/);
   });
 });

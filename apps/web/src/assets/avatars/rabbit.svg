@@ -1,0 +1,13 @@
+<svg class="art" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" focusable="false">
+  <circle class="green" cx="32" cy="32" r="29"/>
+  <path class="white" d="M17 32 C10 14 14 3 21 4 C28 5 29 20 28 32 Z"/>
+  <path class="white" d="M47 32 C54 14 50 3 43 4 C36 5 35 20 36 32 Z"/>
+  <path class="pink" style="stroke:none" d="M19 25 C16 14 17 9 21 10 C24 11 24 18 24 25 Z"/>
+  <path class="pink" style="stroke:none" d="M45 25 C48 14 47 9 43 10 C40 11 40 18 40 25 Z"/>
+  <ellipse class="white" cx="32" cy="41" rx="21" ry="17"/>
+  <circle class="line" style="stroke:none" cx="23" cy="38" r="3.4"/><circle class="line" style="stroke:none" cx="41" cy="38" r="3.4"/>
+  <circle class="white" style="stroke:none" cx="24.2" cy="36.7" r="1.2"/><circle class="white" style="stroke:none" cx="42.2" cy="36.7" r="1.2"/>
+  <path class="pink" d="M29 44 L35 44 L32 47.5 Z" style="stroke-width:3"/>
+  <rect class="white" x="29" y="50" width="6" height="6" rx="1.5" style="stroke-width:3"/>
+  <circle class="pink" style="stroke:none;opacity:.6" cx="14" cy="45" r="3.5"/><circle class="pink" style="stroke:none;opacity:.6" cx="50" cy="45" r="3.5"/>
+</svg>

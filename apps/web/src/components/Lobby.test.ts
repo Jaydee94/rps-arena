@@ -104,6 +104,20 @@ describe('Lobby', () => {
     await vi.waitFor(() => expect(screen.queryByRole('button', { name: 'Hierher setzen' })).not.toBeInTheDocument());
   });
 
+  it('shows the rules of the chosen mode', () => {
+    roomStore.set(lobby(['a0'], { config: { mode: 'lizard-spock', bestOf: 3 } }));
+    const { container } = render(Lobby);
+    const details = container.querySelector('details.rules') as HTMLElement;
+    expect(within(details).getByText('Regeln')).toBeInTheDocument();
+    expect(within(details).getAllByRole('listitem')).toHaveLength(5);
+  });
+
+  it('shows the classic rules in team2v2', () => {
+    roomStore.set(lobby(['a0', 'a1', 'b0'], { config: { mode: 'team2v2', bestOf: 3 } }));
+    const { container } = render(Lobby);
+    expect(within(container.querySelector('details.rules') as HTMLElement).getAllByRole('listitem')).toHaveLength(3);
+  });
+
   it('copies the link and confirms', async () => {
     roomStore.set(lobby(['a0']));
     render(Lobby);
