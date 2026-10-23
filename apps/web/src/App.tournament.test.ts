@@ -122,7 +122,25 @@ describe('App routing for tournaments', () => {
       expect(screen.getByTestId('spectate')).toBeInTheDocument();
     });
 
-    it('switches from the Board to Spectate when the pairing ends for a player', async () => {
+    it('switches from the Board to Spectate when the next pairing does not include the player', async () => {
+      roomStore.set(
+        makeRoom({ match: { phase: 'pick' }, tournament: makeTournament({ n: 5, youId: 'p0', ...running }) }),
+      );
+      render(App);
+      expect(screen.getByRole('region', { name: 'Opponent' })).toBeInTheDocument();
+      roomStore.set(
+        makeSpectatorRoom({
+          me: { id: 'p0' },
+          isHost: true,
+          match: { phase: 'pick' },
+          tournament: makeTournament({ n: 5, youId: 'p0', ...running, pairings: [{ ...pairing, id: 'r1-1', a: 'p2', b: 'p3' }] }),
+        }),
+      );
+      expect(await screen.findByTestId('spectate')).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Opponent' })).not.toBeInTheDocument();
+    });
+
+    it('switches from the Board to the intermission when the pairing ends for a player', async () => {
       roomStore.set(
         makeRoom({ match: { phase: 'pick' }, tournament: makeTournament({ n: 5, youId: 'p0', ...running }) }),
       );
@@ -143,6 +161,32 @@ describe('App routing for tournaments', () => {
       expect(screen.getByRole('heading', { name: 'Next match' })).toBeInTheDocument();
       await userEvent.setup().click(screen.getByRole('button', { name: 'Skip' }));
       expect(actions.skipWait).toHaveBeenCalledTimes(1);
+    });
+
+    it('names the next pairing and skips forfeited participants', () => {
+      const other = { ...pairing, id: 'r1-1', a: 'p2', b: 'p3' };
+      const tournament = makeTournament({
+        n: 5,
+        phase: 'intermission',
+        youId: 'p0',
+        pairings: [{ ...pairing, winner: 'p0', decidedBy: 'match' as const }, { ...other, a: 'p1', b: 'p2' }, other],
+      });
+      tournament.participants[1]!.forfeited = true;
+      roomStore.set(makeSpectatorRoom({ isHost: true, me: { id: 'p0' }, tournament }));
+      render(App);
+      expect(screen.getByText('Spieler-p2 vs Spieler-p3')).toBeInTheDocument();
+    });
+
+    it('shows a neutral text when no pairing is left', () => {
+      const tournament = makeTournament({
+        n: 5,
+        phase: 'intermission',
+        youId: 'p0',
+        pairings: [{ ...pairing, winner: 'p0', decidedBy: 'match' as const }, { ...pairing, id: 'r1-1', a: 'p2', b: null }],
+      });
+      roomStore.set(makeSpectatorRoom({ me: { id: 'p0' }, tournament }));
+      render(App);
+      expect(screen.getByText('Wrapping up …')).toBeInTheDocument();
     });
 
     it('routes a pairing member in the intermission here too, and gives non-hosts no Skip', () => {

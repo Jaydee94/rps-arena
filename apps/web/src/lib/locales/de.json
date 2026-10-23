@@ -229,7 +229,7 @@
   "tournament.mode": "{mode} · Matches im Best of 3",
   "tournament.players": "{n} / {max} Spielende",
   "tournament.player_list": "Teilnehmende",
-  "tournament.need_players": "Zum Start braucht es mindestens {min} Spielende.",
+  "tournament.need_players": "Zum Start braucht es mindestens {min} verbundene Spielende.",
   "tournament.start": "Turnier starten",
   "tournament.host": "Gastgeber",
   "tournament.you": "Du",
@@ -243,5 +243,6 @@
   "tournament.draw_hint": "Es wird ausgelost, wer gegen wen spielt …",
   "tournament.champion": "{name} ist Turniersieger!",
   "tournament.podium_title": "Siegerehrung",
+  "tournament.wrapping_up": "Das Turnier wird abgeschlossen …",
   "tournament.place": "Platz {n}"
 }

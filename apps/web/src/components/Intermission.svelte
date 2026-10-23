@@ -1,14 +1,14 @@
 <script lang="ts">
   import { room, skipWait } from '../lib/connection';
   import { t } from '../lib/i18n';
-  import { participantName } from '../lib/tournament-ui';
+  import { participantName, upcomingPairing } from '../lib/tournament-ui';
 </script>
 
-<!-- Placeholder: Task 6 replaces this with the bracket / table. -->
+<!-- Placeholder: Task 6 replaces this with the bracket / table. Note for Task 6: during the intermission and when finished `currentPairingId` still points at the pairing that just finished. -->
 {#if $room?.tournament}
   {@const view = $room}
   {@const tournament = $room.tournament}
-  {@const upcoming = tournament.pairings.find((p) => p.decidedBy === null && p.a !== null && p.b !== null)}
+  {@const upcoming = upcomingPairing(tournament)}
   <main class="tscreen">
     <section class="panel" aria-labelledby="tinter-title">
       <h2 id="tinter-title" class="ribbon">{t('tournament.next_match')}</h2>
@@ -16,6 +16,8 @@
         <p class="versus">
           {t('tournament.versus', { a: participantName(tournament, upcoming.a), b: participantName(tournament, upcoming.b) })}
         </p>
+      {:else}
+        <p class="versus">{t('tournament.wrapping_up')}</p>
       {/if}
     </section>
     {#if view.isHost}

@@ -229,7 +229,7 @@
   "tournament.mode": "{mode} · matches are best of 3",
   "tournament.players": "{n} / {max} players",
   "tournament.player_list": "Players",
-  "tournament.need_players": "At least {min} players are needed to start.",
+  "tournament.need_players": "At least {min} connected players are needed to start.",
   "tournament.start": "Start tournament",
   "tournament.host": "Host",
   "tournament.you": "You",
@@ -243,5 +243,6 @@
   "tournament.draw_hint": "Who plays whom is being drawn …",
   "tournament.champion": "{name} is the champion!",
   "tournament.podium_title": "Podium",
+  "tournament.wrapping_up": "Wrapping up …",
   "tournament.place": "Place {n}"
 }
