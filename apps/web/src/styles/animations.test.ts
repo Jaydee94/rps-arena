@@ -35,3 +35,15 @@ describe('motion', () => {
     );
   });
 });
+
+describe('tournament motion', () => {
+  it('lives in its own marked section inside the motion block', () => {
+    const start = animations.indexOf('@media (prefers-reduced-motion: no-preference)');
+    const section = animations.indexOf('/* ==== TOURNAMENT ==== */');
+    expect(section).toBeGreaterThan(start);
+    expect(withoutMotionBlock(animations)).not.toContain('TOURNAMENT');
+    const tail = animations.slice(section);
+    expect(tail).toMatch(/\.draw-whirl\s*\{[^}]*animation:/);
+    expect(tail).toContain('@keyframes draw-whirl');
+  });
+});

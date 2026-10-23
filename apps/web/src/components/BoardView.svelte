@@ -16,6 +16,7 @@
   import SpectatorBadge from './SpectatorBadge.svelte';
   import ThinkBubble from './ThinkBubble.svelte';
   import TimerBar from './TimerBar.svelte';
+  import TournamentHeader from './TournamentHeader.svelte';
 
   interface Props {
     room: PlayerView;
@@ -140,6 +141,8 @@
   });
 </script>
 
+<!-- Tournament rooms only: the slim tournament bar sits above the screen, outside its main. -->
+{#if room.tournament}<TournamentHeader tournament={room.tournament} />{/if}
 <main class="board" class:picking={match.phase !== 'reveal'} class:revealed={revealing}>
   <Scoreboard {left} {right} round={match.round} bestOf={match.config.bestOf} {modeName} />
   <TimerBar deadline={room.deadline} phase={match.phase} />

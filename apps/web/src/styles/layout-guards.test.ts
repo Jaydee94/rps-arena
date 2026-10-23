@@ -193,3 +193,70 @@ describe('T1: tournament marker pills stay readable in dark mode', () => {
     expect(rule(list, ".tags > [data-kind='away']")).toContain('border-style: dashed');
   });
 });
+
+describe('T2: tournament screens scroll sideways only inside their own wrappers', () => {
+  it('lets the bracket scroll inside its own wrapper only', () => {
+    const wrapper = rule(component('Bracket.svelte'), '.bracket-scroll');
+    expect(wrapper).toContain('overflow-x: auto');
+    expect(wrapper).toContain('max-width: 100%');
+  });
+
+  it('never makes the page itself a horizontal scroll container', () => {
+    expect(rule(component('App.svelte'), '.app')).not.toMatch(/overflow(-x)?:\s*(auto|scroll)/);
+    for (const [file, root] of [
+      ['Intermission.svelte', '.tinter'],
+      ['TournamentDraw.svelte', '.tdraw'],
+      ['TournamentResult.svelte', '.tresult'],
+      ['TournamentHeader.svelte', '.theader'],
+    ] as const) {
+      const css = rule(component(file), root);
+      expect(css, file).toMatch(SHRINKABLE);
+      expect(css, file).not.toMatch(/overflow(-x)?:\s*(auto|scroll)/);
+    }
+  });
+
+  it('keeps the standings table inside its wrapper: full width, a name column that may wrap, numbers that do not', () => {
+    const table = component('StandingsTable.svelte');
+    expect(rule(table, '.table-scroll')).toContain('overflow-x: auto');
+    expect(rule(table, 'table')).toContain('width: 100%');
+    expect(rule(table, '.name')).toMatch(/min-width:\s*\d/);
+    expect(rule(table, '.nick')).toContain('overflow-wrap: anywhere');
+    expect(rule(table, '.num')).toContain('white-space: nowrap');
+  });
+});
+
+describe('T3: tournament cards and pills stay readable in dark mode', () => {
+  for (const file of ['Bracket.svelte', 'StandingsTable.svelte', 'Podium.svelte', 'TournamentHeader.svelte']) {
+    it(`${file} draws dark text only on bright tokens`, () => {
+      // --paper-2 and --surface turn dark in dark mode while --on-bright stays dark.
+      expect(strip(component(file))).not.toMatch(/--(paper-2|surface)\b/);
+      expect(strip(component(file))).toContain('var(--on-bright)');
+    });
+  }
+});
+
+describe('T4: review fixes for the standings caption and bracket names', () => {
+  const table = component('StandingsTable.svelte');
+  const bracket = component('Bracket.svelte');
+
+  it('draws the sticker box on the wrapper, so the caption sits inside it in every theme', () => {
+    const wrapper = rule(table, '.table-scroll');
+    expect(wrapper).toContain('background: var(--sticker)');
+    expect(wrapper).toContain('color: var(--on-bright)');
+    expect(rule(table, 'table')).not.toMatch(/background|border:/);
+  });
+
+  it('lets the caption wrap instead of widening the scroll box', () => {
+    expect(rule(table, 'caption')).toContain('overflow-wrap: break-word');
+  });
+
+  it('breaks bracket names between words, mid-word only as a last resort', () => {
+    expect(rule(bracket, '.nick')).toContain('overflow-wrap: break-word');
+    expect(rule(bracket, '.nick')).not.toContain('anywhere');
+  });
+
+  it('keeps the winner check out of the name column', () => {
+    expect(rule(bracket, '.slot')).toMatch(/grid-template-columns:\s*auto minmax\(0, 1fr\) auto;/);
+    expect(rule(bracket, '.check')).toContain('position: absolute');
+  });
+});
