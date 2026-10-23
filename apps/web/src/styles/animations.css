@@ -866,8 +866,8 @@
       rotate: 0deg;
     }
     9% {
-      translate: -6% calc(-8% * var(--fx-toward));
-      scale: 1.12 0.92;
+      translate: -8% calc(-2% * var(--fx-toward));
+      scale: 1.1 0.92;
       rotate: -10deg;
       animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
     }
@@ -1188,8 +1188,8 @@
       rotate: 0deg;
     }
     9% {
-      translate: -8% calc(-10% * var(--fx-toward));
-      scale: 0.9 1.1;
+      translate: -10% calc(-2% * var(--fx-toward));
+      scale: 0.92 1.06;
       rotate: -12deg;
       animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
     }
@@ -1401,7 +1401,7 @@
     animation: fx-gust-leaf 1000ms ease-in-out calc(var(--fx-delay) + var(--fx-hit) + var(--d)) both;
   }
 
-  /* The blown sticker is shoved back and leans away from the wind, hit by a second gust, then stays bent. */
+  /* The blown sticker is shoved aside and leans away from the wind, hit by a second gust, then stays bent. */
   .player.loser .reveal-art.react-blow {
     animation: fx-blow-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
   }
@@ -1417,8 +1417,8 @@
       rotate: 0deg;
     }
     11% {
-      translate: -4% calc(-6% * var(--fx-toward));
-      scale: 1.18;
+      translate: -5% calc(3% * var(--fx-toward));
+      scale: 1.14;
       rotate: -6deg;
       animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
     }
@@ -1526,42 +1526,40 @@
       filter: none;
     }
     6% {
-      translate: -12% calc(-6% * var(--fx-toward));
-      scale: 0.94 1.04;
-      rotate: -24deg;
+      translate: -12% calc(2% * var(--fx-toward));
+      rotate: -18deg;
     }
     14% {
-      translate: -15% calc(-7% * var(--fx-toward));
-      scale: 1;
-      rotate: -32deg;
+      translate: -15% calc(2% * var(--fx-toward));
+      rotate: -22deg;
     }
     24% {
-      translate: -9% calc(-4% * var(--fx-toward));
-      rotate: -16deg;
+      translate: -9% calc(1% * var(--fx-toward));
+      rotate: -12deg;
     }
     34% {
-      translate: -13% calc(-6% * var(--fx-toward));
-      rotate: -27deg;
+      translate: -13% calc(2% * var(--fx-toward));
+      rotate: -19deg;
       filter: none;
     }
     46% {
-      translate: -8% calc(-3% * var(--fx-toward));
-      rotate: -13deg;
+      translate: -8% calc(1% * var(--fx-toward));
+      rotate: -10deg;
       filter: saturate(0.6);
     }
     62% {
-      translate: -9% calc(-4% * var(--fx-toward));
-      rotate: -20deg;
+      translate: -9% calc(1% * var(--fx-toward));
+      rotate: -15deg;
       animation-timing-function: ease-out;
     }
     80% {
-      translate: -7% calc(-3% * var(--fx-toward));
-      rotate: -15deg;
+      translate: -7% calc(1% * var(--fx-toward));
+      rotate: -12deg;
     }
     100% {
-      translate: -7% calc(-3% * var(--fx-toward));
+      translate: -7% calc(1% * var(--fx-toward));
       scale: 1;
-      rotate: -16deg;
+      rotate: -13deg;
       filter: saturate(0.35);
     }
   }
@@ -1641,8 +1639,8 @@
       rotate: -3deg;
     }
     13% {
-      translate: -6% calc(-8% * var(--fx-toward));
-      scale: 1.1;
+      translate: -8% calc(1% * var(--fx-toward));
+      scale: 1.08;
       rotate: -8deg;
       animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
     }
@@ -1903,7 +1901,10 @@
 
   /* ---- fx: absorb / squeeze ---- */
 
-  /* Sponge: leans in at --fx-hit, then swells up as it soaks up the other sticker's juice, and wobbles back. */
+  /*
+ * Sponge: leans in at --fx-hit, then swells up as it soaks up the other sticker's juice (staying leaned in, so
+ * it never grows into its own name tag), and wobbles back.
+ */
   .player .reveal-art.attack-absorb {
     animation: fx-absorb-soak var(--fx-dur) linear var(--fx-delay) both;
   }
@@ -1937,8 +1938,8 @@
       rotate: 0deg;
     }
     10% {
-      translate: -4% calc(-5% * var(--fx-toward));
-      scale: 0.94 1.06;
+      translate: -6% calc(-1% * var(--fx-toward));
+      scale: 0.96 1.04;
       rotate: -6deg;
       animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
     }
@@ -1949,17 +1950,17 @@
     }
     34% {
       translate: 8% calc(11% * var(--fx-toward));
-      scale: 1.12;
+      scale: 1.08;
       rotate: -3deg;
     }
     50% {
-      translate: 4% calc(6% * var(--fx-toward));
-      scale: 1.24 1.18;
+      translate: 5% calc(9% * var(--fx-toward));
+      scale: 1.16 1.1;
       rotate: 3deg;
     }
     60% {
-      translate: 2% calc(3% * var(--fx-toward));
-      scale: 1.18 1.26;
+      translate: 3% calc(8% * var(--fx-toward));
+      scale: 1.1 1.15;
       rotate: -2deg;
     }
     72% {
@@ -2211,10 +2212,13 @@
 
 /* ---- fx static: gust / blow ---- */
 
-/* Blown back: shoved away from the wind and leaning away from it, greyed, wind lines across it. */
+/*
+ * Blown back: shoved sideways away from the wind (never towards its own name tag) and leaning away
+ * from it, greyed, swoosh marks on its far side.
+ */
 .player.loser .reveal-art.react-blow {
-  translate: -7% calc(-3% * var(--fx-toward));
-  rotate: -16deg;
+  translate: -7% calc(1% * var(--fx-toward));
+  rotate: -13deg;
   filter: saturate(0.35);
 }
 
