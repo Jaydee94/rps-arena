@@ -164,12 +164,17 @@ describe('i18n', () => {
       'countdown.2': ['SCHNACK!', 'PAPER!'],
       'countdown.3': ['SCHNUCK!', 'SCISSORS!'],
       'board.rule': ['{winner} schlägt {loser}', '{winner} beats {loser}'],
-      'burst.zack': ['ZACK!', 'ZAP!'],
+      'burst.zack': ['ZACK!', 'LOCKED!'],
     };
     for (const [key, [deText, enText]] of Object.entries(expected)) {
       expect(de, key).toHaveProperty([key], deText);
       expect(en, key).toHaveProperty([key], enText);
     }
+  });
+
+  it('keeps the English opponent-locked star distinct from the draw burst', () => {
+    expect(en['burst.zack']).toBe('LOCKED!');
+    expect(en['burst.zack']).not.toBe(en['burst.zap']);
   });
 
   it('uses a code placeholder with CODE_LENGTH characters from CODE_ALPHABET', () => {
