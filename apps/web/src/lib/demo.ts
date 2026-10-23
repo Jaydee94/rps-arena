@@ -7,7 +7,7 @@
  * watchers=<n> (spectators in the lobby/board room), and for `spectate`: phase=pick|announce|reveal|finished|lobby (no match).
  * `reveal` and `spectate&phase=reveal` also take the picks of the (first) duel: a=<gesture>&b=<gesture> (a0 and b0;
  * the result follows the rules of all gesture sets), or winner=<gesture>&loser=<gesture> (a0 wins). Either one
- * may be `none` for a missing pick (timeout).
+ * may be `none` for a missing pick (timeout). nick=<text> gives every seat that nickname.
  */
 import { allRelations, REVEAL_MS, type PlayerView, type PublicMatch, type PublicPlayer, type PublicSpectator, type RoomConfig, type RoomView, type RoundResult, type SeatId } from '@rps/shared';
 import { setDemoState } from './connection';
@@ -90,7 +90,9 @@ function build(name: string, params: Params): RoomView | null {
   const config: RoomConfig = { mode, bestOf: 5 };
   const team = mode === 'team2v2';
   const seats: SeatId[] = team ? ['a0', 'a1', 'b0', 'b1'] : ['a0', 'b0'];
-  const players = Object.fromEntries(seats.map((s) => [s, player(s)]));
+  // nick=<text>: every seat gets this nickname (to check long, wrapping name tags).
+  const nick = params.get('nick');
+  const players = Object.fromEntries(seats.map((s) => [s, player(s, nick ? { nickname: nick } : {})]));
   const left = Number(params.get('left') ?? 14);
   const view: PlayerView = {
     role: 'player',
