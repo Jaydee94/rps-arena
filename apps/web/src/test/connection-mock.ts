@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
-import { writable } from 'svelte/store';
-import type { RoomView } from '@rps/shared';
+import { derived, writable } from 'svelte/store';
+import type { PlayerView, RoomView, SpectatorView } from '@rps/shared';
 import type { LastError } from '../lib/connection';
 
 /**
@@ -9,6 +9,12 @@ import type { LastError } from '../lib/connection';
  * Stores are writable so tests can feed state; actions are spies.
  */
 export const roomStore = writable<RoomView | null>(null);
+export const playerRoomStore = derived(roomStore, ($room): PlayerView | null =>
+  $room?.role === 'player' ? $room : null,
+);
+export const spectatorRoomStore = derived(roomStore, ($room): SpectatorView | null =>
+  $room?.role === 'spectator' ? $room : null,
+);
 export const lastErrorStore = writable<LastError | null>(null);
 
 export const actions = {
@@ -20,6 +26,7 @@ export const actions = {
   pick: vi.fn(),
   next: vi.fn(),
   rematch: vi.fn(),
+  skipWait: vi.fn(),
   forgetSession: vi.fn(),
   clearError: vi.fn(() => lastErrorStore.set(null)),
   connect: vi.fn(),
@@ -28,6 +35,8 @@ export const actions = {
 export const connectionMock = {
   ...actions,
   room: roomStore,
+  playerRoom: playerRoomStore,
+  spectatorRoom: spectatorRoomStore,
   lastError: lastErrorStore,
   status: writable('connected'),
 };

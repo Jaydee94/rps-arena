@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get, writable } from 'svelte/store';
 import type { RoomView, SeatId } from '@rps/shared';
-import { makeMatch, makeRoom } from '../test/fixtures';
+import { makeMatch, makeRoom, makeSpectatorRoom } from '../test/fixtures';
 
 const play = vi.fn();
 const unlock = vi.fn();
@@ -430,5 +430,57 @@ describe('createRoomSoundPlayer', () => {
   it('ignores an end signal without held sounds', () => {
     player.countdownEnded();
     expect(played).toEqual([]);
+  });
+
+  describe('for a spectator', () => {
+    const lastRound = { picks: {}, duels: [], winner: 'a' as const };
+    const pick = () => makeSpectatorRoom({ match: { phase: 'pick', lockedSeats: ['a0', 'b0'] } });
+    const reveal = () => makeSpectatorRoom({ match: { phase: 'reveal', lastRound } });
+
+    it('holds the reveal sound and plays it at the skip', () => {
+      player.update(pick(), reveal());
+      vi.advanceTimersByTime(300);
+      expect(played).toEqual([]);
+      player.countdownEnded();
+      vi.advanceTimersByTime(5000);
+      expect(played).toEqual([{ name: 'reveal', delay: 0, at: 300 }]);
+    });
+
+    it('falls back to the timer without a signal', () => {
+      player.update(pick(), reveal());
+      vi.advanceTimersByTime(1259);
+      expect(played).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(played).toEqual([{ name: 'reveal', delay: 0, at: 1260 }]);
+    });
+  });
+});
+
+describe('diffRoomSounds for spectators', () => {
+  const lastRound = { picks: {}, duels: [], winner: 'a' as const };
+
+  it('plays only reveal on the transition pick -> reveal', () => {
+    const prev = makeSpectatorRoom({ match: { phase: 'pick', lockedSeats: ['a0', 'b0'] } });
+    const next = makeSpectatorRoom({ match: { phase: 'reveal', lastRound } });
+    expect(diffRoomSounds(prev, next)).toEqual(['reveal']);
+  });
+
+  it('plays nothing on the first state (prev === null)', () => {
+    const reveal = makeSpectatorRoom({ match: { phase: 'reveal', lastRound } });
+    expect(diffRoomSounds(null, reveal)).toEqual([]);
+    expect(diffRoomSounds(null, makeSpectatorRoom({ match: { phase: 'pick' } }))).toEqual([]);
+  });
+
+  it('never plays lock, win, lose or draw', () => {
+    const pick = makeSpectatorRoom({ match: { phase: 'pick' } });
+    const locked = makeSpectatorRoom({ match: { phase: 'pick', lockedSeats: ['a0'] } });
+    expect(diffRoomSounds(pick, locked)).toEqual([]);
+    for (const winner of ['a', 'b', 'draw'] as const) {
+      const reveal = makeSpectatorRoom({ match: { phase: 'reveal', lastRound: { picks: {}, duels: [], winner } } });
+      expect(diffRoomSounds(pick, reveal)).toEqual(['reveal']);
+    }
+    const reveal = makeSpectatorRoom({ match: { phase: 'reveal', lastRound } });
+    const finished = makeSpectatorRoom({ match: { phase: 'finished', winner: 'a' } });
+    expect(diffRoomSounds(reveal, finished)).toEqual([]);
   });
 });

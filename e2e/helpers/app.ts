@@ -1,4 +1,5 @@
-import { errors, expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { errors, expect, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import type { RoomView } from '@rps/shared';
 
 /**
  * One websocket frame the page received, of any packet type. `raw` is the complete frame (binary
@@ -7,6 +8,8 @@ import { errors, expect, type Browser, type BrowserContext, type Page } from '@p
  */
 export interface ReceivedFrame {
   raw: string;
+  /** `Date.now()` in the test process when the frame arrived (same machine and clock as the server). */
+  at: number;
   event?: string;
   payload?: unknown;
 }
@@ -33,15 +36,16 @@ export interface CreateOptions {
 
 /** Socket.IO event packets look like `42["event",{...}]`; acks (`43`), binary events (`45`) and engine.io packets stay undecoded. */
 function decode(raw: string): ReceivedFrame {
+  const at = Date.now();
   if (raw.startsWith('42')) {
     try {
       const data: unknown = JSON.parse(raw.slice(2));
-      if (Array.isArray(data) && typeof data[0] === 'string') return { raw, event: data[0], payload: data[1] };
+      if (Array.isArray(data) && typeof data[0] === 'string') return { raw, at, event: data[0], payload: data[1] };
     } catch {
       // not valid JSON: keep it as a plain raw frame
     }
   }
-  return { raw };
+  return { raw, at };
 }
 
 /**
@@ -159,6 +163,11 @@ export async function captureReveal(page: Page): Promise<RevealSnapshot> {
 export async function advanceRound(page: Page, options: { expect: 'pick' | 'result' | 'either' }): Promise<void> {
   const pick = page.getByText('Pick your gesture!');
   const next = options.expect === 'pick' ? pick : options.expect === 'result' ? playAgainButton(page) : pick.or(playAgainButton(page));
+  await leaveReveal(page, next, `the ${options.expect} state`);
+}
+
+/** Like `advanceRound`, for any next screen: Continue if it is still there, then `next` must show up. */
+export async function leaveReveal(page: Page, next: Locator, what = 'the next state'): Promise<void> {
   const button = continueButton(page);
   await expect(button.or(next), 'neither Continue nor the next state showed up after the reveal').toBeVisible({ timeout: 10_000 });
   if (await button.isVisible()) {
@@ -169,7 +178,7 @@ export async function advanceRound(page: Page, options: { expect: 'pick' | 'resu
       if (!(error instanceof errors.TimeoutError)) throw error;
     }
   }
-  await expect(next, `expected the ${options.expect} state after the reveal`).toBeVisible({ timeout: 10_000 });
+  await expect(next, `expected ${what} after the reveal`).toBeVisible({ timeout: 10_000 });
 }
 
 /**
@@ -187,4 +196,38 @@ export async function playUntilResult(page: Page, pick: string, maxRounds = 12):
   }
   if (await playAgainButton(page).isVisible()) return;
   throw new Error(`no result screen after ${maxRounds} rounds`);
+}
+
+// --- Tournaments --------------------------------------------------------------------------------
+
+export type TournamentFormatName = 'Knockout' | 'Round robin';
+
+/** Fills the create panel with the tournament switch on and creates the tournament room. */
+export async function createTournament(
+  page: Page,
+  options: { nickname: string; format: TournamentFormatName; mode?: ModeName },
+): Promise<void> {
+  await page.getByLabel('Your name', { exact: true }).fill(options.nickname);
+  await page.getByRole('checkbox', { name: 'Tournament (4 to 8 players)' }).check();
+  if (options.mode) await page.getByRole('radio', { name: new RegExp(`^${options.mode}`) }).check();
+  // The checked chip adds a check mark to its accessible name, hence the prefix match.
+  await page.getByRole('radio', { name: new RegExp(`^${options.format}`) }).check();
+  await page.getByRole('button', { name: 'Create room' }).click();
+}
+
+/** Reads the room code from the tournament lobby. */
+export async function tournamentCode(page: Page): Promise<string> {
+  await expect(page.getByRole('heading', { level: 2, name: 'Tournament' })).toBeVisible();
+  const input = page.getByLabel('Room code', { exact: true });
+  await expect(input).toHaveValue(/^[A-Z2-9]{5}$/);
+  return input.inputValue();
+}
+
+/** The screen the app routes to (`data-screen` on the app root, e.g. `board`, `spectate`, `tournament-intermission`). */
+export const appScreen = (page: Page) => page.locator('[data-screen]');
+
+/** The latest `room:state` view the page received (only among `p.frames[from..]`), if any. */
+export function latestView(p: Player, from = 0): RoomView | undefined {
+  const states = eventFrames(p.frames.slice(from)).filter((f) => f.event === 'room:state');
+  return states[states.length - 1]?.payload as RoomView | undefined;
 }

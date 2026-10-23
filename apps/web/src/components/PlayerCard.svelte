@@ -59,7 +59,7 @@
   }
 
   /*
-   * In 2v2 the duel result chip hangs top right (--chip-w is set by the duel panel in BoardView): the own
+   * In 2v2 the duel result chip hangs top right (--chip-w is set by the duel panel in RevealPanel): the own
    * side stops short of it, so a long name wraps inside the tag instead of running under the chip.
    */
   .mine.compact {

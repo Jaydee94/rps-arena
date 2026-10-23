@@ -125,6 +125,23 @@ describe('scoreWinner', () => {
     expect(scoreWinner(s)).toBe('a');
     expect(scoreWinner(advance(s))).toBe('a');
   });
+
+  it('decides a bestOf 1 match after one won round', () => {
+    const s = createMatch({ mode: 'classic', bestOf: 1 });
+    expect(scoreWinner(s)).toBeNull();
+    const won = playRound(s, ...A_WINS);
+    expect(scoreWinner(won)).toBe('a');
+    const done = advance(won);
+    expect(done.phase).toBe('finished');
+    expect(done.winner).toBe('a');
+  });
+
+  it('keeps a drawn bestOf 1 round undecided', () => {
+    const s = advance(playRound(createMatch({ mode: 'classic', bestOf: 1 }), 'rock', 'rock'));
+    expect(scoreWinner(s)).toBeNull();
+    expect(s.phase).toBe('pick');
+    expect(s.round).toBe(2);
+  });
 });
 
 describe('pick (review focus)', () => {
