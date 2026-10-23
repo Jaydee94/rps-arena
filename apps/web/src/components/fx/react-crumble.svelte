@@ -36,9 +36,9 @@
 
 <span class="crumble" aria-hidden="true">
   <span class="crumble-gap"></span>
-  {@render shard('left', '-4px', '2px', '-7deg')}
-  {@render shard('top', '7px', '-3px', '9deg')}
-  {@render shard('bottom', '7px', '16px', '17deg')}
+  {@render shard('left', '-2px', '1px', '-4deg')}
+  {@render shard('top', '3px', '-1px', '5deg')}
+  {@render shard('bottom', '2px', '5px', '6deg')}
 </span>
 
 <style>
@@ -49,7 +49,9 @@
     grid-area: 1 / 1;
   }
 
+  /* Nothing leaves the sticker's silhouette (plus its offset shadow): broken, but tidy. */
   .crumble {
+    clip-path: circle(54% at 50% 50%);
     pointer-events: none;
   }
 
@@ -66,11 +68,11 @@
     stroke-width: 3;
   }
 
-  /* What shows through the cracks: a dark disc, slightly smaller than the sticker. */
+  /* What shows through the cracks: a dark disc inside the sticker's rim. */
   .crumble-gap {
     place-self: center;
-    width: 90%;
-    height: 90%;
+    width: 92%;
+    height: 92%;
     border-radius: 50%;
     background: var(--line);
   }
@@ -78,16 +80,16 @@
   /* Crack: top edge 56% -> 52/18 -> 60/34 -> centre 48/52 -> 56/70 -> 44/88 -> bottom 50%, a branch to the right. */
   .crumble-shard--left {
     clip-path: polygon(-15% -15%, 56% -15%, 52% 18%, 60% 34%, 48% 52%, 56% 70%, 44% 88%, 50% 115%, -15% 115%);
-    transform-origin: 30% 50%;
+    transform-origin: 0% 50%;
   }
 
   .crumble-shard--top {
     clip-path: polygon(56% -15%, 115% -15%, 115% 64%, 78% 50%, 66% 58%, 48% 52%, 60% 34%, 52% 18%);
-    transform-origin: 75% 25%;
+    transform-origin: 90% 10%;
   }
 
   .crumble-shard--bottom {
     clip-path: polygon(48% 52%, 66% 58%, 78% 50%, 115% 64%, 115% 115%, 50% 115%, 44% 88%, 56% 70%);
-    transform-origin: 70% 80%;
+    transform-origin: 85% 90%;
   }
 </style>
