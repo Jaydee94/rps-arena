@@ -11,8 +11,8 @@
 
   /** Swirl arcs around the sticker: radius and the arc's start and end angle (degrees). */
   const SWIRLS = [
-    { r: 74, from: 200, to: 320 },
-    { r: 82, from: 20, to: 140 },
+    { r: 58, from: 200, to: 320 },
+    { r: 62, from: 20, to: 140 },
   ];
 
   const arc = ({ r, from, to }: { r: number; from: number; to: number }) => {
