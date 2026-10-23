@@ -160,15 +160,18 @@ export function spectatorViewFor(room: Room): SpectatorView {
 /**
  * The own view of a tournament participant who is not on a seat of the running pairing (waiting,
  * eliminated, or forfeited and back as a watcher): the spectator view (never a pick, `yourPick`
- * null) plus `me`, `isHost` and `tournament.youId` for this participant. Sent on the participant's
+ * null) plus `me`, `isHost` (never for a forfeited participant) and `tournament.youId` for this participant. Sent on the participant's
  * personal channel only.
  */
 export function participantViewFor(room: Room, participantId: string): SpectatorView {
   const t = room.tournament;
   if (!t) throw new Error('participantViewFor: not a tournament room');
+  // A forfeited participant has no host rights (the gateway answers `not_player`), even while the
+  // role still points at it because no connected participant could take it over yet.
+  const participant = t.participants.find((p) => p.id === participantId);
   return {
     ...spectatorViewFor(room),
-    isHost: participantId === t.hostId,
+    isHost: participantId === t.hostId && participant !== undefined && !participantOut(room, participant),
     me: { id: participantId },
     tournament: tournamentViewFor(room, participantId),
   };

@@ -32,6 +32,7 @@ import { spectatorsOf } from './room';
 import type { Room, TournamentRoom } from './room';
 import { MemoryRoomStore } from './store';
 import { startTicker } from './ticker';
+import { participantViewFor } from './view';
 import {
   advanceTournament,
   createTournamentRoom,
@@ -897,6 +898,41 @@ describe('(e) host change', () => {
     const heir = tour(room).participants.find((p) => p.id !== host && p.connected)!;
     expect(hostOf(room)).toBe(heir.id);
     expect(tour(room).participants.indexOf(heir)).toBe(1);
+  });
+
+  it('review M1: a host who forfeited and comes back after a forced end is not shown as host; the next participant back is', () => {
+    let room = running();
+    let now = T0 + 1_000;
+    const host = hostOf(room);
+    const inPairing = () => [currentPairing(room).a, currentPairing(room).b].includes(host);
+    if (!inPairing()) {
+      room = playMatch(room, now);
+      room = skipTournamentWait(room, host, now, fixed(0.3));
+    }
+    expect(inPairing()).toBe(true);
+    now += 1_000;
+    room = markParticipantDisconnected(room, host, now);
+    const others = tour(room).participants.filter((p) => p.id !== host);
+    for (const p of others) room = markParticipantDisconnected(room, p.id, now + 20_000);
+    room = tickUntil(room, now + RECONNECT_GRACE_MS);
+    // the host forfeited and nobody connected could take over: the tournament ended, the role stayed
+    expect(tour(room).state!.forfeited).toContain(host);
+    expect(tour(room).phase).toBe('finished');
+    expect(hostOf(room)).toBe(host);
+
+    // the host is back as a forfeited watcher: no host rights in its view, and the gateway refuses
+    // "Play again" for a spectator (not_player), so the button must not be offered
+    const back = rejoinTournament(room, person(room, host).token, now + RECONNECT_GRACE_MS + 1_000, 's-host');
+    expect(back.who).toEqual({ role: 'spectator', id: host });
+    expect(participantViewFor(back.room, host).isHost).toBe(false);
+
+    // the next participant back within its grace takes the role and gets the button
+    const heir = others[0]!;
+    const next = rejoinTournament(back.room, heir.token, now + RECONNECT_GRACE_MS + 2_000, 's-heir');
+    expect(next.who).toEqual({ role: 'participant', id: heir.id });
+    expect(hostOf(next.room)).toBe(heir.id);
+    expect(participantViewFor(next.room, heir.id).isHost).toBe(true);
+    expect(participantViewFor(next.room, host).isHost).toBe(false);
   });
 
   it('without a connected participant the lobby keeps its host; spectators never take over; the next participant back does', () => {
