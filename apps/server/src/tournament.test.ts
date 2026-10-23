@@ -32,6 +32,7 @@ import { spectatorsOf } from './room';
 import type { Room, TournamentRoom } from './room';
 import { MemoryRoomStore } from './store';
 import { startTicker } from './ticker';
+import { participantViewFor } from './view';
 import {
   advanceTournament,
   createTournamentRoom,
@@ -899,6 +900,41 @@ describe('(e) host change', () => {
     expect(tour(room).participants.indexOf(heir)).toBe(1);
   });
 
+  it('review M1: a host who forfeited and comes back after a forced end is not shown as host; the next participant back is', () => {
+    let room = running();
+    let now = T0 + 1_000;
+    const host = hostOf(room);
+    const inPairing = () => [currentPairing(room).a, currentPairing(room).b].includes(host);
+    if (!inPairing()) {
+      room = playMatch(room, now);
+      room = skipTournamentWait(room, host, now, fixed(0.3));
+    }
+    expect(inPairing()).toBe(true);
+    now += 1_000;
+    room = markParticipantDisconnected(room, host, now);
+    const others = tour(room).participants.filter((p) => p.id !== host);
+    for (const p of others) room = markParticipantDisconnected(room, p.id, now + 20_000);
+    room = tickUntil(room, now + RECONNECT_GRACE_MS);
+    // the host forfeited and nobody connected could take over: the tournament ended, the role stayed
+    expect(tour(room).state!.forfeited).toContain(host);
+    expect(tour(room).phase).toBe('finished');
+    expect(hostOf(room)).toBe(host);
+
+    // the host is back as a forfeited watcher: no host rights in its view, and the gateway refuses
+    // "Play again" for a spectator (not_player), so the button must not be offered
+    const back = rejoinTournament(room, person(room, host).token, now + RECONNECT_GRACE_MS + 1_000, 's-host');
+    expect(back.who).toEqual({ role: 'spectator', id: host });
+    expect(participantViewFor(back.room, host).isHost).toBe(false);
+
+    // the next participant back within its grace takes the role and gets the button
+    const heir = others[0]!;
+    const next = rejoinTournament(back.room, heir.token, now + RECONNECT_GRACE_MS + 2_000, 's-heir');
+    expect(next.who).toEqual({ role: 'participant', id: heir.id });
+    expect(hostOf(next.room)).toBe(heir.id);
+    expect(participantViewFor(next.room, heir.id).isHost).toBe(true);
+    expect(participantViewFor(next.room, host).isHost).toBe(false);
+  });
+
   it('without a connected participant the lobby keeps its host; spectators never take over; the next participant back does', () => {
     let room = lobby(8);
     room = joinTournamentRoom(room, 'Watcher', 'owl', T0, 's-w').room;
@@ -1026,13 +1062,38 @@ describe('(f) rejoin by token', () => {
     expect(r.previousSocketId).toBeNull();
   });
 
-  it('a pairing member resolves to its seat; a seat past its grace is bad_token until the tick', () => {
-    let room = running();
+  it('a pairing member resolves to its seat', () => {
+    const room = running();
     const b = person(room, participantId(room, 'b0'));
     expect(rejoinTournament(room, b.token, T0 + 1, 's-b2').who).toEqual({ role: 'player', seat: 'b0' });
     expect(tournamentWhoOfSocket(room, b.socketId!)).toEqual({ role: 'player', seat: 'b0' });
+  });
+
+  it('review M2: a pairing member past its grace but before the tick comes back as a forfeited watcher, not bad_token', () => {
+    let room = running();
+    const pairingId = tour(room).currentPairingId!;
+    const a = participantId(room, 'a0');
+    const b = person(room, participantId(room, 'b0'));
     room = markParticipantDisconnected(room, b.id, T0 + 1);
-    expect(errorCode(() => rejoinTournament(room, b.token, T0 + 1 + RECONNECT_GRACE_MS, 's-b2'))).toBe('bad_token');
+    const end = T0 + 1 + RECONNECT_GRACE_MS;
+    // the ticker has not run yet: the seat is still in the running match
+    room = tickUntil(room, end - 1);
+    expect(tour(room).phase).toBe('match');
+    expect(room.match!.forfeited).toEqual([]);
+
+    const r = rejoinTournament(room, b.token, end + 200, 's-b2', fixed(0.3));
+    expect(r.who).toEqual({ role: 'spectator', id: b.id });
+    expect(r.previousSocketId).toBeNull();
+    // the forfeit is settled exactly as the tick would have done it
+    expect(pairingById(r.room, pairingId).result).toMatchObject({ winner: a, decidedBy: 'forfeit' });
+    expect(tour(r.room).state!.forfeited).toEqual([b.id]);
+    expect(tour(r.room).phase).toBe('intermission');
+    expect(person(r.room, b.id)).toMatchObject({ connected: true, socketId: 's-b2', disconnectedAt: null });
+    expect(tournamentWhoOfSocket(r.room, 's-b2')).toEqual({ role: 'spectator', id: b.id });
+    // the same as rejoining right after the tick
+    const ticked = rejoinTournament(tick(room, end, fixed(0.3)), b.token, end + 200, 's-b2', fixed(0.3));
+    expect(ticked.who).toEqual(r.who);
+    expect(tour(ticked.room).state).toEqual(tour(r.room).state);
   });
 
   it('review case: a pairing member who dropped out in the last reveal is found in the intermission', () => {

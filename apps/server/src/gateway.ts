@@ -27,6 +27,7 @@ import type { Who } from './engine';
 import { TokenBucket } from './rate-limit';
 import { spectatorsOf } from './room';
 import type { Room } from './room';
+import type { Rng } from './settle';
 import type { RoomStore } from './store';
 import {
   createTournamentRoom,
@@ -153,13 +154,16 @@ function sameWho(room: Room, a: TournamentWho, b: TournamentWho): boolean {
   return b.role === 'spectator' && a.id === b.id;
 }
 
-/** Marks a player seat, participant or spectator as disconnected (starting its reconnect grace). */
-function markGone(room: Room, who: TournamentWho, now: number): Room {
+/**
+ * Marks a player seat, participant or spectator as disconnected (starting its reconnect grace).
+ * `rng` drives the settle of a tournament room (the gateway's `tournamentRng`).
+ */
+function markGone(room: Room, who: TournamentWho, now: number, rng: Rng): Room {
   if (room.tournament) {
     const person = personOf(room, who);
     if (!person) return room;
     return person.kind === 'participant'
-      ? markParticipantDisconnected(room, person.id, now)
+      ? markParticipantDisconnected(room, person.id, now, rng)
       : markSpectatorDisconnected(room, person.id, now);
   }
   return who.role === 'player'
@@ -358,7 +362,7 @@ export function createGateway(
         const who = whoOf(current, socket.id);
         if (!who) return null;
         changed = true;
-        return markGone(current, who, clock());
+        return markGone(current, who, clock(), tournamentRng);
       });
       if (room && changed) broadcast(room);
     }
@@ -451,7 +455,7 @@ export function createGateway(
         await release();
         const { room, result: who } = await updateWith(p.code, (current) => {
           const joined: { room: Room; who: TournamentWho } = current.tournament
-            ? joinTournamentRoom(current, p.nickname, p.avatar, clock(), socket.id)
+            ? joinTournamentRoom(current, p.nickname, p.avatar, clock(), socket.id, tournamentRng)
             : joinRoom(current, p.nickname, p.avatar, clock(), socket.id);
           return { room: joined.room, result: joined.who };
         });
@@ -477,11 +481,11 @@ export function createGateway(
           // waiting, eliminated and forfeited participants.
           const rejoined: { room: Room; who: TournamentWho; previousSocketId: string | null } =
             current.tournament
-              ? rejoinTournament(current, p.token, now, socket.id)
+              ? rejoinTournament(current, p.token, now, socket.id, tournamentRng)
               : rejoinRoom(current, p.token, now, socket.id);
           const stale = before && !sameWho(current, before, rejoined.who) ? before : null;
           return {
-            room: stale ? markGone(rejoined.room, stale, now) : rejoined.room,
+            room: stale ? markGone(rejoined.room, stale, now, tournamentRng) : rejoined.room,
             result: {
               who: rejoined.who,
               previous: rejoined.previousSocketId,
