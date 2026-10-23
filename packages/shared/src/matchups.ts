@@ -88,6 +88,38 @@ export const PAIR_OVERRIDES: Readonly<Record<string, Partial<Pick<Matchup, 'atta
   Object.freeze({
     // Water does not soak fire like paper, it puts it out.
     'water>fire': Object.freeze({ reaction: 'extinguish' as const }),
+
+    // The sentence is canon: Spock smashes the scissors, the lizard eats the paper.
+    'spock>scissors': Object.freeze({ attack: 'smash' as const }),
+    'lizard>paper': Object.freeze({ attack: 'bite' as const }),
+
+    // Fire as the loser: a flame does not char, crumble or get shot full of holes, it goes out.
+    'rock>fire': Object.freeze({ reaction: 'extinguish' as const }),
+    'air>fire': Object.freeze({ reaction: 'extinguish' as const }),
+    'gun>fire': Object.freeze({ reaction: 'extinguish' as const }),
+    'lightning>fire': Object.freeze({ reaction: 'extinguish' as const }),
+    'dragon>fire': Object.freeze({ reaction: 'extinguish' as const }),
+    'devil>fire': Object.freeze({ reaction: 'extinguish' as const }),
+
+    // Nothing to tie up, punch or bite on air and water: they are taken in, blown about or splashed.
+    'tree>water': Object.freeze({ attack: 'absorb' as const }),
+    'tree>air': Object.freeze({ attack: 'absorb' as const }),
+    'human>air': Object.freeze({ attack: 'absorb' as const }),
+    'human>water': Object.freeze({ attack: 'absorb' as const }),
+    'wolf>air': Object.freeze({ attack: 'gust' as const }),
+    'wolf>water': Object.freeze({ reaction: 'drench' as const }),
+    'snake>air': Object.freeze({ reaction: 'blow' as const }),
+    'snake>water': Object.freeze({ attack: 'slash' as const }),
+
+    // Paper covers its loser like a sheet laid over it instead of taping it up.
+    'paper>rock': Object.freeze({ reaction: 'cover' as const }),
+    'paper>spock': Object.freeze({ reaction: 'cover' as const }),
+    'paper>air': Object.freeze({ reaction: 'cover' as const }),
+    'paper>water': Object.freeze({ reaction: 'cover' as const }),
+    'paper>lightning': Object.freeze({ reaction: 'cover' as const }),
+    'paper>devil': Object.freeze({ reaction: 'cover' as const }),
+    'paper>gun': Object.freeze({ reaction: 'cover' as const }),
+    'paper>dragon': Object.freeze({ reaction: 'cover' as const }),
   });
 
 const SET_IDS: readonly GestureSetId[] = ['classic', 'lizard-spock', 'wheel7', 'wheel9', 'wheel15'];
