@@ -7,15 +7,17 @@
     size?: number;
     /** Draw the icon on a round paper sticker (default). */
     sticker?: boolean;
+    /** A decorative copy (e.g. a shard of a broken sticker): carries no data-gesture, so it is never counted. */
+    copy?: boolean;
   }
 
-  let { id, size = 56, sticker = true }: Props = $props();
+  let { id, size = 56, sticker = true, copy = false }: Props = $props();
 
   const svg = $derived(gestureIcon(id));
 </script>
 
 <!-- Decorative: every use is paired with the gesture's text label. -->
-<span class="gesture-icon" class:sticker style:--size="{size}px" data-gesture={id} aria-hidden="true">
+<span class="gesture-icon" class:sticker style:--size="{size}px" data-gesture={copy ? undefined : id} aria-hidden="true">
   {#if svg}{@html svg}{:else}?{/if}
 </span>
 

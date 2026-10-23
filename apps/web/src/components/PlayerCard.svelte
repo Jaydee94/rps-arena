@@ -1,6 +1,8 @@
 <script lang="ts">
   import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
+  import type { StickerFx } from '../lib/matchup-fx';
+  import { reactionArt } from './fx';
   import GestureIcon from './GestureIcon.svelte';
 
   interface Props {
@@ -14,9 +16,13 @@
     loser?: boolean;
     /** Smaller sticker for the half-height panels of 2v2. */
     compact?: boolean;
+    /** Matchup effect hooks of the sticker (`data-fx` plus `attack-*`, `react-*` or `fx-clash`); none without a scene. */
+    fx?: StickerFx | null;
   }
 
-  let { label, gesture = null, side, loser = false, compact = false }: Props = $props();
+  let { label, gesture = null, side, loser = false, compact = false, fx = null }: Props = $props();
+
+  const Reaction = $derived(fx?.reaction ? reactionArt(fx.reaction) : null);
 </script>
 
 <!-- One reveal side: a name tag ("Du · Stein") and the big gesture sticker. -->
@@ -33,9 +39,10 @@
     {#if gesture}<span class="gesture-name">{t(gestureKey(gesture))}</span>{:else}<span class="gesture-name">{t('board.no_pick')}</span>{/if}
   </p>
   <span class="tilt">
-    <span class="reveal-art">
+    <span class="reveal-art {fx?.className ?? ''}" data-fx={fx?.role}>
       {#if gesture}
         <GestureIcon id={gesture} size={compact ? 88 : 138} />
+        {#if Reaction}<Reaction {gesture} size={compact ? 88 : 138} />{/if}
       {:else}
         <span class="none" aria-hidden="true">?</span>
       {/if}
@@ -53,6 +60,8 @@
   }
 
   .mine {
+    /* Matchup effects: the sign of "towards the other sticker" on the y axis of the (mirrored) sticker. */
+    --fx-toward: 1;
     top: var(--space-4);
     left: var(--space-4);
     justify-items: start;
@@ -67,6 +76,7 @@
   }
 
   .theirs {
+    --fx-toward: -1;
     right: var(--space-4);
     bottom: var(--space-4);
     justify-items: end;

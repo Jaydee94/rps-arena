@@ -5,6 +5,7 @@
   import { emitCountdownEnded, shouldCountDown } from '../lib/countdown';
   import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
+  import { ruleFor } from '../lib/matchup-fx';
   import { teamOf } from '../lib/seats';
   import Avatar from './Avatar.svelte';
   import Countdown from './Countdown.svelte';
@@ -69,6 +70,8 @@
 
   // Team a on top, as on the scoreboard; there is no "you" to put first.
   const duels = $derived(revealing && match.lastRound ? duelViews(match.lastRound, 'a0') : []);
+  /** The verb sentence of every decided duel ("Rock crushes Scissors"), as on the board. */
+  const rules = $derived(duels.map((duel) => ruleFor(duel, match.lastRound?.picks ?? {})).filter((rule): rule is string => rule !== null));
 
   /**
    * Notes of a side: who is still thinking, who has locked in, and what a bluffer announced (public by
@@ -134,6 +137,9 @@
       <Countdown onDone={endCountdown} />
     {:else}
       <RevealPanel {duels} picks={match.lastRound?.picks ?? {}} label={nick} team={isTeamMode} />
+      {#each rules as rule, i (i)}
+        <p class="rule">{rule}</p>
+      {/each}
     {/if}
   {:else}
     {#each TEAMS as team (team)}
@@ -178,6 +184,18 @@
     letter-spacing: 0.04em;
     line-height: 1.15;
     text-shadow: 2px 2px 0 var(--yellow);
+  }
+
+  /* The verb sentence under the panel, as on the board. */
+  .rule {
+    justify-self: center;
+    max-width: 100%;
+    margin: 0;
+    overflow-wrap: anywhere;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    letter-spacing: 0.04em;
   }
 
   /* Pick phase: one column per side, each with its thought bubble above the nametag. */

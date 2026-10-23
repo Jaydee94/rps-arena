@@ -4,7 +4,13 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const dir = join(import.meta.dirname, '..', 'components');
-const components = readdirSync(dir).filter((f) => f.endsWith('.svelte'));
+// The matchup effect art in components/fx/ follows the same rules.
+const components = [
+  ...readdirSync(dir).filter((f) => f.endsWith('.svelte')),
+  ...readdirSync(join(dir, 'fx'))
+    .filter((f) => f.endsWith('.svelte'))
+    .map((f) => `fx/${f}`),
+];
 
 const source = (file: string): string => readFileSync(join(dir, file), 'utf8');
 

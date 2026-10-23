@@ -1,10 +1,11 @@
 <script lang="ts">
   import { gestureSetFor, type PublicMatch, type PlayerView, type SeatId } from '@rps/shared';
   import { announce, next, pick } from '../lib/connection';
-  import { duelViews, outcomeFor, type DuelView, type Side } from '../lib/board';
+  import { duelViews, outcomeFor, type Side } from '../lib/board';
   import { emitCountdownEnded, shouldCountDown } from '../lib/countdown';
   import { gestureKey } from '../lib/gestures-ui';
   import { t } from '../lib/i18n';
+  import { ruleFor } from '../lib/matchup-fx';
   import { opponentSeat, teamOf } from '../lib/seats';
   import AnnouncePanel from './AnnouncePanel.svelte';
   import CameraToggle from './CameraToggle.svelte';
@@ -103,15 +104,7 @@
   const duels = $derived(match.phase === 'reveal' && match.lastRound ? duelViews(match.lastRound, you) : []);
   const pickOf = (seat: SeatId): string | undefined => match.lastRound?.picks[seat];
 
-  /** "Stein schlägt Schere" for a duel that someone won with a real gesture; null for draws and timeouts. */
-  function ruleFor(duel: DuelView): string | null {
-    const mine = pickOf(duel.mine);
-    const theirs = pickOf(duel.theirs);
-    if (duel.outcome === 'draw' || !mine || !theirs) return null;
-    const [winner, loser] = duel.outcome === 'win' ? [mine, theirs] : [theirs, mine];
-    return t('board.rule', { winner: t(gestureKey(winner)), loser: t(gestureKey(loser)) });
-  }
-  const rules = $derived(duels.map(ruleFor).filter((rule): rule is string => rule !== null));
+  const rules = $derived(duels.map((duel) => ruleFor(duel, match.lastRound?.picks ?? {})).filter((rule): rule is string => rule !== null));
 
   const roundOutcome = $derived(match.lastRound ? outcomeFor(match.lastRound.winner, myTeam) : 'draw');
 

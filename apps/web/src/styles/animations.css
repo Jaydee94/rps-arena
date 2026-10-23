@@ -522,6 +522,307 @@
     }
   }
 
+  /*
+   * ---- fx: framework (matchup effects: components/ClashFx.svelte, components/fx/, lib/matchup-fx.ts) ----
+   * One sub-section per scene below; each task edits only its own. Conventions:
+   * - timing: a scene starts at --fx-delay (the impact) and lasts --fx-dur; the attack connects --fx-hit
+   *   later, so graphics and reactions start at calc(var(--fx-delay) + var(--fx-hit)) and last
+   *   calc(var(--fx-dur) - var(--fx-hit)).
+   * - winner sticker: `.player .reveal-art.attack-<attack>`; loser sticker: `.player.loser .reveal-art.react-<reaction>`
+   *   (more specific than the default loser-droop above, which stays for reactions without rules);
+   *   draw: `.reveal-art.fx-clash`; graphic parts: `.fx--<attack> .<attack>-<part>`; reaction overlay parts:
+   *   `.react-<reaction> .<reaction>-<part>`.
+   * - keyframes: `fx-<attack>-<part>` and `fx-<reaction>-<part>`; fill `both`, so the 0% frame holds before the
+   *   start and the 100% frame (= the static end pose, see "fx static" after this block) after it.
+   * - the sticker's mirrored y axis points to the other sticker with var(--fx-toward) (1 mine, -1 theirs).
+   * - only translate, rotate, scale and opacity move (plus the loser's filter: saturate, as in loser-droop).
+   */
+
+  /* The effect frame is invisible at rest (ClashFx): it only shows while motion is allowed. */
+  .fx {
+    animation: fx-frame 1ms linear both;
+  }
+
+  @keyframes fx-frame {
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* ---- fx: smash / crumble ---- */
+
+  /* Rock: lands with a squash, rears back, and stomps towards the other sticker at --fx-hit. */
+  .player .reveal-art.attack-smash {
+    animation: fx-smash-slam var(--fx-dur) linear var(--fx-delay) both;
+  }
+
+  /* White impact star behind the struck sticker, dust puffs on its rim, rock chunks flying out. */
+  .fx--smash .smash-star {
+    animation: fx-smash-star calc(var(--fx-dur) - var(--fx-hit)) ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .fx--smash .smash-puff {
+    animation: fx-smash-puff 1000ms ease-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .fx--smash .smash-chunk {
+    animation: fx-smash-chunk 860ms cubic-bezier(0.2, 0.7, 0.4, 1) calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  /* Scissors: squashed flat, shaken, cracked into shards that slip; then the sticker keels over, greyed. */
+  .player.loser .reveal-art.react-crumble {
+    animation: fx-crumble-sticker calc(var(--fx-dur) - var(--fx-hit)) linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  /* The intact sticker gives way to its shards (and the dark cracks behind them) at the hit. */
+  .player.loser .reveal-art.react-crumble > .gesture-icon {
+    animation: fx-crumble-hide 1ms linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-crumble .crumble-gap {
+    animation: fx-crumble-show 1ms linear calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  .react-crumble .crumble-shard {
+    animation: fx-crumble-shard calc(var(--fx-dur) - var(--fx-hit)) ease-in-out calc(var(--fx-delay) + var(--fx-hit)) both;
+  }
+
+  @keyframes fx-smash-slam {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+    5% {
+      translate: 3% calc(4% * var(--fx-toward));
+      scale: 1.14 0.86;
+      rotate: 2deg;
+    }
+    14% {
+      translate: -10% calc(-16% * var(--fx-toward));
+      scale: 0.92 1.12;
+      rotate: -16deg;
+      animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+    }
+    19% {
+      translate: 30% calc(42% * var(--fx-toward));
+      scale: 1.3 0.72;
+      rotate: 7deg;
+    }
+    26% {
+      translate: 26% calc(37% * var(--fx-toward));
+      scale: 1.18 0.84;
+      rotate: 5deg;
+      animation-timing-function: ease-out;
+    }
+    40% {
+      translate: 4% calc(6% * var(--fx-toward));
+      scale: 0.96 1.05;
+      rotate: -3deg;
+    }
+    52% {
+      translate: 0 0;
+      scale: 1.02 0.99;
+      rotate: 1deg;
+    }
+    62%,
+    100% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+    }
+  }
+
+  @keyframes fx-smash-star {
+    0% {
+      opacity: 0;
+      scale: 0.2;
+      rotate: -25deg;
+    }
+    6% {
+      opacity: 1;
+    }
+    16% {
+      scale: 1.12;
+      rotate: 5deg;
+    }
+    28% {
+      scale: 1;
+      rotate: 0deg;
+    }
+    62% {
+      opacity: 1;
+      scale: 1.02;
+    }
+    100% {
+      opacity: 0;
+      scale: 1.18;
+      rotate: 4deg;
+    }
+  }
+
+  @keyframes fx-smash-puff {
+    0% {
+      opacity: 0;
+      translate: var(--dx) var(--dy);
+      scale: 0.2;
+    }
+    14% {
+      opacity: 1;
+    }
+    55% {
+      opacity: 1;
+      translate: 0 0;
+      scale: 1.1;
+    }
+    100% {
+      opacity: 0;
+      translate: 0 -8px;
+      scale: 1.4;
+    }
+  }
+
+  @keyframes fx-smash-chunk {
+    0% {
+      opacity: 1;
+      translate: 0 0;
+      rotate: 0deg;
+      scale: 0.6;
+    }
+    55% {
+      opacity: 1;
+      translate: calc(var(--dx) * 0.8) calc(var(--dy) * 0.8);
+      scale: 1;
+    }
+    100% {
+      opacity: 0;
+      translate: var(--dx) calc(var(--dy) + 36px);
+      rotate: var(--spin);
+      scale: 0.9;
+    }
+  }
+
+  @keyframes fx-crumble-sticker {
+    0% {
+      translate: 0 0;
+      scale: 1;
+      rotate: 0deg;
+      filter: none;
+    }
+    4% {
+      translate: 0 6%;
+      scale: 1.18 0.78;
+      rotate: 0deg;
+    }
+    10% {
+      translate: -5% 2%;
+      scale: 0.94 1.06;
+      rotate: -4deg;
+    }
+    16% {
+      translate: 5% 1%;
+      scale: 1;
+      rotate: 3deg;
+    }
+    22% {
+      translate: -3% 1%;
+      rotate: -2deg;
+    }
+    28% {
+      translate: 2% 0;
+      rotate: 1deg;
+      filter: none;
+    }
+    50% {
+      translate: 0 2px;
+      rotate: 3deg;
+      animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5);
+    }
+    72% {
+      translate: 0 13px;
+      rotate: 18deg;
+      filter: saturate(0.3);
+      animation-timing-function: ease-out;
+    }
+    84% {
+      translate: 0 8px;
+      rotate: 15deg;
+    }
+    100% {
+      translate: 0 10px;
+      scale: 1;
+      rotate: 16deg;
+      filter: saturate(0.3);
+    }
+  }
+
+  @keyframes fx-crumble-hide {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fx-crumble-show {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fx-crumble-shard {
+    0%,
+    4% {
+      translate: 0 0;
+      rotate: 0deg;
+    }
+    14% {
+      translate: calc(var(--sx) * 0.6) calc(var(--sy) * 0.2);
+      rotate: calc(var(--sr) * 0.5);
+    }
+    46% {
+      translate: calc(var(--sx) * 1.1) calc(var(--sy) * 1.25);
+      rotate: calc(var(--sr) * 1.1);
+    }
+    62%,
+    100% {
+      translate: var(--sx) var(--sy);
+      rotate: var(--sr);
+    }
+  }
+
+  /* ---- fx: slash / split ---- */
+
+  /* ---- fx: wrap / fold ---- */
+
+  /* ---- fx: shoot / perforate ---- */
+
+  /* ---- fx: bite / chomp ---- */
+
+  /* ---- fx: punch / knockback ---- */
+
+  /* ---- fx: burn / char, extinguish ---- */
+
+  /* ---- fx: splash / drench ---- */
+
+  /* ---- fx: gust / blow ---- */
+
+  /* ---- fx: zap / shock ---- */
+
+  /* ---- fx: absorb / squeeze ---- */
+
+  /* ---- fx: curse / hexed ---- */
+
+  /* ---- fx: poison / wobble ---- */
+
+  /* ---- fx: entangle / bind ---- */
+
+  /* ---- fx: clash ---- */
+
   /* ==== RESULT and LOBBY ==== */
   /* The losing avatar on the result screen; the reveal screen reuses this keyframe for its losing sticker. */
   @keyframes loser-droop {
@@ -532,3 +833,56 @@
     }
   }
 }
+
+/*
+ * ==== FX static end poses ====
+ * The last frame of each matchup reaction, held without any movement: this is all a reduced-motion user
+ * sees, and where the scene comes to rest otherwise (its 100% keyframe equals this pose). Nothing here may
+ * move; the effect graphic itself (ClashFx) is simply not shown without motion. One sub-section per scene.
+ */
+
+/* ---- fx static: smash / crumble ---- */
+
+/* Tilted, greyed, cracked: the shards have slipped and the dark cracks show between them. */
+.player.loser .reveal-art.react-crumble {
+  translate: 0 10px;
+  rotate: 16deg;
+  filter: saturate(0.3);
+}
+
+.player.loser .reveal-art.react-crumble > .gesture-icon {
+  opacity: 0;
+}
+
+.react-crumble .crumble-shard {
+  translate: var(--sx) var(--sy);
+  rotate: var(--sr);
+}
+
+/* ---- fx static: slash / split ---- */
+
+/* ---- fx static: wrap / fold ---- */
+
+/* ---- fx static: shoot / perforate ---- */
+
+/* ---- fx static: bite / chomp ---- */
+
+/* ---- fx static: punch / knockback ---- */
+
+/* ---- fx static: burn / char, extinguish ---- */
+
+/* ---- fx static: splash / drench ---- */
+
+/* ---- fx static: gust / blow ---- */
+
+/* ---- fx static: zap / shock ---- */
+
+/* ---- fx static: absorb / squeeze ---- */
+
+/* ---- fx static: curse / hexed ---- */
+
+/* ---- fx static: poison / wobble ---- */
+
+/* ---- fx static: entangle / bind ---- */
+
+/* ---- fx static: clash ---- */
