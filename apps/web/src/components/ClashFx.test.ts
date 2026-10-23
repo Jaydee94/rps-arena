@@ -31,9 +31,10 @@ describe('ClashFx', () => {
     expect(container.innerHTML.replace(/<!--.*?-->/g, '').trim()).toBe('');
   });
 
-  // Task 4c adds fx/clash.svelte and turns this into a positive test (`.fx.fx--clash.fx--at-centre`).
-  it('renders nothing for a clash (draw) until its scene exists', () => {
+  it('renders the clash graphic of a draw at the centre', () => {
     const { container } = render(ClashFx, { attack: 'clash', side: 'centre' });
-    expect(container.querySelector('.fx')).toBeNull();
+    const fx = container.querySelector('.fx.fx--clash.fx--at-centre');
+    expect(fx).not.toBeNull();
+    expect(fx?.querySelector('svg')).not.toBeNull();
   });
 });
