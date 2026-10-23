@@ -20,11 +20,15 @@
     return `${(50 + radius * Math.cos(angle)).toFixed(1)},${(50 + radius * Math.sin(angle)).toFixed(1)}`;
   }).join(' ');
 
+  // A long word (the English "LOCKED!") must not reach past the notches of a small star: it gets a smaller size.
+  const LONG_WORD = 5;
+  const long = $derived(text.length > LONG_WORD);
+
   // Decided once per mount: a burst that appears under reduced motion simply shows up, no pop.
   const animated = !prefersReducedMotion();
 </script>
 
-<span class="burst burst--{variant}" class:burst--animated={animated} aria-hidden="true">
+<span class="burst burst--{variant}" class:burst--long={long} class:burst--animated={animated} aria-hidden="true">
   <svg viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
     <polygon class="shadow" points={points} transform="translate(3 4)" />
     <polygon class="star" points={points} />
@@ -84,6 +88,11 @@
     text-align: center;
     text-wrap: balance;
     overflow-wrap: anywhere;
+  }
+
+  /* A long word keeps the width a short one has, so it stays inside the notches of the star. */
+  .burst--zack.burst--long .text {
+    font-size: calc(var(--burst-size, 9rem) * 0.2);
   }
 
   /* ZACK: white lettering needs an outline to read on pink. */

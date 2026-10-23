@@ -230,7 +230,7 @@ For keyframes that run on an element with its own base tilt (a sticker with `rot
 | `countdown.2` | SCHNACK! | PAPER! |
 | `countdown.3` | SCHNUCK! | SCISSORS! |
 | `board.rule` | {winner} schlägt {loser} | {winner} beats {loser} |
-| `burst.zack` | ZACK! | ZAP! |
+| `burst.zack` | ZACK! | LOCKED! *(Jan changed this from ZAP! to avoid the collision with `burst.zap`, the draw burst)* |
 
 **Fix:** `home.code_placeholder` shows 4 characters, but `CODE_LENGTH` is 5. New: "z. B. K7QXM" / "e.g. K7QXM" (only characters from `CODE_ALPHABET`).
 
