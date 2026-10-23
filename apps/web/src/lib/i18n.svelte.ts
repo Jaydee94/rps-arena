@@ -40,6 +40,11 @@ export function setLocale(next: Locale): void {
   if (typeof document !== 'undefined') document.documentElement.lang = next;
 }
 
+/** True when `key` exists in the current locale (tracked like `t()`). */
+export function hasKey(key: string): boolean {
+  return Object.hasOwn(DICTIONARIES[active], key);
+}
+
 /** Translates `key` in the current locale; `{name}` placeholders are filled from `vars`. */
 export function t(key: string, vars?: Record<string, string | number>): string {
   const text = DICTIONARIES[active][key];

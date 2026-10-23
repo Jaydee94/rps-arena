@@ -19,6 +19,20 @@ Tests (`apps/web/src/lib/gestures-ui.test.ts`) fail when a gesture of any set or
 
 The favicon is an inline `data:` SVG in `apps/web/index.html` (also original work).
 
+## Effect art
+
+The comic effects of the reveal (flames, drops, bolts, claw marks, ...) are self-drawn too, under the same MIT
+license. They are inline SVG inside Svelte components, not files under `assets/`:
+
+| Path | Content |
+| --- | --- |
+| `apps/web/src/components/fx/<attack>.svelte` | The graphic of one attack (`smash`, `burn`, ...), plus `clash.svelte` for a draw |
+| `apps/web/src/components/fx/react-<reaction>.svelte` | Drawn parts on the losing sticker (shards, soot, vines, ...), only where a reaction needs them |
+
+Like the other illustrations they use classes and design tokens only (no hex colors, no external images), so
+they work in light and dark mode. All motion lives in `animations.css`. What the scenes are and how to add one:
+[matchup-scenes.md](matchup-scenes.md).
+
 ## Logo
 
 | Path | Content |

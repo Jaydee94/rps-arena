@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
+import { GESTURE_ATTACK } from '@rps/shared';
 
 /** Hand-written stand-in for the Web Audio API: records every node that gets created. */
 class FakeParam {
@@ -12,6 +13,7 @@ class FakeParam {
 }
 
 class FakeNode {
+  kind = '';
   gain = new FakeParam();
   frequency = new FakeParam();
   Q = new FakeParam();
@@ -32,6 +34,7 @@ class FakeNode {
 class FakeAudioContext {
   static instances: FakeAudioContext[] = [];
   static created: string[] = [];
+  static nodes: FakeNode[] = [];
   state: 'suspended' | 'running' = 'suspended';
   currentTime = 0;
   sampleRate = 8000;
@@ -45,7 +48,10 @@ class FakeAudioContext {
   });
   private make(kind: string): FakeNode {
     FakeAudioContext.created.push(kind);
-    return new FakeNode();
+    const node = new FakeNode();
+    node.kind = kind;
+    FakeAudioContext.nodes.push(node);
+    return node;
   }
   createOscillator = () => this.make('oscillator');
   createGain = () => this.make('gain');
@@ -81,6 +87,7 @@ beforeEach(() => {
   });
   FakeAudioContext.instances = [];
   FakeAudioContext.created = [];
+  FakeAudioContext.nodes = [];
   vi.stubGlobal('AudioContext', FakeAudioContext);
   localStorage.clear();
 });
@@ -119,7 +126,7 @@ describe('audio defaults and unlock', () => {
   it('plays every sound with nodes after unlock()', async () => {
     const { audio } = await load();
     audio.unlock();
-    for (const name of ['click', 'lock', 'reveal', 'win', 'lose', 'draw'] as const) {
+    for (const name of ['click', 'lock', 'reveal', 'win', 'lose', 'draw', 'clash', 'attack-smash'] as const) {
       const before = created().length;
       audio.play(name);
       expect(created().length, name).toBeGreaterThan(before);
@@ -312,5 +319,106 @@ describe('music', () => {
     setHidden(true);
     setHidden(false);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('matchup sounds', () => {
+  const attacks = [...new Set(Object.values(GESTURE_ATTACK))];
+  const names = [...attacks.map((attack) => `attack-${attack}`), 'clash'] as const;
+
+  const context = () => {
+    const instance = FakeAudioContext.instances[0];
+    if (!instance) throw new Error('no context');
+    return instance;
+  };
+
+  it('covers all 14 attacks', () => {
+    expect(attacks).toHaveLength(14);
+  });
+
+  it('gives every attack sound and the clash a length and a recipe', async () => {
+    const { audio, SOUND_LENGTH } = await load();
+    audio.unlock();
+    for (const name of names) {
+      expect(SOUND_LENGTH[name as keyof typeof SOUND_LENGTH], name).toBeGreaterThan(0);
+      const before = created().length;
+      audio.play(name as Parameters<typeof audio.play>[0]);
+      expect(created().length, name).toBeGreaterThan(before);
+    }
+  });
+
+  it('keeps every sound short, within its length, and not louder than the existing ones', async () => {
+    const { audio, SOUND_LENGTH } = await load();
+    audio.unlock();
+    const start = 10;
+    context().currentTime = start;
+    for (const name of names) {
+      FakeAudioContext.nodes = [];
+      audio.play(name as Parameters<typeof audio.play>[0]);
+      const length = SOUND_LENGTH[name as keyof typeof SOUND_LENGTH];
+      expect(length, name).toBeLessThanOrEqual(0.6);
+      const sources = FakeAudioContext.nodes.filter((n) => n.kind === 'oscillator' || n.kind === 'bufferSource');
+      expect(sources.length, name).toBeGreaterThan(0);
+      let end = 0;
+      for (const node of sources) {
+        const stopAt = node.stop.mock.calls[0]?.[0] as number;
+        const startAt = node.start.mock.calls[0]?.[0] as number;
+        expect(startAt, name).toBeGreaterThanOrEqual(start);
+        end = Math.max(end, stopAt);
+        // oscillators and noise stop 20 ms after their envelope
+        expect(stopAt - start - 0.02, name).toBeLessThanOrEqual(length + 1e-9);
+      }
+      // the declared length is the real one, so queued follow-ups neither overlap nor leave gaps
+      expect(end - start - 0.02, name).toBeGreaterThanOrEqual(length - 0.06);
+      for (const node of FakeAudioContext.nodes.filter((n) => n.kind === 'gain')) {
+        for (const [peak] of node.gain.linearRampToValueAtTime.mock.calls) {
+          expect(peak as number, name).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
+
+  it('gives every attack sound and the clash a hit that sits on a real transient of its recipe', async () => {
+    const { audio, HIT_AT, SOUND_LENGTH } = await load();
+    expect(Object.keys(HIT_AT).sort()).toEqual([...names].sort());
+    audio.unlock();
+    const start = 10;
+    context().currentTime = start;
+    for (const name of names) {
+      const hitAt = HIT_AT[name as keyof typeof HIT_AT];
+      expect(hitAt, name).toBeGreaterThanOrEqual(0);
+      expect(hitAt, name).toBeLessThan(SOUND_LENGTH[name as keyof typeof SOUND_LENGTH]);
+      FakeAudioContext.nodes = [];
+      audio.play(name as Parameters<typeof audio.play>[0]);
+      // the hit is where a source starts (a snap, a thud) or where a gain envelope peaks (a swell)
+      const moments = FakeAudioContext.nodes.flatMap((node) => [
+        ...node.start.mock.calls.map(([at]) => (at as number) - start),
+        ...node.gain.linearRampToValueAtTime.mock.calls.map(([, at]) => (at as number) - start),
+      ]);
+      expect(moments.some((at) => Math.abs(at - hitAt) < 0.001), name).toBe(true);
+      // sounds with hitAt 0 open with their hit: a source starts exactly at the recipe start
+      if (hitAt === 0) expect(Math.min(...moments), name).toBeCloseTo(0);
+    }
+  });
+
+  it('honours a start delay', async () => {
+    const { audio } = await load();
+    audio.unlock();
+    FakeAudioContext.nodes = [];
+    audio.play('attack-smash', 0.44);
+    const starts = FakeAudioContext.nodes
+      .filter((n) => n.kind === 'oscillator' || n.kind === 'bufferSource')
+      .map((n) => n.start.mock.calls[0]?.[0] as number);
+    expect(Math.min(...starts)).toBeCloseTo(0.44);
+  });
+
+  it('stays silent with sfx off or before unlock', async () => {
+    const { audio } = await load();
+    audio.play('attack-smash');
+    audio.unlock();
+    audio.setSfx(false);
+    const before = created().length;
+    for (const name of names) audio.play(name as Parameters<typeof audio.play>[0]);
+    expect(created()).toHaveLength(before);
   });
 });

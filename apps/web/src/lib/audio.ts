@@ -1,11 +1,14 @@
 import { writable, type Readable } from 'svelte/store';
+import type { Attack } from '@rps/shared';
 
 /**
  * Synthesized comic sound effects and an optional generative music loop (Web Audio only,
  * no audio files). Nothing sounds, and no AudioContext exists, until `unlock()` ran from a
  * user gesture.
  */
-export type SoundName = 'click' | 'lock' | 'reveal' | 'win' | 'lose' | 'draw';
+/** One short sound per attack archetype of the matchup scenes (`attack-smash`, ...). */
+export type AttackSound = `attack-${Attack}`;
+export type SoundName = 'click' | 'lock' | 'reveal' | 'win' | 'lose' | 'draw' | 'clash' | AttackSound;
 export interface AudioSettings {
   sfx: boolean;
   music: boolean;
@@ -19,6 +22,47 @@ export const SOUND_LENGTH: Record<SoundName, number> = {
   win: 0.7,
   lose: 1.0,
   draw: 0.45,
+  // The matchup sounds stay short (<= 0.6 s); `HIT_AT` says where each one hits.
+  clash: 0.35,
+  'attack-smash': 0.3,
+  'attack-slash': 0.3,
+  'attack-wrap': 0.4,
+  'attack-burn': 0.5,
+  'attack-splash': 0.4,
+  'attack-gust': 0.55,
+  'attack-zap': 0.4,
+  'attack-shoot': 0.25,
+  'attack-bite': 0.35,
+  'attack-punch': 0.25,
+  'attack-entangle': 0.5,
+  'attack-absorb': 0.45,
+  'attack-curse': 0.55,
+  'attack-poison': 0.4,
+};
+
+/**
+ * Where the hit of a matchup sound is, in seconds after the start of its recipe: the transient the
+ * ear takes as "the contact" (the start of the thud, snap, chomp or sting). The sfx bridge starts
+ * each sound `contact - HIT_AT` after the countdown end, so this moment lands on the visible
+ * contact of the scene. 0 means the sound opens with its hit; slash has a whoosh before its snips
+ * (first snip at 0.17 s) and curse a swell that peaks at 0.12 s.
+ */
+export const HIT_AT: Record<'clash' | AttackSound, number> = {
+  clash: 0,
+  'attack-smash': 0,
+  'attack-slash': 0.17,
+  'attack-wrap': 0,
+  'attack-burn': 0,
+  'attack-splash': 0,
+  'attack-gust': 0,
+  'attack-zap': 0,
+  'attack-shoot': 0,
+  'attack-bite': 0,
+  'attack-punch': 0,
+  'attack-entangle': 0,
+  'attack-absorb': 0,
+  'attack-curse': 0.12,
+  'attack-poison': 0,
 };
 
 const STORAGE_KEY = 'rps.audio';
@@ -205,6 +249,162 @@ const RECIPES: Record<SoundName, (c: AudioContext, out: AudioNode, t: number) =>
   draw(c, out, t) {
     tone(c, out, { type: 'triangle', freq: 220, start: t, dur: 0.16, gain: 0.5 });
     tone(c, out, { type: 'triangle', freq: 220, start: t + 0.2, dur: 0.22, gain: 0.5 });
+  },
+  // Draw: a bang with a metallic ring, two stickers colliding.
+  clash(c, out, t) {
+    noise(c, out, { start: t, dur: 0.3, gain: 0.5, filter: 'lowpass', from: 5000, to: 300 });
+    tone(c, out, { type: 'sine', freq: 150, freqEnd: 40, start: t, dur: 0.3, gain: 1 });
+    tone(c, out, { type: 'sine', freq: 1760, start: t, dur: 0.3, gain: 0.1 });
+    tone(c, out, { type: 'sine', freq: 2637, start: t, dur: 0.22, gain: 0.08 });
+    tone(c, out, { type: 'triangle', freq: 1200, freqEnd: 800, start: t, dur: 0.2, gain: 0.2 });
+  },
+  // Crunch: a crackling burst of noise over a low thud.
+  'attack-smash'(c, out, t) {
+    noise(c, out, { start: t, dur: 0.18, gain: 0.5, filter: 'bandpass', from: 2500, to: 600, q: 1 });
+    for (const offset of [0, 0.05, 0.1]) {
+      noise(c, out, { start: t + offset, dur: 0.05, gain: 0.4, filter: 'highpass', from: 3000, to: 1500 });
+    }
+    tone(c, out, { type: 'sine', freq: 120, freqEnd: 45, start: t, dur: 0.25, gain: 0.8 });
+  },
+  // Whoosh up, then snip snip.
+  'attack-slash'(c, out, t) {
+    noise(c, out, { start: t, dur: 0.2, gain: 0.4, filter: 'bandpass', from: 1200, to: 5000, q: 3 });
+    tone(c, out, { type: 'square', freq: 1800, start: t + 0.17, dur: 0.04, gain: 0.15 });
+    tone(c, out, { type: 'triangle', freq: 2400, start: t + 0.23, dur: 0.06, gain: 0.2 });
+  },
+  // Rustle: a few papery bursts.
+  'attack-wrap'(c, out, t) {
+    [0, 0.08, 0.15, 0.24].forEach((offset, i) => {
+      noise(c, out, {
+        start: t + offset,
+        dur: 0.09 + i * 0.01,
+        gain: 0.28,
+        filter: 'bandpass',
+        from: 2500,
+        to: 3600,
+        q: 2,
+      });
+    });
+  },
+  // Sizzle: hiss with a few crackles.
+  'attack-burn'(c, out, t) {
+    noise(c, out, { start: t, dur: 0.5, gain: 0.3, filter: 'bandpass', from: 6000, to: 3000, q: 0.7 });
+    for (const offset of [0.05, 0.17, 0.26, 0.38]) {
+      noise(c, out, { start: t + offset, dur: 0.03, gain: 0.4, filter: 'highpass', from: 5000, to: 4000 });
+    }
+  },
+  // Splash: a wash of water, a bloop and two drops.
+  'attack-splash'(c, out, t) {
+    noise(c, out, { start: t, dur: 0.3, gain: 0.45, filter: 'bandpass', from: 800, to: 2500, q: 1.5 });
+    tone(c, out, { type: 'sine', freq: 400, freqEnd: 900, start: t, dur: 0.1, gain: 0.25 });
+    tone(c, out, { type: 'sine', freq: 900, freqEnd: 1400, start: t + 0.22, dur: 0.06, gain: 0.15 });
+    tone(c, out, { type: 'sine', freq: 800, freqEnd: 1300, start: t + 0.32, dur: 0.06, gain: 0.12 });
+  },
+  // Gust: wind swelling up and fading away.
+  'attack-gust'(c, out, t) {
+    noise(c, out, { start: t, dur: 0.3, gain: 0.5, filter: 'bandpass', from: 500, to: 2800, q: 2.5 });
+    noise(c, out, { start: t + 0.25, dur: 0.28, gain: 0.35, filter: 'bandpass', from: 2800, to: 500, q: 2.5 });
+  },
+  // Zap zap: two electric snaps over a crackle.
+  'attack-zap'(c, out, t) {
+    for (const offset of [0, 0.16]) {
+      tone(c, out, { type: 'sawtooth', freq: 2400, freqEnd: 300, start: t + offset, dur: 0.12, gain: 0.3 });
+      noise(c, out, { start: t + offset, dur: 0.08, gain: 0.3, filter: 'highpass', from: 6000, to: 3000 });
+    }
+    noise(c, out, { start: t, dur: 0.4, gain: 0.15, filter: 'bandpass', from: 5000, to: 2000, q: 2 });
+  },
+  // Pop with a little ricochet ting.
+  'attack-shoot'(c, out, t) {
+    tone(c, out, { type: 'sine', freq: 700, freqEnd: 150, start: t, dur: 0.09, gain: 0.8 });
+    noise(c, out, { start: t, dur: 0.05, gain: 0.4, filter: 'highpass', from: 4000, to: 2000 });
+    tone(c, out, { type: 'triangle', freq: 1800, freqEnd: 1200, start: t + 0.1, dur: 0.12, gain: 0.15 });
+  },
+  // Chomp chomp.
+  'attack-bite'(c, out, t) {
+    for (const offset of [0, 0.15]) {
+      tone(c, out, {
+        type: 'square',
+        freq: 200,
+        freqEnd: 90,
+        start: t + offset,
+        dur: 0.09,
+        gain: 0.4,
+        filter: { type: 'lowpass', from: 500, to: 1500 },
+      });
+      noise(c, out, { start: t + offset, dur: 0.06, gain: 0.3, filter: 'lowpass', from: 2500, to: 400 });
+    }
+    tone(c, out, { type: 'triangle', freq: 1500, start: t + 0.28, dur: 0.05, gain: 0.15 });
+  },
+  // Thump with a short "pow".
+  'attack-punch'(c, out, t) {
+    tone(c, out, { type: 'sine', freq: 160, freqEnd: 40, start: t, dur: 0.22, gain: 1 });
+    noise(c, out, { start: t, dur: 0.08, gain: 0.6, filter: 'lowpass', from: 1800, to: 200 });
+    tone(c, out, { type: 'triangle', freq: 300, freqEnd: 100, start: t, dur: 0.1, gain: 0.3 });
+  },
+  // Creak: two wooden groans.
+  'attack-entangle'(c, out, t) {
+    tone(c, out, {
+      type: 'sawtooth',
+      freq: 140,
+      freqEnd: 220,
+      start: t,
+      dur: 0.2,
+      gain: 0.3,
+      filter: { type: 'bandpass', from: 700, to: 1500, q: 10 },
+    });
+    tone(c, out, {
+      type: 'sawtooth',
+      freq: 200,
+      freqEnd: 130,
+      start: t + 0.22,
+      dur: 0.26,
+      gain: 0.3,
+      filter: { type: 'bandpass', from: 700, to: 1500, q: 10 },
+    });
+    noise(c, out, { start: t, dur: 0.45, gain: 0.1, filter: 'bandpass', from: 900, to: 900, q: 3 });
+  },
+  // Gulp gulp.
+  'attack-absorb'(c, out, t) {
+    for (const offset of [0, 0.22]) {
+      tone(c, out, { type: 'sine', freq: 150, freqEnd: 450, start: t + offset, dur: 0.1, gain: 0.7 });
+      tone(c, out, { type: 'sine', freq: 400, freqEnd: 160, start: t + offset + 0.1, dur: 0.12, gain: 0.6 });
+    }
+    noise(c, out, { start: t, dur: 0.1, gain: 0.15, filter: 'bandpass', from: 500, to: 300 });
+  },
+  // Eerie sting: a dark tritone swell.
+  'attack-curse'(c, out, t) {
+    tone(c, out, {
+      type: 'sawtooth',
+      freq: 220,
+      start: t,
+      dur: 0.55,
+      gain: 0.22,
+      attack: 0.12,
+      filter: { type: 'lowpass', from: 300, to: 1500 },
+    });
+    tone(c, out, {
+      type: 'sawtooth',
+      freq: 311.13,
+      start: t,
+      dur: 0.55,
+      gain: 0.22,
+      attack: 0.12,
+      filter: { type: 'lowpass', from: 300, to: 1500 },
+    });
+    tone(c, out, { type: 'sine', freq: 1568, freqEnd: 1480, start: t + 0.05, dur: 0.5, gain: 0.06, attack: 0.15 });
+  },
+  // Bubbles bursting.
+  'attack-poison'(c, out, t) {
+    (
+      [
+        [0, 300, 700, 0.08],
+        [0.1, 400, 900, 0.07],
+        [0.2, 250, 650, 0.08],
+        [0.3, 500, 1000, 0.08],
+      ] as const
+    ).forEach(([offset, from, to, dur]) => {
+      tone(c, out, { type: 'sine', freq: from, freqEnd: to, start: t + offset, dur, gain: 0.35 });
+    });
   },
 };
 

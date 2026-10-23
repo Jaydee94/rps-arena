@@ -2,6 +2,8 @@
   import type { SeatId } from '@rps/shared';
   import type { DuelView } from '../lib/board';
   import { t } from '../lib/i18n';
+  import { sceneFor, stickerFx } from '../lib/matchup-fx';
+  import ClashFx from './ClashFx.svelte';
   import ComicBurst from './ComicBurst.svelte';
   import PlayerCard from './PlayerCard.svelte';
   import SpeedLines from './SpeedLines.svelte';
@@ -32,15 +34,21 @@
   No wrapper element: the panels stay direct children of the grid of the screen that uses them.
 -->
 {#each duels as duel (duel.mine)}
+  {@const scene = sceneFor(duel, picks)}
   <div class="duel clash" class:team data-testid="duel">
     <span class="half half-mine" aria-hidden="true"></span>
     <span class="half half-theirs" aria-hidden="true"></span>
     <SpeedLines />
     <span class="impact-flash" aria-hidden="true"></span>
     <PlayerCard label={label(duel.mine)} gesture={picks[duel.mine]} side="mine"
-      loser={duel.outcome === 'lose'} compact={team} />
+      loser={duel.outcome === 'lose'} compact={team} fx={stickerFx(scene, 'mine')} />
     <PlayerCard label={label(duel.theirs)} gesture={picks[duel.theirs]} side="theirs"
-      loser={duel.outcome === 'win'} compact={team} />
+      loser={duel.outcome === 'win'} compact={team} fx={stickerFx(scene, 'theirs')} />
+    <!--
+      The effect of a decided duel lands on the losing sticker (its PlayerCard renders it). A draw gets the clash
+      scene in a slot at the centre of the panel (it renders once fx/clash.svelte exists).
+    -->
+    {#if scene?.kind === 'draw'}<span class="fx-centre" aria-hidden="true"><ClashFx attack="clash" side="centre" /></span>{/if}
     <div class="impact"><ComicBurst text={t(`burst.${BURST[duel.outcome].text}`)} variant={BURST[duel.outcome].variant} /></div>
     {#if team}<p class="duel-result">{t(`board.duel_${duel.outcome}`)}</p>{/if}
   </div>
@@ -49,6 +57,8 @@
 <style>
   /* The panel: a dark --line ground shows as the gap between the two diagonal halves. */
   .duel {
+    /* Size of the burst on the seam (and of the clash slot below it). */
+    --burst-size: min(13.5rem, 52vw);
     position: relative;
     height: 32.5rem;
     border: var(--outline) solid var(--line);
@@ -67,6 +77,7 @@
   .duel.team {
     /* Width the result chip may take; PlayerCard keeps the own name tag clear of it. */
     --chip-w: 7.5rem;
+    --burst-size: 7rem;
     height: 17rem;
   }
 
@@ -108,18 +119,28 @@
     pointer-events: none;
   }
 
+  /*
+   * The clash slot: a sticker-sized box at the centre of the panel (the seam), the effect frame of a draw is
+   * twice its size. Behind the cards, above the flash.
+   */
+  .fx-centre {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 2;
+    width: calc(var(--burst-size) * 0.64);
+    aspect-ratio: 1;
+    translate: -50% -50%;
+    pointer-events: none;
+  }
+
   /* The burst sits on the seam, over everything else. */
   .impact {
-    --burst-size: min(13.5rem, 52vw);
     position: absolute;
     top: 50%;
     left: 50%;
     z-index: 4;
     translate: -50% -50%;
-  }
-
-  .team .impact {
-    --burst-size: 7rem;
   }
 
   .duel-result {

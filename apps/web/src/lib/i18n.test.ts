@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  allRelations,
   CODE_ALPHABET,
   CODE_LENGTH,
   ERROR_CODES,
@@ -196,5 +197,126 @@ describe('i18n', () => {
     expect(t('board.rule', { winner: 'Stein', loser: 'Schere' })).toBe('Stein schlägt Schere');
     setLocale('en');
     expect(t('board.rule', { winner: 'Rock', loser: 'Scissors' })).toBe('Rock beats Scissors');
+  });
+
+  describe('matchup verb sentences', () => {
+    const dicts = { de, en } as Record<string, Record<string, string>>;
+    const relations = allRelations();
+
+    it('has rule.<winner>.<loser> for every relation in both locales', () => {
+      expect(relations).toHaveLength(112);
+      for (const [locale, dict] of Object.entries(dicts)) {
+        for (const { winner, loser } of relations) {
+          const key = `rule.${winner}.${loser}`;
+          const text = dict[key];
+          expect(typeof text, `${locale} ${key}`).toBe('string');
+          expect((text ?? '').trim(), `${locale} ${key}`).not.toBe('');
+        }
+      }
+    });
+
+    it('uses exactly the placeholders {winner} and {loser} once each and no other braces', () => {
+      for (const [locale, dict] of Object.entries(dicts)) {
+        for (const [key, text] of Object.entries(dict)) {
+          if (!key.startsWith('rule.')) continue;
+          const label = `${locale} ${key}`;
+          expect(text.split('{winner}').length - 1, label).toBe(1);
+          expect(text.split('{loser}').length - 1, label).toBe(1);
+          expect(text.replace('{winner}', '').replace('{loser}', ''), label).not.toMatch(/[{}]/);
+        }
+      }
+    });
+
+    it('has rule.generic in both locales', () => {
+      expect(de['rule.generic']).toBe('{winner} schlägt {loser}');
+      expect(en['rule.generic']).toBe('{winner} beats {loser}');
+    });
+
+    it('has no rule.* key beyond allRelations() and rule.generic', () => {
+      const expected = [
+        'rule.generic',
+        ...relations.map(({ winner, loser }) => `rule.${winner}.${loser}`),
+      ].sort();
+      for (const dict of [de, en]) {
+        const actual = Object.keys(dict)
+          .filter((key) => key.startsWith('rule.'))
+          .sort();
+        expect(actual).toEqual(expected);
+      }
+    });
+
+    it('keeps the rule.* keys in the order of allRelations() in both locales', () => {
+      const expected = [
+        'rule.generic',
+        ...relations.map(({ winner, loser }) => `rule.${winner}.${loser}`),
+      ];
+      for (const dict of [de, en]) {
+        expect(Object.keys(dict).filter((key) => key.startsWith('rule.'))).toEqual(expected);
+      }
+    });
+
+    it('pins the ten classic and Lizard & Spock sentences', () => {
+      const pinned: Record<string, [string, string]> = {
+        'rock.scissors': ['{winner} zerquetscht {loser}', '{winner} crushes {loser}'],
+        'scissors.paper': ['{winner} zerschneidet {loser}', '{winner} cut {loser}'],
+        'paper.rock': ['{winner} bedeckt {loser}', '{winner} covers {loser}'],
+        'rock.lizard': ['{winner} zerquetscht {loser}', '{winner} crushes {loser}'],
+        'lizard.spock': ['{winner} vergiftet {loser}', '{winner} poisons {loser}'],
+        'spock.scissors': ['{winner} zertrümmert {loser}', '{winner} smashes {loser}'],
+        'scissors.lizard': ['{winner} köpft {loser}', '{winner} decapitate {loser}'],
+        'lizard.paper': ['{winner} frisst {loser}', '{winner} eats {loser}'],
+        'paper.spock': ['{winner} widerlegt {loser}', '{winner} disproves {loser}'],
+        'spock.rock': ['{winner} verdampft {loser}', '{winner} vaporizes {loser}'],
+      };
+      for (const [pair, [deText, enText]] of Object.entries(pinned)) {
+        expect(de, pair).toHaveProperty([`rule.${pair}`], deText);
+        expect(en, pair).toHaveProperty([`rule.${pair}`], enText);
+      }
+    });
+
+    it('does not repeat a verb or verb phrase more than twice among the sentences of one winner', () => {
+      // The words between the placeholders, without a leading reflexive/particle word.
+      const phraseOf = (text: string) =>
+        text
+          .slice(text.indexOf('{winner}') + '{winner}'.length, text.indexOf('{loser}'))
+          .trim()
+          .toLowerCase()
+          .replace(/^sich\s+/, '');
+      for (const [locale, dict] of Object.entries(dicts)) {
+        const phrases = new Map<string, Map<string, number>>();
+        const verbs = new Map<string, Map<string, number>>();
+        const bump = (map: Map<string, Map<string, number>>, winner: string, word: string) => {
+          const counts = map.get(winner) ?? new Map<string, number>();
+          counts.set(word, (counts.get(word) ?? 0) + 1);
+          map.set(winner, counts);
+        };
+        for (const { winner, loser } of relations) {
+          const phrase = phraseOf(dict[`rule.${winner}.${loser}`] ?? '');
+          expect(phrase, `${locale} ${winner}>${loser}`).not.toBe('');
+          bump(phrases, winner, phrase);
+          bump(verbs, winner, phrase.split(/\s+/)[0] ?? '');
+        }
+        for (const [kind, map] of [
+          ['phrase', phrases],
+          ['verb', verbs],
+        ] as const) {
+          for (const [winner, counts] of map) {
+            for (const [word, count] of counts) {
+              expect(count, `${locale} ${winner} reuses ${kind} "${word}"`).toBeLessThanOrEqual(2);
+            }
+          }
+        }
+      }
+    });
+
+    it('keeps each sentence short (at most 38 characters without the placeholders)', () => {
+      for (const [locale, dict] of Object.entries(dicts)) {
+        for (const [key, text] of Object.entries(dict)) {
+          if (!key.startsWith('rule.')) continue;
+          const bare = text.replace('{winner}', '').replace('{loser}', '');
+          expect(bare.length, `${locale} ${key}`).toBeLessThanOrEqual(38);
+        }
+      }
+    });
   });
 });

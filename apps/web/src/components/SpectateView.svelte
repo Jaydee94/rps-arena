@@ -9,6 +9,7 @@
   import Avatar from './Avatar.svelte';
   import Countdown from './Countdown.svelte';
   import RevealPanel from './RevealPanel.svelte';
+  import RuleLines from './RuleLines.svelte';
   import Scoreboard from './Scoreboard.svelte';
   import SpectateBanner from './SpectateBanner.svelte';
   import ThinkBubble from './ThinkBubble.svelte';
@@ -137,6 +138,7 @@
       <Countdown onDone={endCountdown} />
     {:else}
       <RevealPanel {duels} picks={match.lastRound?.picks ?? {}} label={nick} team={isTeamMode} />
+      <RuleLines {duels} picks={match.lastRound?.picks ?? {}} />
     {/if}
   {:else}
     {#each TEAMS as team (team)}

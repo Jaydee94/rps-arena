@@ -1,17 +1,25 @@
 /**
- * DEV-ONLY: `?demo=home|lobby|board|reveal|result|spectate|gallery|tournament-lobby|tournament-draw|tournament-intermission|tournament-finished|tournament-bracket|tournament-table|tournament-podium` renders a screen from mock data, so the look
+ * DEV-ONLY: `?demo=home|lobby|board|reveal|result|spectate|gallery|tournament-lobby|tournament-draw|tournament-intermission|tournament-finished|tournament-bracket|tournament-table|tournament-podium|fx|fxgallery` renders a screen from mock data, so the look
  * can be checked without a server. main.ts imports this module only behind `import.meta.env.DEV`,
  * so it never reaches a production build.
  *
  * Extra query params: mode=<mode id>, outcome=win|lose|draw, picked=1, phase=announce, left=<seconds>, bot=1,
  * watchers=<n> (spectators in the lobby/board room), and for `spectate`: phase=pick|announce|reveal|finished|lobby (no match).
+ * `reveal` and `spectate&phase=reveal` also take the picks of the (first) duel: a=<gesture>&b=<gesture> (a0 and b0;
+ * the result follows the rules of all gesture sets), or winner=<gesture>&loser=<gesture> (a0 wins). Either one
+ * may be `none` for a missing pick (timeout). nick=<text> gives every seat that nickname.
  * Tournament demos: n=<4..8 participants>, format=knockout|roundrobin, as=spectator (a plain spectator without `me`)|player (not the host)|champion
  * (finished demos), mode=<non-bluff, non-2v2 mode>, long=1 (16-character nicknames without spaces), decidedBy=coin|forfeit (intermission),
  * third=3 (podium: three share 3rd place). `tournament-bracket` is an 8-player knockout in the intermission after a semifinal,
  * `tournament-table` a 6-player round robin with a tie-break, `tournament-podium` a finished 8-player knockout.
  * `board` and `spectate` take tournament=1 (an 8-player knockout semifinal with the tournament header; also format, n, long).
+ * Matchup effects (components/FxGallery.svelte, mounted instead of App via `demoRoot`): `fx` loops the reveal of one
+ * pair at full size with a replay button, winner=<gesture>&loser=<gesture> (or a=/b=; the same gesture twice is the
+ * draw), live=0 holds the end pose; `fxgallery` shows all pairs plus the draw as small cards grouped by attack,
+ * attack=<attack>|draw|all filters, live=1 loops the visible cards instead of the end pose.
  */
-import { REVEAL_MS, type Pairing, type PlayerView, type PublicMatch, type PublicPlayer, type PublicSpectator, type RoomConfig, type RoomView, type RoundResult, type SeatId } from '@rps/shared';
+import { allRelations, REVEAL_MS, type Pairing, type PlayerView, type PublicMatch, type PublicPlayer, type PublicSpectator, type RoomConfig, type RoomView, type RoundResult, type SeatId } from '@rps/shared';
+import type { Component } from 'svelte';
 import { setDemoState } from './connection';
 import { demoTournament, type DemoOutcome, type DemoTournamentOptions } from './demo-tournament';
 import { TOURNAMENT_MODES } from './tournament-ui';
@@ -58,6 +66,35 @@ function watchers(n: number): PublicSpectator[] {
 }
 
 const MODES = ['classic', 'lizard-spock', 'wheel7', 'wheel9', 'wheel15', 'bluff', 'team2v2'] as const;
+
+/**
+ * The picks and result of the first duel from a=/b= or winner=/loser=; null when neither is given.
+ * `none` leaves a seat without a pick (the other side wins, as on a timeout).
+ */
+function duelPicks(params: Params): { a: string | undefined; b: string | undefined; result: 'a' | 'b' | 'draw' } | null {
+  const winner = params.get('winner');
+  const loser = params.get('loser');
+  const a = params.get('a') ?? winner;
+  const b = params.get('b') ?? loser;
+  if (!a || !b) return null;
+  const pickA = a === 'none' ? undefined : a;
+  const pickB = b === 'none' ? undefined : b;
+  if (!pickA || !pickB) return { a: pickA, b: pickB, result: pickA ? 'a' : 'b' };
+  if (pickA === pickB) return { a: pickA, b: pickB, result: 'draw' };
+  const beats = (x: string, y: string) => allRelations().some((r) => r.winner === x && r.loser === y);
+  return { a: pickA, b: pickB, result: beats(pickA, pickB) ? 'a' : beats(pickB, pickA) ? 'b' : 'draw' };
+}
+
+/** Applies a=/b= (or winner=/loser=) to the picks and returns the result of the first duel, if given. */
+function applyDuelPicks(params: Params, picks: Partial<Record<SeatId, string>>): 'a' | 'b' | 'draw' | null {
+  const duel = duelPicks(params);
+  if (!duel) return null;
+  if (duel.a) picks.a0 = duel.a;
+  else delete picks.a0;
+  if (duel.b) picks.b0 = duel.b;
+  else delete picks.b0;
+  return duel.result;
+}
 
 const TOURNAMENT_DEMOS = {
   'tournament-lobby': 'lobby',
@@ -191,7 +228,9 @@ function build(name: string, params: Params): RoomView | null {
   const config: RoomConfig = { mode, bestOf: 5 };
   const team = mode === 'team2v2';
   const seats: SeatId[] = team ? ['a0', 'a1', 'b0', 'b1'] : ['a0', 'b0'];
-  const players = Object.fromEntries(seats.map((s) => [s, player(s)]));
+  // nick=<text>: every seat gets this nickname (to check long, wrapping name tags).
+  const nick = params.get('nick');
+  const players = Object.fromEntries(seats.map((s) => [s, player(s, nick ? { nickname: nick } : {})]));
   const left = Number(params.get('left') ?? 14);
   const view: PlayerView = {
     role: 'player',
@@ -219,7 +258,7 @@ function build(name: string, params: Params): RoomView | null {
         : { a0: 'rock', b0: 'scissors' };
       if (outcome === 'lose') [picks.a0, picks.b0] = ['scissors', 'rock'];
       if (outcome === 'draw') picks.b0 = picks.a0 as string;
-      const result = outcome === 'win' ? 'a' : outcome === 'lose' ? 'b' : 'draw';
+      const result = applyDuelPicks(params, picks) ?? (outcome === 'win' ? 'a' : outcome === 'lose' ? 'b' : 'draw');
       let match: PublicMatch | null = baseMatch(config, { lockedSeats: ['b0'] });
       if (phase === 'lobby') match = null;
       else if (phase === 'announce') match = baseMatch(config, { phase: 'announce', announces: { a0: 'spock', b0: null } });
@@ -268,8 +307,8 @@ function build(name: string, params: Params): RoomView | null {
         : { a0: 'rock', b0: 'scissors' };
       if (outcome === 'lose') [picks.a0, picks.b0] = ['scissors', 'rock'];
       if (outcome === 'draw') picks.b0 = picks.a0 as string;
-      const winner = outcome === 'win' ? 'a' : outcome === 'lose' ? 'b' : 'draw';
-      const result = outcome === 'win' ? 'a' : outcome === 'lose' ? 'b' : 'draw';
+      const result = applyDuelPicks(params, picks) ?? (outcome === 'win' ? 'a' : outcome === 'lose' ? 'b' : 'draw');
+      const winner = result;
       view.match = baseMatch(config, {
         phase: 'reveal',
         lastRound: {
@@ -299,6 +338,15 @@ function build(name: string, params: Params): RoomView | null {
     default:
       return null;
   }
+}
+
+/** Demos with a screen of their own (not App). */
+const ROOT_DEMOS = new Set(['fx', 'fxgallery']);
+
+/** The component to mount instead of App for the demo named in the URL; null for App. */
+export async function demoRoot(search: string = location.search): Promise<Component | null> {
+  const name = new URLSearchParams(search).get('demo');
+  return name && ROOT_DEMOS.has(name) ? (await import('../components/FxGallery.svelte')).default : null;
 }
 
 /** Applies the demo named in the URL. Returns true when a demo is active (then no socket is opened). */

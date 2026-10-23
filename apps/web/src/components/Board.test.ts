@@ -272,13 +272,13 @@ describe('Board', () => {
     it('explains the round with a rule line under the panel', () => {
       feed(revealed('a0'));
       render(Board);
-      expect(screen.getByText('Stein schlägt Schere')).toBeInTheDocument();
+      expect(screen.getByText('Stein zerquetscht Schere')).toBeInTheDocument();
     });
 
     it('names the winning gesture first from the losing side too', () => {
       feed(revealed('b0'));
       render(Board);
-      expect(screen.getByText('Stein schlägt Schere')).toBeInTheDocument();
+      expect(screen.getByText('Stein zerquetscht Schere')).toBeInTheDocument();
     });
 
     it('shows no rule line for a draw', () => {
@@ -292,7 +292,7 @@ describe('Board', () => {
       );
       const { container } = render(Board);
       expect(screen.getAllByTestId('duel')).toHaveLength(1);
-      expect(screen.queryByText(/schlägt/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/schlägt|zerquetscht/)).not.toBeInTheDocument();
       expect(container.textContent).not.toContain('undefined');
     });
 
@@ -309,7 +309,7 @@ describe('Board', () => {
       expect(within(opponentPanel()).getByText('Nichts gewählt')).toBeInTheDocument();
       expect(within(opponentPanel()).queryByText(/undefined/)).not.toBeInTheDocument();
       expect(opponentPanel().querySelector('[data-gesture]')).toBeNull();
-      expect(screen.queryByText(/schlägt/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/schlägt|zerquetscht/)).not.toBeInTheDocument();
       expect(container.textContent).not.toContain('undefined');
     });
 
@@ -360,8 +360,8 @@ describe('Board', () => {
       expect(within(second).getByRole('region', { name: 'Spieler-a1' })).toHaveTextContent('Papier');
       expect(within(second).getByRole('region', { name: 'Spieler-b1' })).toHaveTextContent('Schere');
       expect(screen.getAllByRole('region', { name: 'Spieler-a0' })).toHaveLength(1);
-      expect(screen.getByText('Stein schlägt Schere')).toBeInTheDocument();
-      expect(screen.getByText('Schere schlägt Papier')).toBeInTheDocument();
+      expect(screen.getByText('Stein zerquetscht Schere')).toBeInTheDocument();
+      expect(screen.getByText('Schere zerschneidet Papier')).toBeInTheDocument();
     });
 
     it('shows the same rule twice when both 2v2 duels end alike', () => {
@@ -382,7 +382,7 @@ describe('Board', () => {
         }),
       );
       render(Board);
-      expect(screen.getAllByText('Stein schlägt Schere')).toHaveLength(2);
+      expect(screen.getAllByText('Stein zerquetscht Schere')).toHaveLength(2);
     });
   });
 
