@@ -41,8 +41,9 @@ const tournamentOf = (p: Player): PublicTournament => {
   return tournament!;
 };
 
-const participantIn = (p: Player, id: string): PublicParticipant | undefined =>
-  latestView(p)?.tournament?.participants.find((x) => x.id === id);
+/** A participant as the latest view `p` received (only among `p.frames[from..]`) shows it. */
+const participantIn = (p: Player, id: string, from = 0): PublicParticipant | undefined =>
+  latestView(p, from)?.tournament?.participants.find((x) => x.id === id);
 
 /**
  * Ann creates a Classic tournament in `format`, Ben, Cleo and Dan join by code, Ann starts it.
@@ -190,13 +191,26 @@ test('tournament knockout: four players, live watchers, host skip, podium and re
     expectWatchersLearnNothing(w1, first.watching, people),
   );
 
-  // The intermission: everyone sees the result; the host skips the wait.
-  for (const p of people) await expect(p.page.getByText(`${w1.name} wins!`, { exact: true })).toBeVisible(SLOW);
-  for (const p of people.slice(1)) await expect(p.page.getByRole('button', { name: 'Skip' })).toHaveCount(0);
+  // The intermission: the host skips the wait at once (INTERMISSION_MS runs meanwhile, so no checks before the click).
+  await expect(host.page.getByText(`${w1.name} wins!`, { exact: true })).toBeVisible(SLOW);
   const waitUntil = tournamentOf(host).untilMs;
+  expect(tournamentOf(host).phase).toBe('intermission');
   expect(waitUntil).not.toBeNull();
   const skippedAt = Date.now();
   await host.page.getByRole('button', { name: 'Skip', exact: true }).click();
+
+  // Everyone else got the same intermission with the result, but not as host (so without Skip).
+  for (const p of people.slice(1)) {
+    const views = eventFrames(p.frames)
+      .filter((f) => f.event === 'room:state' && (f.payload as RoomView).tournament?.phase === 'intermission')
+      .map((f) => f.payload as RoomView);
+    expect(views.length, `${p.name} received the intermission`).toBeGreaterThan(0);
+    for (const view of views) {
+      expect(view.isHost).toBe(false);
+      const t = view.tournament!;
+      expect(t.pairings.find((x) => x.id === t.currentPairingId)?.winner).toBe(w1.id);
+    }
+  }
 
   // Semifinal 2: the other two. It started before the intermission would have run out by itself
   // (the frame timestamps and `untilMs` come from the same clock: server and browsers share the machine).
@@ -248,7 +262,7 @@ test('tournament knockout: four players, live watchers, host skip, podium and re
   for (const p of people) await p.context.close();
 });
 
-test('tournament round robin: a reload keeps the place, a dropped player waits in its grace period', async ({ browser }) => {
+test('tournament round robin: a reload keeps the place, a dropped waiting player shows as disconnected without forfeiting', async ({ browser }) => {
   const { people } = await openTournament(browser, 'Round robin');
   const host = people[0]!;
   await host.page.getByRole('button', { name: 'Start tournament' }).click();
@@ -268,18 +282,27 @@ test('tournament round robin: a reload keeps the place, a dropped player waits i
   const leaver = first.playing.find((p) => p.id !== host.id)!;
   const reloader = first.playing.find((p) => p.id !== leaver.id)!;
 
-  // A reload during the intermission: same participant, still in the tournament (not back on the start screen).
-  await expect(intermission(reloader.page)).toBeVisible();
+  // A reload during the intermission (it may run out meanwhile): same participant, still in the tournament,
+  // not back on the start screen. Only frames that arrived after the reload count for the checks below.
+  const reloaderMark = reloader.frames.length;
+  const hostMark = host.frames.length;
   await reloader.page.reload();
   await expect(reloader.page.getByText('Connected', { exact: true })).toBeVisible(SLOW);
   await expect(appScreen(reloader.page)).toHaveAttribute('data-screen', /^(tournament-intermission|spectate)$/, SLOW);
   await expect(reloader.page.getByRole('heading', { level: 2, name: 'Rock, Paper, Scissors: The Arena!' })).toHaveCount(0);
-  await expect.poll(() => latestView(reloader)?.tournament?.youId, SLOW).toBe(reloader.id);
-  await expect.poll(() => participantIn(host, reloader.id)?.connected, SLOW).toBe(true);
-  expect(tournamentOf(reloader).participants).toHaveLength(4);
+  await expect
+    .poll(() => reloader.frames.findIndex((f, i) => i >= reloaderMark && f.event === 'room:joined'), SLOW)
+    .toBeGreaterThanOrEqual(reloaderMark);
+  // Views sent after the rejoin (they follow its room:joined frame) carry the restored state.
+  const rejoined = reloader.frames.findIndex((f, i) => i >= reloaderMark && f.event === 'room:joined');
+  await expect.poll(() => latestView(reloader, rejoined)?.tournament?.youId, SLOW).toBe(reloader.id);
+  expect(latestView(reloader, rejoined)?.tournament?.participants).toHaveLength(4);
+  expect(participantIn(reloader, reloader.id, rejoined)).toMatchObject({ connected: true, forfeited: false });
+  await expect.poll(() => participantIn(host, reloader.id, hostMark)?.connected, SLOW).toBe(true);
 
-  // Another one closes the browser: it is shown as disconnected, but it has not forfeited (its grace
-  // period only starts when its next match is called up, see the server tests for the forfeit itself).
+  // Another one, waiting for a later match, closes the browser: it is shown as disconnected but has not
+  // forfeited, since its grace period only starts once its next match is called up. The forfeit after the
+  // grace period is covered by the server tests (the grace period cannot be shortened for the e2e run).
   await leaver.context.close();
   for (const p of people.filter((x) => x !== leaver)) {
     await expect.poll(() => participantIn(p, leaver.id)?.connected, SLOW).toBe(false);

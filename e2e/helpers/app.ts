@@ -226,8 +226,8 @@ export async function tournamentCode(page: Page): Promise<string> {
 /** The screen the app routes to (`data-screen` on the app root, e.g. `board`, `spectate`, `tournament-intermission`). */
 export const appScreen = (page: Page) => page.locator('[data-screen]');
 
-/** The latest `room:state` view the page received, if any. */
-export function latestView(p: Player): RoomView | undefined {
-  const states = eventFrames(p.frames).filter((f) => f.event === 'room:state');
+/** The latest `room:state` view the page received (only among `p.frames[from..]`), if any. */
+export function latestView(p: Player, from = 0): RoomView | undefined {
+  const states = eventFrames(p.frames.slice(from)).filter((f) => f.event === 'room:state');
   return states[states.length - 1]?.payload as RoomView | undefined;
 }
