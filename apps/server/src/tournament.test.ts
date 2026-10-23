@@ -1062,13 +1062,38 @@ describe('(f) rejoin by token', () => {
     expect(r.previousSocketId).toBeNull();
   });
 
-  it('a pairing member resolves to its seat; a seat past its grace is bad_token until the tick', () => {
-    let room = running();
+  it('a pairing member resolves to its seat', () => {
+    const room = running();
     const b = person(room, participantId(room, 'b0'));
     expect(rejoinTournament(room, b.token, T0 + 1, 's-b2').who).toEqual({ role: 'player', seat: 'b0' });
     expect(tournamentWhoOfSocket(room, b.socketId!)).toEqual({ role: 'player', seat: 'b0' });
+  });
+
+  it('review M2: a pairing member past its grace but before the tick comes back as a forfeited watcher, not bad_token', () => {
+    let room = running();
+    const pairingId = tour(room).currentPairingId!;
+    const a = participantId(room, 'a0');
+    const b = person(room, participantId(room, 'b0'));
     room = markParticipantDisconnected(room, b.id, T0 + 1);
-    expect(errorCode(() => rejoinTournament(room, b.token, T0 + 1 + RECONNECT_GRACE_MS, 's-b2'))).toBe('bad_token');
+    const end = T0 + 1 + RECONNECT_GRACE_MS;
+    // the ticker has not run yet: the seat is still in the running match
+    room = tickUntil(room, end - 1);
+    expect(tour(room).phase).toBe('match');
+    expect(room.match!.forfeited).toEqual([]);
+
+    const r = rejoinTournament(room, b.token, end + 200, 's-b2', fixed(0.3));
+    expect(r.who).toEqual({ role: 'spectator', id: b.id });
+    expect(r.previousSocketId).toBeNull();
+    // the forfeit is settled exactly as the tick would have done it
+    expect(pairingById(r.room, pairingId).result).toMatchObject({ winner: a, decidedBy: 'forfeit' });
+    expect(tour(r.room).state!.forfeited).toEqual([b.id]);
+    expect(tour(r.room).phase).toBe('intermission');
+    expect(person(r.room, b.id)).toMatchObject({ connected: true, socketId: 's-b2', disconnectedAt: null });
+    expect(tournamentWhoOfSocket(r.room, 's-b2')).toEqual({ role: 'spectator', id: b.id });
+    // the same as rejoining right after the tick
+    const ticked = rejoinTournament(tick(room, end, fixed(0.3)), b.token, end + 200, 's-b2', fixed(0.3));
+    expect(ticked.who).toEqual(r.who);
+    expect(tour(ticked.room).state).toEqual(tour(r.room).state);
   });
 
   it('review case: a pairing member who dropped out in the last reveal is found in the intermission', () => {

@@ -477,7 +477,7 @@ export function createGateway(
           // waiting, eliminated and forfeited participants.
           const rejoined: { room: Room; who: TournamentWho; previousSocketId: string | null } =
             current.tournament
-              ? rejoinTournament(current, p.token, now, socket.id)
+              ? rejoinTournament(current, p.token, now, socket.id, tournamentRng)
               : rejoinRoom(current, p.token, now, socket.id);
           const stale = before && !sameWho(current, before, rejoined.who) ? before : null;
           return {
