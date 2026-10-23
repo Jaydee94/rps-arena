@@ -284,6 +284,7 @@ describe('tournament protocol additions', () => {
       standings: StandingRow[];
       podium: { rank: 1 | 2 | 3; ids: string[] }[];
       youId: string | null;
+      hostId: string | null;
       untilMs: number | null;
     }>();
   });

@@ -399,6 +399,31 @@ describe('tournament views', () => {
     expect(hostId).toBe(room.tournament!.participants[0]!.id);
   });
 
+  it('exposes the host participant id in every view kind, and it follows a host change', () => {
+    const room = lockedIn(tournamentInMatch());
+    const { a, b } = pairingIds(room);
+    const hostId = room.tournament!.hostId;
+    const waiting = waitingIds(room)[0]!;
+    const check = (r: Room, expected: string) => {
+      const views = [
+        viewFor(r, 'a0'),
+        viewFor(r, 'b0'),
+        participantViewFor(r, waiting),
+        spectatorViewFor(r),
+      ];
+      for (const view of views) {
+        expect(view.tournament?.hostId).toBe(expected);
+        const json = JSON.stringify(view);
+        for (const token of tokensOf(r)) expect(json).not.toContain(token);
+        expect(json).not.toContain('token');
+      }
+      expect(tournamentViewFor(r, null).hostId).toBe(expected);
+    };
+    check(room, hostId);
+    const successor = [a, b, waiting].find((id) => id !== hostId)!;
+    check({ ...room, tournament: { ...room.tournament!, hostId: successor } }, successor);
+  });
+
   it('a waiting participant gets its own spectator view: me, youId, no gesture, no token', () => {
     const room = lockedIn(tournamentInMatch());
     for (const id of waitingIds(room)) {
@@ -438,6 +463,7 @@ describe('tournament views', () => {
     expect(Object.keys(t).sort()).toEqual([
       'currentPairingId',
       'format',
+      'hostId',
       'pairings',
       'participants',
       'phase',
@@ -479,6 +505,7 @@ describe('tournament views', () => {
       standings: [],
       podium: [],
       youId: hostId,
+      hostId,
       untilMs: null,
     });
   });

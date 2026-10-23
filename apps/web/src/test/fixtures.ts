@@ -38,7 +38,7 @@ export function makeMatch(overrides: Partial<PublicMatch> = {}): PublicMatch {
 
 /**
  * A valid `PublicTournament`: by default a knockout lobby with `n` connected participants `p0..p(n-1)`
- * ("Spieler-p0" ...), viewed by `p0` (`youId`). Pass `participants` to replace the generated list.
+ * ("Spieler-p0" ...), viewed by `p0` (`youId`), who is also the host (`hostId`). Pass `participants` to replace the generated list.
  */
 export function makeTournament(overrides: Partial<PublicTournament> & { n?: number } = {}): PublicTournament {
   const { n = 5, ...rest } = overrides;
@@ -57,6 +57,7 @@ export function makeTournament(overrides: Partial<PublicTournament> & { n?: numb
     standings: [],
     podium: [],
     youId: 'p0',
+    hostId: 'p0',
     untilMs: null,
     ...rest,
   };

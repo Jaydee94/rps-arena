@@ -89,7 +89,7 @@ function playNext(state: TournamentState, rng: () => number): TournamentState {
 export function demoTournament(options: DemoTournamentOptions = {}): PublicTournament {
   const { format = 'knockout', n = 5, phase = 'lobby', youId = 'd0', disconnected = [] } = options;
   const participants = demoParticipants(n, disconnected);
-  const base = { format, participants, youId };
+  const base = { format, participants, youId, hostId: 'd0' };
   if (phase === 'lobby') {
     return { ...base, phase, pairings: [], currentPairingId: null, standings: [], podium: [], untilMs: null };
   }

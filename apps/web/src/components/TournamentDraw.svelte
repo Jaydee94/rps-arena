@@ -12,7 +12,7 @@
     <section class="panel" aria-labelledby="tdraw-title">
       <h2 id="tdraw-title" class="ribbon">{t('tournament.draw')}</h2>
       <p>{t('tournament.draw_hint')}</p>
-      <ParticipantList participants={tournament.participants} youId={tournament.youId} label={t('tournament.player_list')} />
+      <ParticipantList participants={tournament.participants} youId={tournament.youId} hostId={tournament.hostId} label={t('tournament.player_list')} />
     </section>
     {#if view.isHost}
       <button type="button" class="btn btn-primary" onclick={() => skipWait()}>{t('tournament.skip')}</button>

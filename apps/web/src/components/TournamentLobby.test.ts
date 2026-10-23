@@ -54,12 +54,42 @@ describe('TournamentLobby', () => {
     expect(within(items[1]!).queryByText('Host')).not.toBeInTheDocument();
   });
 
-  it('marks a participant who is not the host only with You', () => {
+  it('shows a non-host the Host marker on the host row and You on their own', () => {
     roomStore.set(lobby(4, { host: false }));
     render(TournamentLobby);
     const items = screen.getAllByRole('listitem');
     expect(within(items[1]!).getByText('You')).toBeInTheDocument();
-    expect(screen.queryByText('Host')).not.toBeInTheDocument();
+    expect(within(items[1]!).queryByText('Host')).not.toBeInTheDocument();
+    expect(within(items[0]!).getByText('Host')).toBeInTheDocument();
+    expect(within(items[0]!).queryByText('You')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Host')).toHaveLength(1);
+  });
+
+  it('shows a lobby spectator the Host marker too', () => {
+    roomStore.set(lobby(8, { spectator: true }));
+    render(TournamentLobby);
+    const items = within(screen.getByRole('list', { name: 'Players' })).getAllByRole('listitem');
+    expect(within(items[0]!).getByText('Host')).toBeInTheDocument();
+  });
+
+  it('moves the Host marker when the host changes', async () => {
+    const view = lobby(4, { host: false });
+    roomStore.set(view);
+    render(TournamentLobby);
+    const rows = () => within(screen.getByRole('list', { name: 'Players' })).getAllByRole('listitem');
+    expect(within(rows()[0]!).getByText('Host')).toBeInTheDocument();
+    // p0 left; p1 (you) succeeds as host.
+    roomStore.set({ ...view, isHost: true, tournament: { ...view.tournament!, hostId: 'p1' } });
+    await vi.waitFor(() => expect(within(rows()[1]!).getByText('Host')).toBeInTheDocument());
+    expect(within(rows()[0]!).queryByText('Host')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Host')).toHaveLength(1);
+    expect(startButton()).toBeEnabled();
+  });
+
+  it('announces the participant counter politely', () => {
+    roomStore.set(lobby(5));
+    render(TournamentLobby);
+    expect(screen.getByText('5 / 8 players')).toHaveAttribute('aria-live', 'polite');
   });
 
   it('shows a connection-lost marker for disconnected participants', () => {
@@ -96,7 +126,7 @@ describe('TournamentLobby', () => {
     roomStore.set(lobby(3));
     render(TournamentLobby);
     expect(startButton()).toBeDisabled();
-    expect(screen.getByText('At least 4 players are needed to start.')).toBeInTheDocument();
+    expect(screen.getByText('At least 4 connected players are needed to start.')).toBeInTheDocument();
   });
 
   it('does not count a disconnected participant towards the minimum', () => {
@@ -105,14 +135,14 @@ describe('TournamentLobby', () => {
     roomStore.set(view);
     render(TournamentLobby);
     expect(startButton()).toBeDisabled();
-    expect(screen.getByText('At least 4 players are needed to start.')).toBeInTheDocument();
+    expect(screen.getByText('At least 4 connected players are needed to start.')).toBeInTheDocument();
   });
 
   it('lets the host start from 4 connected participants', async () => {
     roomStore.set(lobby(4));
     render(TournamentLobby);
     expect(startButton()).toBeEnabled();
-    expect(screen.queryByText('At least 4 players are needed to start.')).not.toBeInTheDocument();
+    expect(screen.queryByText('At least 4 connected players are needed to start.')).not.toBeInTheDocument();
     await userEvent.setup().click(startButton()!);
     expect(actions.startMatch).toHaveBeenCalledTimes(1);
   });

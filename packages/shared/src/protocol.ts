@@ -193,6 +193,8 @@ export interface PublicTournament {
   podium: { rank: 1 | 2 | 3; ids: string[] }[];
   /** The viewer's own participant ID, or null (e.g. for spectators). */
   youId: string | null;
+  /** The host's participant ID (public, never a token); null only if no host exists. It moves on host succession. */
+  hostId: string | null;
   /** End of the draw or intermission (epoch ms), otherwise null. */
   untilMs: number | null;
 }

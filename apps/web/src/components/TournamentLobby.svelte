@@ -23,12 +23,12 @@
         <span class="tag">{t('tournament.format')}: {t(`tournament.format.${tournament.format}`)}</span>
         <span class="tag">{t('tournament.mode', { mode: t(`mode.${view.config.mode}.name`) })}</span>
       </p>
-      <p class="count">{t('tournament.players', { n: tournament.participants.length, max: TOURNAMENT_MAX_PLAYERS })}</p>
-      <!-- The public view has no host id: the host marker is only known for yourself (isHost is authoritative). -->
+      <p class="count" aria-live="polite">{t('tournament.players', { n: tournament.participants.length, max: TOURNAMENT_MAX_PLAYERS })}</p>
+      <!-- The host marker comes from the public hostId (it moves on host succession); `view.isHost` still decides the Start button. -->
       <ParticipantList
         participants={tournament.participants}
         youId={tournament.youId}
-        hostId={view.isHost ? tournament.youId : null}
+        hostId={tournament.hostId}
         label={t('tournament.player_list')}
       />
     </section>
