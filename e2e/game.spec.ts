@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
-import type { RoomView } from '@rps/shared';
+import type { RoomJoined, RoomView, SpectatorView } from '@rps/shared';
 import {
   advanceRound,
   captureReveal,
@@ -348,4 +348,175 @@ test('mobile viewport: no horizontal scroll, the board is usable', async ({ brow
   await advanceRound(p.page, { expect: 'pick' });
 
   await p.context.close();
+});
+
+// --- Spectators -------------------------------------------------------------------------------
+
+/** The `room:joined` event a page received: code, token, role and seat. Only call once the UI shows the room. */
+const joinedOf = (p: Player): RoomJoined => {
+  const frame = eventFrames(p.frames).find((f) => f.event === 'room:joined');
+  expect(frame, 'the page has received room:joined').toBeDefined();
+  return frame!.payload as RoomJoined;
+};
+
+/** Opens the invite link in `spectator`'s page and joins; resolves once the spectator screen shows. */
+async function joinAsSpectator(spectator: Player, code: string, nickname: string): Promise<void> {
+  await openHome(spectator.page, `?room=${code}`);
+  await expect(spectator.page.getByLabel('Room code', { exact: true })).toHaveValue(code);
+  await joinRoom(spectator.page, code, nickname);
+  await expect(spectator.page.getByText('You are watching', { exact: true })).toBeVisible();
+}
+
+/** The spectator screen offers nothing to play with: no gesture pad, no gesture on the board. */
+async function expectNoGestures(page: Page): Promise<void> {
+  await expect(page.getByTestId('spectate')).toBeVisible();
+  await expect(page.getByRole('radio')).toHaveCount(0);
+  await expect(page.locator('[data-gesture]')).toHaveCount(0);
+}
+
+test('spectator: a late joiner watches a running duel without ever seeing a pick early', async ({ browser }) => {
+  const a = await newPlayer(browser);
+  const b = await newPlayer(browser);
+  const c = await newPlayer(browser);
+  const code = await startDuel(a, b);
+
+  // C arrives after the start and becomes a spectator: banner, both names, nothing to play with.
+  await joinAsSpectator(c, code, 'Cleo');
+  expect(joinedOf(c)).toMatchObject({ code, role: 'spectator', seat: null });
+  await expect(region(c.page, 'Ann')).toBeVisible();
+  await expect(region(c.page, 'Ben')).toBeVisible();
+  await expect(c.page.getByText('The players are choosing…')).toBeVisible();
+  await expectNoGestures(c.page);
+
+  // The players see one spectator; they are not counted as players (the pads stay as they were).
+  await expect(a.page.getByText('1 spectator')).toBeVisible();
+  await expect(b.page.getByText('1 spectator')).toBeVisible();
+  await expect(gesture(a.page, 'Rock')).toBeEnabled();
+
+  // A locks in: C sees that A has locked in, but not what.
+  await gesture(a.page, 'Rock').click();
+  await expect(c.page.getByText('Ann has locked in')).toBeVisible();
+  await expect(c.page.getByText('Ben is thinking…')).toBeVisible();
+  await expectNoGestures(c.page);
+
+  // The wire as well. The barrier: C has received the update that says A is locked in.
+  await expect
+    .poll(() =>
+      eventFrames(c.frames).some(
+        (f) => f.event === 'room:state' && (f.payload as SpectatorView).match?.lockedSeats.includes('a0') === true,
+      ),
+    )
+    .toBe(true);
+  const tokens = [joinedOf(a).token, joinedOf(b).token];
+  const ownToken = joinedOf(c).token;
+  expect(c.frames.some((f) => f.raw.startsWith('0'))).toBe(true); // engine.io open packet: the raw list is complete
+  expect(eventFrames(c.frames).length).toBeGreaterThan(0);
+  for (const frame of c.frames) {
+    expect(frame.raw.toLowerCase()).not.toContain('rock');
+    for (const token of tokens) expect(frame.raw).not.toContain(token);
+    // C's own token belongs in its room:joined frame and nowhere else.
+    if (frame.event !== 'room:joined') expect(frame.raw).not.toContain(ownToken);
+  }
+
+  // B locks in: the reveal shows both gestures, each on the side of its player.
+  await gesture(b.page, 'Scissors').click();
+  const seen = await captureReveal(c.page);
+  expect(seen.status).toBe('Ann wins the round!');
+  expect(seen.score).toBe('1 : 0');
+  expect(seen.cards['Ann']?.gestures).toEqual(['rock']);
+  expect(seen.cards['Ben']?.gestures).toEqual(['scissors']);
+
+  // The spectator changed nothing about the match: the players go on as usual.
+  await Promise.all([a, b].map((p) => advanceRound(p.page, { expect: 'pick' })));
+  await expect(c.page.getByText('The players are choosing…')).toBeVisible();
+  await expect(a.page.getByText('1 spectator')).toBeVisible();
+
+  // A reload rejoins by token: still a spectator of the same room, and still only one.
+  await c.page.reload();
+  await expect(c.page.getByText('You are watching', { exact: true })).toBeVisible();
+  await expect(region(c.page, 'Ann')).toBeVisible();
+  await expect(region(c.page, 'Ben')).toBeVisible();
+  await expect(c.page.getByRole('heading', { level: 2, name: 'Rock, Paper, Scissors: The Arena!' })).toHaveCount(0);
+  await expectNoGestures(c.page);
+  await expect(a.page.getByText('1 spectator')).toBeVisible();
+  await expect(b.page.getByText('1 spectator')).toBeVisible();
+  expect(joinedOf(c)).toMatchObject({ code, role: 'spectator', seat: null });
+
+  // Tokens never left the room:joined frames, not even after the reveal.
+  for (const frame of c.frames) {
+    for (const token of tokens) expect(frame.raw).not.toContain(token);
+  }
+
+  await a.context.close();
+  await b.context.close();
+  await c.context.close();
+});
+
+test('spectator: a full duel lobby that has not started yet still says room_full', async ({ browser }) => {
+  const a = await newPlayer(browser);
+  const b = await newPlayer(browser);
+  const c = await newPlayer(browser);
+
+  await openHome(a.page);
+  await createRoom(a.page, { nickname: 'Ann', mode: 'Classic', bestOf: 3 });
+  const code = await lobbyCode(a.page);
+  await openHome(b.page, `?room=${code}`);
+  await joinRoom(b.page, code, 'Ben');
+  await expect(b.page.getByText('Waiting for the host to start…')).toBeVisible();
+
+  // Both seats are taken, but no match runs: nobody can watch yet.
+  await openHome(c.page);
+  await joinRoom(c.page, code, 'Cleo');
+  await expect(roomError(c.page)).toHaveText(/Sorry, that room is full\./);
+  await expect(c.page.getByRole('button', { name: 'Create room' })).toBeVisible();
+  await expect(c.page.getByText('You are watching', { exact: true })).toHaveCount(0);
+  expect(eventFrames(c.frames).some((f) => f.event === 'room:joined')).toBe(false);
+
+  // Once the match runs, the same code takes C in as a spectator.
+  await startMatch(a.page);
+  await expect(a.page.getByText('Pick your gesture!')).toBeVisible();
+  await roomError(c.page).getByRole('button', { name: 'Dismiss' }).click();
+  await joinRoom(c.page, code, 'Cleo');
+  await expect(c.page.getByText('You are watching', { exact: true })).toBeVisible();
+  await expect(region(c.page, 'Ann')).toBeVisible();
+  await expect(region(c.page, 'Ben')).toBeVisible();
+
+  await a.context.close();
+  await b.context.close();
+  await c.context.close();
+});
+
+test('spectator: a second page watches a running bot room', async ({ browser }) => {
+  const a = await newPlayer(browser);
+  const c = await newPlayer(browser);
+  await openHome(a.page);
+  await createRoom(a.page, { nickname: 'Ann', mode: 'Classic', bestOf: 3, bot: 'Easy' });
+  await expect(a.page.getByText('Pick your gesture!')).toBeVisible();
+  // A bot room has no lobby and the board shows no code: take it from the join event.
+  const code = joinedOf(a).code;
+
+  await joinAsSpectator(c, code, 'Cleo');
+  await expect(region(c.page, 'Ann')).toBeVisible();
+  await expect(c.page.getByText('The players are choosing…')).toBeVisible();
+  await expectNoGestures(c.page);
+  await expect(a.page.getByText('1 spectator')).toBeVisible();
+
+  // The bot may have locked in already, but nothing the spectator received names a gesture yet. Quoted,
+  // because the bot's nickname ("Rocky") starts with "rock"; a pick would be a JSON string value.
+  await expect
+    .poll(() => eventFrames(c.frames).some((f) => f.event === 'room:state' && (f.payload as SpectatorView).match?.phase === 'pick'))
+    .toBe(true);
+  for (const frame of c.frames) {
+    for (const name of ['rock', 'paper', 'scissors']) expect(frame.raw.toLowerCase()).not.toContain(`"${name}"`);
+  }
+
+  // A picks; the bot answers; C sees the reveal with one gesture per side.
+  await gesture(a.page, 'Rock').click();
+  const seen = await captureReveal(c.page);
+  expect(seen.cards['Ann']?.gestures).toEqual(['rock']);
+  const others = Object.entries(seen.cards).filter(([name]) => name !== 'Ann');
+  expect(others.flatMap(([, card]) => card.gestures)).toHaveLength(1);
+
+  await a.context.close();
+  await c.context.close();
 });

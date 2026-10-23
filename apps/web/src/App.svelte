@@ -4,9 +4,13 @@
   import Board from './components/Board.svelte';
   import ErrorBanner from './components/ErrorBanner.svelte';
   import Home from './components/Home.svelte';
+  import Intermission from './components/Intermission.svelte';
   import Lobby from './components/Lobby.svelte';
   import Result from './components/Result.svelte';
   import Spectate from './components/Spectate.svelte';
+  import TournamentDraw from './components/TournamentDraw.svelte';
+  import TournamentLobby from './components/TournamentLobby.svelte';
+  import TournamentResult from './components/TournamentResult.svelte';
   import Wordmark from './components/Wordmark.svelte';
   import { room, status } from './lib/connection';
   import { locale, setLocale, t, type Locale } from './lib/i18n';
@@ -16,6 +20,20 @@
 
   const screen = $derived.by(() => {
     if (!$room) return 'home';
+    // Tournament rooms route on the phase. The view type decides the match screen: only members of the
+    // running pairing get a PlayerView; everyone else (waiting, eliminated, spectators) a SpectatorView.
+    switch ($room.tournament?.phase) {
+      case 'lobby':
+        return 'tournament-lobby';
+      case 'draw':
+        return 'tournament-draw';
+      case 'intermission':
+        return 'tournament-intermission';
+      case 'finished':
+        return 'tournament-result';
+      case 'match':
+        return $room.role === 'player' ? 'board' : 'spectate';
+    }
     if ($room.role === 'spectator') return 'spectate';
     if (!$room.match) return 'lobby';
     return $room.match.phase === 'finished' ? 'result' : 'board';
@@ -52,6 +70,14 @@
         <Home />
       {:else if screen === 'lobby'}
         <Lobby />
+      {:else if screen === 'tournament-lobby'}
+        <TournamentLobby />
+      {:else if screen === 'tournament-draw'}
+        <TournamentDraw />
+      {:else if screen === 'tournament-intermission'}
+        <Intermission />
+      {:else if screen === 'tournament-result'}
+        <TournamentResult />
       {:else if screen === 'board'}
         <Board />
       {:else if screen === 'spectate'}

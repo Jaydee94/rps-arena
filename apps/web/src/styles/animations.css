@@ -3842,6 +3842,46 @@
       filter: saturate(0.25);
     }
   }
+
+  /* ==== TOURNAMENT ==== */
+
+  /* The draw: the pairing cards pop in one after the other ... */
+  .draw-slot {
+    animation: screen-in var(--dur) var(--ease-pop) calc(var(--i, 0) * 110ms) both;
+  }
+
+  /*
+   * ... then the names whirl in from all sides (start offsets --from-x/--from-y are set per name) and land in
+   * their slots one by one; the VS stamp slams down once both names of a card are in. Everything is over well
+   * before the draw ends (DRAW_MS), even with 8 names.
+   */
+  .draw-whirl {
+    animation: draw-whirl 900ms var(--ease-pop) calc(250ms + var(--k, 0) * 140ms) backwards;
+  }
+
+  .draw-vs {
+    animation: zack 380ms var(--ease-pop) calc(250ms + var(--k, 0) * 140ms + 700ms) backwards;
+  }
+
+  @keyframes draw-whirl {
+    0% {
+      opacity: 0;
+      translate: var(--from-x, 0) var(--from-y, -200%);
+      rotate: -540deg;
+      scale: 0.4;
+    }
+    45% {
+      opacity: 1;
+      translate: calc(var(--from-x, 0) * -0.3) calc(var(--from-y, -200%) * -0.3);
+      rotate: -160deg;
+      scale: 1.15;
+    }
+    100% {
+      translate: 0 0;
+      rotate: 0deg;
+      scale: 1;
+    }
+  }
 }
 
 /*

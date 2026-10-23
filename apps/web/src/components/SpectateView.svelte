@@ -14,6 +14,7 @@
   import SpectateBanner from './SpectateBanner.svelte';
   import ThinkBubble from './ThinkBubble.svelte';
   import TimerBar from './TimerBar.svelte';
+  import TournamentHeader from './TournamentHeader.svelte';
 
   interface Props {
     room: SpectatorView;
@@ -113,6 +114,8 @@
   }
 </script>
 
+<!-- Tournament rooms only: the slim tournament bar sits above the screen, outside its main. -->
+{#if room.tournament}<TournamentHeader tournament={room.tournament} />{/if}
 <main class="spectate" data-testid="spectate">
   <SpectateBanner />
   <Scoreboard {left} {right} round={match.round} bestOf={match.config.bestOf} {modeName} />

@@ -367,16 +367,17 @@ function changeConnection(
   seat: SeatId,
   now: number,
   change: Pick<Player, 'connected' | 'disconnectedAt' | 'socketId'>,
+  rng: Rng,
 ): Room {
   const player = room.players[seat];
   if (!player || player.isBot) return room;
   const players = { ...room.players, [seat]: { ...player, ...change } };
   const next = updateSeatParticipant({ ...room, players }, seat, change);
-  return settle(room.match, next, now, Math.random);
+  return settle(room.match, next, now, rng);
 }
 
-export function markDisconnected(room: Room, seat: SeatId, now: number): Room {
-  return changeConnection(room, seat, now, { connected: false, disconnectedAt: now, socketId: null });
+export function markDisconnected(room: Room, seat: SeatId, now: number, rng: Rng = Math.random): Room {
+  return changeConnection(room, seat, now, { connected: false, disconnectedAt: now, socketId: null }, rng);
 }
 
 export function markConnected(
@@ -384,8 +385,9 @@ export function markConnected(
   seat: SeatId,
   now: number,
   socketId: string | null = null,
+  rng: Rng = Math.random,
 ): Room {
-  return changeConnection(room, seat, now, { connected: true, disconnectedAt: null, socketId });
+  return changeConnection(room, seat, now, { connected: true, disconnectedAt: null, socketId }, rng);
 }
 
 /** Constant-time token comparison. */

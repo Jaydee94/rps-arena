@@ -31,6 +31,7 @@ import {
   newSpectator,
   rejoinSpectator,
   sameToken,
+  tick,
 } from './engine';
 import type { Who } from './engine';
 import { spectatorsOf } from './room';
@@ -156,6 +157,7 @@ export function joinTournamentRoom(
   avatar: string,
   now: number,
   socketId: string | null = null,
+  rng: Rng = Math.random,
 ): { room: Room; who: TournamentWho } {
   const t = requireTournament(room);
   if (isAbandoned(room, now)) fail('room_not_found');
@@ -163,7 +165,7 @@ export function joinTournamentRoom(
   if (t.phase === 'lobby' && t.participants.length < TOURNAMENT_MAX_PLAYERS) {
     // settle: a newcomer takes over a host that is gone past its grace at once.
     const joined = withTournament(room, { participants: [...t.participants, person] });
-    return { room: settle(room.match, joined, now, Math.random), who: { role: 'participant', id: person.id } };
+    return { room: settle(room.match, joined, now, rng), who: { role: 'participant', id: person.id } };
   }
   const spectators = spectatorsOf(room);
   if (spectators.length >= MAX_SPECTATORS) fail('room_full');
@@ -379,23 +381,29 @@ export function settleTournamentHost(room: Room, now: number, leaving: string | 
  * (`markDisconnected`: its grace runs, then it forfeits); anyone else (waiting, eliminated,
  * forfeited) only flips `connected`, with no timer of its own. Unknown ids leave the room as it is.
  */
-export function markParticipantDisconnected(room: Room, id: string, now: number): Room {
+export function markParticipantDisconnected(room: Room, id: string, now: number, rng: Rng = Math.random): Room {
   const t = requireTournament(room);
   if (!t.participants.some((p) => p.id === id)) return room;
   const seat = seatOfParticipant(room, id);
-  if (seat) return markDisconnected(room, seat, now);
+  if (seat) return markDisconnected(room, seat, now, rng);
   const next = updateParticipant(room, id, { connected: false, disconnectedAt: now, socketId: null });
-  return settle(room.match, next, now, Math.random);
+  return settle(room.match, next, now, rng);
 }
 
 /** A participant is connected (again) on `socketId`; the counterpart of `markParticipantDisconnected`. */
-export function markParticipantConnected(room: Room, id: string, now: number, socketId: string | null): Room {
+export function markParticipantConnected(
+  room: Room,
+  id: string,
+  now: number,
+  socketId: string | null,
+  rng: Rng = Math.random,
+): Room {
   const t = requireTournament(room);
   if (!t.participants.some((p) => p.id === id)) return room;
   const seat = seatOfParticipant(room, id);
-  if (seat) return markConnected(room, seat, now, socketId);
+  if (seat) return markConnected(room, seat, now, socketId, rng);
   const next = updateParticipant(room, id, { connected: true, disconnectedAt: null, socketId });
-  return settle(room.match, next, now, Math.random);
+  return settle(room.match, next, now, rng);
 }
 
 /**
@@ -413,7 +421,7 @@ export function leaveParticipant(room: Room, id: string, now: number, rng: Rng):
     return settleThenHandOver(room, next, id, now, rng);
   }
   const seat = seatOfParticipant(room, id);
-  let next = seat ? markDisconnected(room, seat, now) : room;
+  let next = seat ? markDisconnected(room, seat, now, rng) : room;
   if (seat) {
     next = leave(next, seat);
   } else {
@@ -448,8 +456,9 @@ export function tournamentWhoOfSocket(room: Room, socketId: string): TournamentW
 
 /**
  * Restores the participant or spectator owning `token` and binds it to `socketId` (the tournament
- * counterpart of `rejoinRoom`). A member of the running pairing resolves to its seat and, as in a
- * duel, is `bad_token` once its seat's grace is over (the tick forfeits it). Waiting and eliminated
+ * counterpart of `rejoinRoom`). A member of the running pairing resolves to its seat; once its
+ * seat's grace is over it has forfeited, and if no tick has settled that yet the due tick runs
+ * here first (with `rng`), so it comes back as a forfeited watcher, never `bad_token`. Waiting and eliminated
  * participants have no grace and may come back any time, unless the room is abandoned
  * (`room_not_found`). A forfeited participant comes back as a spectator under its participant id.
  * Spectators follow the stage 1 rules. `previousSocketId` is the connection that held the binding.
@@ -459,22 +468,30 @@ export function rejoinTournament(
   token: string,
   now: number,
   socketId: string,
+  rng: Rng = Math.random,
 ): { room: Room; who: TournamentWho; previousSocketId: string | null } {
   const t = requireTournament(room);
   const participant = t.participants.find((p) => p.token !== '' && sameToken(p.token, token));
   if (!participant) return rejoinSpectator(room, token, now, socketId);
-  const seat = seatOfParticipant(room, participant.id);
-  const player = seat ? room.players[seat] : undefined;
-  if (player && !participantOut(room, participant)) {
-    const end = graceEnd(room, player);
-    if (end !== null && now >= end) fail('bad_token');
+  const before = seatOfParticipant(room, participant.id);
+  const member = before ? room.players[before] : undefined;
+  let current = room;
+  if (member && !participantOut(room, participant)) {
+    const end = graceEnd(room, member);
+    if (end !== null && now >= end) {
+      // The grace is over but no tick has forfeited the seat yet: run the due tick here (it
+      // forfeits exactly as the ticker would), so the person comes back as a forfeited watcher.
+      current = tick(room, now, rng);
+      if (!participantOut(current, participant)) fail('bad_token');
+    }
   }
-  if (isAbandoned(room, now)) fail('room_not_found');
+  if (isAbandoned(current, now)) fail('room_not_found');
+  const seat = seatOfParticipant(current, participant.id);
   const previousSocketId =
     participant.connected && participant.socketId !== socketId ? participant.socketId : null;
-  const next = markParticipantConnected(room, participant.id, now, socketId);
+  const next = markParticipantConnected(current, participant.id, now, socketId, rng);
   let who: TournamentWho;
-  if (participantOut(room, participant)) who = { role: 'spectator', id: participant.id };
+  if (participantOut(current, participant)) who = { role: 'spectator', id: participant.id };
   else if (seat) who = { role: 'player', seat };
   else who = { role: 'participant', id: participant.id };
   return { room: next, who, previousSocketId };

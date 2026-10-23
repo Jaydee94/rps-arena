@@ -1,13 +1,20 @@
+import { podium, standings } from '@rps/shared';
 import type {
+  Pairing,
   PlayerView,
   PublicMatch,
+  PublicPairing,
+  PublicParticipant,
   PublicPlayer,
   PublicSpectator,
+  PublicTournament,
   SeatId,
   SpectatorView,
 } from '@rps/shared';
 import { spectatorsOf } from './room';
-import type { Player, Room, Spectator } from './room';
+import type { Participant, Player, Room, Spectator } from './room';
+import { participantOut } from './settle';
+import { participantIdOfSeat } from './tournament';
 
 function publicPlayer(player: Player): PublicPlayer {
   // Explicit field list (not a rest spread) so a future secret field cannot leak by default.
@@ -57,22 +64,73 @@ function publicMatch(match: NonNullable<Room['match']>, seat: SeatId | null): Pu
   };
 }
 
+function publicParticipant(room: Room, participant: Participant): PublicParticipant {
+  // Explicit allow-list: never the token, socket id or disconnect time.
+  return {
+    id: participant.id,
+    nickname: participant.nickname,
+    avatar: participant.avatar,
+    connected: participant.connected,
+    forfeited: participantOut(room, participant),
+  };
+}
+
+function publicPairing(pairing: Pairing): PublicPairing {
+  return {
+    id: pairing.id,
+    round: pairing.round,
+    a: pairing.a,
+    b: pairing.b,
+    // The pairing's own length: tie-breaks are best of 1 while `room.config.bestOf` stays 3.
+    bestOf: pairing.bestOf,
+    tiebreak: pairing.tiebreak,
+    winner: pairing.result?.winner ?? null,
+    decidedBy: pairing.result?.decidedBy ?? null,
+    score: pairing.result?.score ? { a: pairing.result.score.a, b: pairing.result.score.b } : null,
+  };
+}
+
+/**
+ * The tournament layer as `forId` (a participant id, or null for spectators) sees it. Identical
+ * for everyone except `youId`: participants are tournament-local ids with public fields only (never
+ * a token, socket id or disconnect time); standings and podium come from the pure logic (the
+ * podium holds only places that are already settled).
+ */
+export function tournamentViewFor(room: Room, forId: string | null): PublicTournament {
+  const t = room.tournament;
+  if (!t) throw new Error('tournamentViewFor: not a tournament room');
+  return {
+    format: t.format,
+    phase: t.phase,
+    participants: t.participants.map((p) => publicParticipant(room, p)),
+    pairings: t.state ? t.state.pairings.map(publicPairing) : [],
+    currentPairingId: t.currentPairingId,
+    standings: t.state ? standings(t.state) : [],
+    podium: t.state ? podium(t.state) : [],
+    youId: forId,
+    hostId: t.hostId,
+    untilMs: t.untilMs,
+  };
+}
+
 /**
  * The room as a seated player sees it. Built from an explicit allow-list:
- * no `picks` of other seats and no player or spectator `token`.
+ * no `picks` of other seats and no player or spectator `token`. In a tournament room the seat is
+ * one of the running pairing (a0/b0); `isHost` and `tournament.youId` follow the participant id.
  */
 export function viewFor(room: Room, seat: SeatId): PlayerView {
+  const id = room.tournament ? participantIdOfSeat(room, seat) : null;
   return {
     role: 'player',
     code: room.code,
     config: room.config,
     you: seat,
     hostSeat: room.hostSeat,
-    isHost: seat === room.hostSeat,
+    isHost: room.tournament ? id !== null && id === room.tournament.hostId : seat === room.hostSeat,
     players: publicPlayers(room),
     spectators: spectatorsOf(room).map(publicSpectator),
     match: room.match ? publicMatch(room.match, seat) : null,
-    tournament: null, // filled by Stage 2 Task 4
+    tournament: room.tournament ? tournamentViewFor(room, id) : null,
     // The phase timer, not the internal wake-up time (which may be a reconnect-grace expiry).
     deadline: room.phaseDeadline,
   };
@@ -94,7 +152,27 @@ export function spectatorViewFor(room: Room): SpectatorView {
     players: publicPlayers(room),
     spectators: spectatorsOf(room).map(publicSpectator),
     match: room.match ? publicMatch(room.match, null) : null,
-    tournament: null, // filled by Stage 2 Task 4
+    tournament: room.tournament ? tournamentViewFor(room, null) : null,
     deadline: room.phaseDeadline,
+  };
+}
+
+/**
+ * The own view of a tournament participant who is not on a seat of the running pairing (waiting,
+ * eliminated, or forfeited and back as a watcher): the spectator view (never a pick, `yourPick`
+ * null) plus `me`, `isHost` (never for a forfeited participant) and `tournament.youId` for this participant. Sent on the participant's
+ * personal channel only.
+ */
+export function participantViewFor(room: Room, participantId: string): SpectatorView {
+  const t = room.tournament;
+  if (!t) throw new Error('participantViewFor: not a tournament room');
+  // A forfeited participant has no host rights (the gateway answers `not_player`), even while the
+  // role still points at it because no connected participant could take it over yet.
+  const participant = t.participants.find((p) => p.id === participantId);
+  return {
+    ...spectatorViewFor(room),
+    isHost: participantId === t.hostId && participant !== undefined && !participantOut(room, participant),
+    me: { id: participantId },
+    tournament: tournamentViewFor(room, participantId),
   };
 }

@@ -298,4 +298,10 @@ describe('connection', () => {
     ]);
     expect(fake.io).toHaveBeenCalledTimes(1);
   });
+
+  it('emits tournament:skip with an empty payload', async () => {
+    const api = await load();
+    api.skipWait();
+    expect(fake.socket.emit.mock.calls).toEqual([['tournament:skip', {}]]);
+  });
 });

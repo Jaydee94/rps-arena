@@ -26,6 +26,7 @@ export const actions = {
   pick: vi.fn(),
   next: vi.fn(),
   rematch: vi.fn(),
+  skipWait: vi.fn(),
   forgetSession: vi.fn(),
   clearError: vi.fn(() => lastErrorStore.set(null)),
   connect: vi.fn(),

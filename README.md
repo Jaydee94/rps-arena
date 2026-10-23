@@ -36,11 +36,18 @@ Kubernetes (Helm, Redis) and is released automatically on every release-worthy m
   beats, about 1.26 s; in German "Schnick, Schnack, Schnuck"). It is skipped entirely for users with
   `prefers-reduced-motion: reduce`, who get the static result straight away.
 - **Modes:** Classic, Lizard-Spock, Wheel 7 / 9 / 15, Bluff and 2v2 Team.
+- **Tournaments:** 4 to 8 players in one room play a knockout bracket or a round robin, one match after the
+  other, while everyone else watches live. See [Tournament Mode](#tournament-mode).
 - **Rule hints:** Hovering or focusing a gesture tile shows what it beats. A collapsible "Rules" panel in the lobby
   and on the pick screen lists the same for the whole mode (the way to see it on touch screens).
 - **Rooms:** Whoever creates a room gets a 5-character code and a shareable link. The others join with the code
   or the link. Nickname and comic avatar (32 to choose from) are picked when joining; nothing is stored
   permanently.
+- **Spectators:** Anyone who joins a room whose match is already running (or finished) watches it live as a
+  spectator, up to `MAX_SPECTATORS` (16) per room; further joiners get "room full". Picks stay secret until the
+  reveal: spectators see who has locked in, never what, and no session tokens. Spectators do not take a seat, do
+  not count as players and never influence the match timing, the deadlines or the idle abort. A reload brings a
+  spectator back to the same room (session token). While a lobby is still waiting, a full room stays full.
 - **Bot:** Solo play against a bot on three levels (easy, medium, hard), in all duel modes (not 2v2).
 - **Match format:** Best of 3, 5 or 7, chosen by the room creator.
 - **Reveal time:** The round result stays on screen for 5.5 s (`REVEAL_MS`), including the countdown. If all
@@ -102,6 +109,49 @@ taken. Each player secretly picks one gesture from the Classic set per round. Th
 `b0` and `a1` against `b1`. The team with more duels won takes the round; at 1:1 the round is a draw. There is no
 bot in this mode.
 
+### Tournament Mode
+
+Turn on "Tournament (4 to 8 players)" when creating a room. The room creator is the host: they pick the
+**format** and **one gesture mode** for the whole tournament (Classic, Lizard-Spock or Wheel 7 / 9 / 15; no
+Bluff, no 2v2, no bots) and play along as a normal participant. Every match is **best of 3** (tie-break
+matches: best of 1). Up to `TOURNAMENT_MAX_PLAYERS` (8) people join the lobby by code or link as participants;
+the host starts once at least `TOURNAMENT_MIN_PLAYERS` (4) are connected. Whoever joins later, or joins a full
+lobby, watches as a spectator.
+
+- **Formats:** In the **knockout** bracket the seeding is random; with a player count that is not a power of
+  two some players get a **bye** (never two byes in one pairing) and advance without a match. The loser of a
+  match is out and watches from then on. There is no match for 3rd place: both semifinal losers share it. In the
+  **round robin** everyone plays everyone once (with an odd count one player sits out each round), ranked by
+  matches won. Ties are resolved by the head-to-head record among the tied players (applied again to every
+  group that is still tied). Only a tie for **1st place**
+  is played out: the tied group plays a tie-break round-robin of best-of-1 matches, again if 1st place is still
+  tied, up to `TIEBREAK_MAX_ROUNDS` (2) tie-break round-robins in total. If 1st place is still tied after that, a
+  coin flip picks the winner among the tied group and the rest of it shares 2nd place. Ties anywhere else stay
+  shared places.
+- **Match without a winner** (both idle, both gone): in the knockout bracket whoever won more rounds advances,
+  otherwise a visible coin flip decides; in the round robin the match counts as lost for both.
+- **Flow:** A random **draw** (`DRAW_MS`, 3 s; an animation, or the static result with reduced motion), then
+  the matches **one after another**. Between two matches an **intermission** (`INTERMISSION_MS`, 6 s) shows the
+  result, the bracket or table and the next pairing; then the next match starts by itself. The host can skip
+  the draw and the intermission.
+- **Spectators:** Everyone who is not playing the running match (waiting and eliminated participants, late
+  joiners) watches it live. Picks stay secret until the reveal, exactly as for duel spectators: no view and no
+  network frame of a watcher contains a pick or anyone else's session token.
+- **Grace periods:** The reconnect grace period (`RECONNECT_GRACE_MS`, 30 s) runs per person, only from the
+  moment their match is called up or they drop out during their own running match, never between matches. The
+  intermission and the next match do not wait for anybody: whoever is away when called up has 30 s to come
+  back, then loses by **forfeit**. In the knockout bracket the opponent advances; in the round robin all their
+  remaining matches count as lost. Leaving the room ("Back to start") counts like a disconnect. Waiting and
+  eliminated participants and spectators can drop and reconnect without any effect on the tournament; a reload
+  brings everyone back to their place.
+- **Host:** If the host is gone past their grace period or has forfeited, the role passes to the next connected
+  participant in join order who has not forfeited (never to a spectator). If there is none, a running
+  tournament ends.
+- **Award ceremony and rematch:** The end shows a podium with places 1 to 3 (shared places side by side). The
+  host's "Play again" goes back to the tournament lobby with everyone who is connected, former spectators
+  included; the first 8 in join order (participants first) become players, the others watch. A new draw follows
+  the next start. "Back to start" leaves the room.
+
 ### Draws, Sudden Death and Timings
 
 - Drawn rounds do not count and are replayed. A match ends as soon as one side has won `ceil(bestOf / 2)`
@@ -115,8 +165,14 @@ bot in this mode.
 | `ANNOUNCE_TIMEOUT_MS` | 8 s | Time for the announcement in Bluff mode. Whoever stays silent announces nothing. |
 | `REVEAL_MS` | 5.5 s | How long the round result stays on screen. The client first shows a short countdown ("Rock, Paper, Scissors", in German "Schnick, Schnack, Schnuck", about 1.26 s, skipped with reduced motion), so the result stays visible for the remainder. If all connected players are "next", the next round starts sooner. |
 | `RECONNECT_GRACE_MS` | 30 s | How long a disconnected player can return. After that they lose their duel in this and all further rounds (forfeit). |
+| `MAX_SPECTATORS` | 16 | Most spectators in one room. Disconnected spectators inside their grace period still count; further joins get `room_full`. |
 | `IDLE_ROUNDS_LIMIT` | 3 | See below. |
 | `ROOM_TTL_S` | 1800 s | Inactive rooms disappear from Redis after 30 minutes. |
+| `TOURNAMENT_MIN_PLAYERS` | 4 | Fewest participants a tournament can start with (`not_enough_players` otherwise). The start button waits for this many connected participants; the server drops lobby participants who have been gone longer than `RECONNECT_GRACE_MS` before it counts. |
+| `TOURNAMENT_MAX_PLAYERS` | 8 | Most participants of a tournament; anyone who joins a full lobby or a running tournament watches as a spectator. |
+| `DRAW_MS` | 3 s | Length of the draw (shown as an animation, a static result with reduced motion) before the first match. The host can skip it. |
+| `INTERMISSION_MS` | 6 s | Pause between two tournament matches with the result, the bracket or table and the next pairing. The host can skip it. |
+| `TIEBREAK_MAX_ROUNDS` | 2 | Round robin only: how many tie-break round-robins a group still tied for 1st place plays in total before a coin flip picks 1st place among the group that is still tied. |
 
 ### Abandoned Matches
 
@@ -168,6 +224,17 @@ Key properties:
   seat from an allow-list. For other seats, only *whether* they have picked is visible (`lockedSeats`), never
   *what*. Only after the reveal does the pick appear in `lastRound`. Other players' session tokens are never part
   of a view.
+- **Spectator channel:** Each seat has its own Socket.IO channel for its personal view; all spectators of a room
+  share one channel `<code>:spec` that carries a single identical view (`spectatorViewFor` in
+  `apps/server/src/view.ts`). It is built from the same allow-list as the seat views, so it never contains a
+  pick (`yourPick` is always `null`) or any token, and it is never emitted to a seated participant.
+- **Tournament channels:** In a tournament room every participant has a personal channel `<code>:p:<id>` for the
+  whole tournament, so changing pairings never moves sockets between channels. The two players of the running
+  pairing get their seat view there (`viewFor`), every other participant a watcher view (`participantViewFor`:
+  the spectator view plus their own id and host flag); plain spectators share `<code>:spec`, which is never
+  emitted to a participant channel. The host skips the draw or intermission with `tournament:skip`; the
+  tournament layer lives in `apps/server/src/tournament.ts` (room flow) and `packages/shared/src/tournament.ts`
+  (pure rules: draw, pairings, standings, tie-breaks, podium).
 - **Redis is the only state:** Rooms, scores and deadlines live in Redis. The server pods hold nothing that a
   restart would lose. Updates to a room are atomic read-modify-write operations, and the pods distribute events
   through the Socket.IO Redis adapter. Several replicas without sticky sessions are possible because the
@@ -230,7 +297,8 @@ the look. The code is in `apps/web/src/lib/demo.ts` and is only loaded when `imp
 production build does not contain it.
 
 ```text
-http://localhost:5173/?demo=home|lobby|board|reveal|result|gallery
+http://localhost:5173/?demo=home|lobby|board|reveal|result|spectate|gallery
+http://localhost:5173/?demo=tournament-lobby|tournament-draw|tournament-intermission|tournament-bracket|tournament-table|tournament-podium|tournament-finished
 ```
 
 Further parameters: `mode=<mode ID>`, `outcome=win|lose|draw`, `picked=1`, `phase=announce`, `left=<seconds>`,
@@ -252,7 +320,8 @@ otherwise. `npm run compose:test` runs them against a real Redis.
 For `npm run e2e`, install the browser once: `npx playwright install chromium`. The test starts the built server
 itself (with `RPS_DEV_MEMORY_STORE=1`) on port 47831, adjustable with `E2E_PORT`. The scenarios cover, among
 others, a two-player Classic match, the secrecy of picks, a bot match, Wheel 15, error cases, reconnecting,
-language switching and phone width.
+language switching, phone width, spectators, and two four-browser tournaments (`e2e/tournament.spec.ts`: a
+knockout with live watchers, host skip, podium and rematch; a round robin with a reload and a dropped player).
 
 ## Local Testing with Docker Compose
 
