@@ -22,7 +22,7 @@ export const SOUND_LENGTH: Record<SoundName, number> = {
   win: 0.7,
   lose: 1.0,
   draw: 0.45,
-  // The matchup sounds start at the impact of the scene and stay short (<= 0.6 s).
+  // The matchup sounds stay short (<= 0.6 s); `HIT_AT` says where each one hits.
   clash: 0.35,
   'attack-smash': 0.3,
   'attack-slash': 0.3,
@@ -38,6 +38,31 @@ export const SOUND_LENGTH: Record<SoundName, number> = {
   'attack-absorb': 0.45,
   'attack-curse': 0.55,
   'attack-poison': 0.4,
+};
+
+/**
+ * Where the hit of a matchup sound is, in seconds after the start of its recipe: the transient the
+ * ear takes as "the contact" (the start of the thud, snap, chomp or sting). The sfx bridge starts
+ * each sound `contact - HIT_AT` after the countdown end, so this moment lands on the visible
+ * contact of the scene. 0 means the sound opens with its hit; slash has a whoosh before its snips
+ * (first snip at 0.17 s) and curse a swell that peaks at 0.12 s.
+ */
+export const HIT_AT: Record<'clash' | AttackSound, number> = {
+  clash: 0,
+  'attack-smash': 0,
+  'attack-slash': 0.17,
+  'attack-wrap': 0,
+  'attack-burn': 0,
+  'attack-splash': 0,
+  'attack-gust': 0,
+  'attack-zap': 0,
+  'attack-shoot': 0,
+  'attack-bite': 0,
+  'attack-punch': 0,
+  'attack-entangle': 0,
+  'attack-absorb': 0,
+  'attack-curse': 0.12,
+  'attack-poison': 0,
 };
 
 const STORAGE_KEY = 'rps.audio';
