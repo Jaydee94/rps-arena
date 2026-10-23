@@ -1,7 +1,7 @@
 <script lang="ts">
   /*
    * Shoot (gun): two shots streak in from the attacker as tracers, sparks flash where they strike the rim and
-   * splinters fly out of the far side. Drawn for an attacker at the top left (the struck sticker is the
+   * splinters spray back out of the entry holes. Drawn for an attacker at the top left (the struck sticker is the
    * opponent's) and turned round for one at the bottom right. Frame: the sticker is the circle r = 50
    * around 0,0. Markup only; motion: animations.css, "fx: shoot / perforate".
    */
@@ -15,12 +15,16 @@
     { x: -13, y: -48, turn: 75, d: '160ms' },
   ];
 
-  /** Splinters out of the far side: start, flight (frame units) and spin. */
+  /**
+   * Splinters spraying back out of the entry holes: start, flight (frame units) and spin. They stay on the
+   * attacker's side (left / above), so once turned round for the own card none flies under its name tag
+   * (above) or out at the panel edge (left).
+   */
   const BITS = [
-    { x: 40, y: 10, dx: 56, dy: 8, rot: 200, d: '0ms' },
-    { x: 42, y: 0, dx: 60, dy: -14, rot: -160, d: '0ms' },
-    { x: 8, y: 42, dx: 10, dy: 58, rot: 140, d: '160ms' },
-    { x: 18, y: 40, dx: 28, dy: 50, rot: -220, d: '160ms' },
+    { x: -46, y: -8, dx: -26, dy: -12, rot: 200, d: '0ms' },
+    { x: -46, y: -10, dx: -24, dy: 10, rot: -160, d: '0ms' },
+    { x: -12, y: -46, dx: -14, dy: -22, rot: 140, d: '160ms' },
+    { x: -14, y: -44, dx: 12, dy: -22, rot: -220, d: '160ms' },
   ];
 
   // A 10-spike flash around 0,0.
@@ -36,7 +40,7 @@
     <!-- A box far round the frame, centred on the sticker: the aim group turns round the sticker centre. -->
     <rect class="n nostroke" x="-300" y="-300" width="600" height="600" />
     {#each BITS as bit, i (i)}
-      <g transform="translate({bit.x} {bit.y})">
+      <g class="shoot-spot" transform="translate({bit.x} {bit.y})">
         <polygon class="grey shoot-bit" points="-7,-5 7,-7 6,6 -6,5" style:--dx="{bit.dx}px" style:--dy="{bit.dy}px" style:--spin="{bit.rot}deg" style:--d={bit.d} />
       </g>
     {/each}

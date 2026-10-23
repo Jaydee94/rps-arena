@@ -1368,7 +1368,7 @@
     }
     100% {
       opacity: 0;
-      translate: var(--dx) calc(var(--dy) + 20px);
+      translate: var(--dx) var(--dy);
       rotate: var(--spin);
     }
   }

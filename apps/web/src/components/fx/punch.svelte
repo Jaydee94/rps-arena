@@ -1,10 +1,10 @@
 <script lang="ts">
   /*
-   * Punch (human): a big comic fist with speed lines hooks in from the attacker's side and lands on the
-   * struck sticker's rim with a white impact burst; dizzy stars twinkle on the far side afterwards. Drawn
-   * for an attacker at the top left (the struck sticker is the opponent's), the fist coming in from the left
-   * past the burst between the stickers, and turned round for one at the bottom right. Frame: the sticker
-   * is the circle r = 50 around 0,0.
+   * Punch (human): a big comic fist with speed lines hooks in from below the attacker's side and lands on
+   * the struck sticker's rim with a white impact burst; dizzy stars twinkle over the sticker afterwards.
+   * Drawn for an attacker at the top left (1v1) or the left (2v2) of the opponent's sticker, the fist coming
+   * in from the lower left, clear of the burst between the stickers in both layouts; turned round for an
+   * attacker at the bottom right / right. Frame: the sticker is the circle r = 50 around 0,0.
    * Markup only; motion: animations.css, "fx: punch / knockback".
    */
 
@@ -23,11 +23,22 @@
     return `${(radius * Math.cos(angle)).toFixed(1)},${(radius * Math.sin(angle)).toFixed(1)}`;
   }).join(' ');
 
-  /** Dizzy stars round the far rim (clear of the name tag on either card): position and delay. */
+  /** Where the knuckles hit the rim and the fist's heading (degrees, towards the centre). */
+  const FIST = { x: -47, y: 17, turn: -20 };
+  // The fist group's origin: 17.5 units (the scaled knuckles) back from the hit along the heading.
+  const fistAt = {
+    x: FIST.x - 17.5 * Math.cos((FIST.turn * Math.PI) / 180),
+    y: FIST.y - 17.5 * Math.sin((FIST.turn * Math.PI) / 180),
+  };
+
+  /**
+   * Dizzy stars above the opponent's sticker (below the own one once turned round): clear of the name tag
+   * (below / above) and of the panel edge (right / left) on either card. Position and delay.
+   */
   const STARS = [
-    { x: 30, y: -60, d: '0ms' },
-    { x: 60, y: -36, d: '90ms' },
-    { x: 68, y: 2, d: '180ms' },
+    { x: 44, y: -52, d: '0ms' },
+    { x: 10, y: -70, d: '90ms' },
+    { x: -22, y: -66, d: '180ms' },
   ];
 </script>
 
@@ -35,9 +46,9 @@
   <g class="punch-aim">
     <!-- A box far round the frame, centred on the sticker: the aim group turns round the sticker centre. -->
     <rect class="n nostroke" x="-300" y="-300" width="600" height="600" />
-    <g transform="translate(-47 -17)"><polygon class="white punch-burst" points={burst} /></g>
-    <!-- The fist points along +x, heading for the centre; its knuckles touch the rim at -47,-17. -->
-    <g transform="translate(-65 -24) rotate(20) scale(1.25)">
+    <g class="punch-impact" transform="translate({FIST.x} {FIST.y})"><polygon class="white punch-burst" points={burst} /></g>
+    <!-- The fist points along +x, heading for the centre; its knuckles touch the rim at the impact. -->
+    <g transform="translate({fistAt.x.toFixed(1)} {fistAt.y.toFixed(1)}) rotate({FIST.turn}) scale(1.25)">
       <g class="punch-fist">
         <line class="punch-speed" x1="-96" y1="-12" x2="-54" y2="-12" />
         <line class="punch-speed" x1="-104" y1="0" x2="-50" y2="0" />
@@ -51,7 +62,7 @@
       </g>
     </g>
     {#each STARS as s, i (i)}
-      <g transform="translate({s.x} {s.y})"><polygon class="yellow punch-star" points={star} style:--d={s.d} /></g>
+      <g class="punch-spot" transform="translate({s.x} {s.y})"><polygon class="yellow punch-star" points={star} style:--d={s.d} /></g>
     {/each}
   </g>
 </svg>
