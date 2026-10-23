@@ -84,11 +84,18 @@
 </div>
 
 <style>
-  /* Room on the right and below for the hard shadow, which the scroll box would otherwise cut. */
+  /*
+   * The sticker box (outline, light fill, dark ink) is the scroll wrapper itself, so the caption sits inside it
+   * and keeps its contrast on dark panels too; its shadow is the box's own and is never cut by the scrolling.
+   */
   .table-scroll {
     max-width: 100%;
     overflow-x: auto;
-    padding: 0 var(--space-2) var(--space-2) 0;
+    border: var(--outline) solid var(--on-bright);
+    border-radius: var(--radius-sm);
+    background: var(--sticker);
+    color: var(--on-bright);
+    box-shadow: var(--shadow-sm);
     container: standings / inline-size;
   }
 
@@ -96,18 +103,13 @@
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    border: var(--outline) solid var(--on-bright);
-    border-radius: var(--radius-sm);
-    background: var(--sticker);
-    color: var(--on-bright);
-    box-shadow: var(--shadow-sm);
-    overflow: hidden;
   }
 
   caption {
-    padding: 0 0 var(--space-2) var(--space-1);
+    padding: var(--space-2);
     caption-side: top;
     text-align: start;
+    overflow-wrap: break-word;
     font-size: var(--text-sm);
     font-weight: 700;
   }

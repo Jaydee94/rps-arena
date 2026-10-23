@@ -101,6 +101,7 @@
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: minmax(11rem, 1fr);
+    min-width: 100%;
     gap: var(--space-5);
     margin: 0;
     padding: 0;
@@ -194,9 +195,10 @@
 
   .slot {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    position: relative;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1) var(--space-2);
     min-height: 2.5rem;
     padding: var(--space-1) var(--space-2);
     border: 3px solid transparent;
@@ -221,8 +223,10 @@
     min-width: 0;
   }
 
+  /* Breaks between words; a single word too long for the line (a 16-letter nickname) still breaks. */
   .nick {
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    min-width: 0;
     font-weight: 700;
     line-height: 1.15;
   }
@@ -259,11 +263,16 @@
     line-height: 1;
   }
 
+  /* A badge on the avatar's corner, so the name keeps the card's width. */
   .check {
+    position: absolute;
+    top: calc(-1 * var(--space-1));
+    left: calc(-1 * var(--space-1));
     display: grid;
     place-items: center;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 1.375rem;
+    height: 1.375rem;
+    border: 2px solid var(--yellow);
     border-radius: 50%;
     background: var(--on-bright);
     color: var(--yellow);

@@ -234,3 +234,29 @@ describe('T3: tournament cards and pills stay readable in dark mode', () => {
     });
   }
 });
+
+describe('T4: review fixes for the standings caption and bracket names', () => {
+  const table = component('StandingsTable.svelte');
+  const bracket = component('Bracket.svelte');
+
+  it('draws the sticker box on the wrapper, so the caption sits inside it in every theme', () => {
+    const wrapper = rule(table, '.table-scroll');
+    expect(wrapper).toContain('background: var(--sticker)');
+    expect(wrapper).toContain('color: var(--on-bright)');
+    expect(rule(table, 'table')).not.toMatch(/background|border:/);
+  });
+
+  it('lets the caption wrap instead of widening the scroll box', () => {
+    expect(rule(table, 'caption')).toContain('overflow-wrap: break-word');
+  });
+
+  it('breaks bracket names between words, mid-word only as a last resort', () => {
+    expect(rule(bracket, '.nick')).toContain('overflow-wrap: break-word');
+    expect(rule(bracket, '.nick')).not.toContain('anywhere');
+  });
+
+  it('keeps the winner check out of the name column', () => {
+    expect(rule(bracket, '.slot')).toMatch(/grid-template-columns:\s*auto minmax\(0, 1fr\) auto;/);
+    expect(rule(bracket, '.check')).toContain('position: absolute');
+  });
+});

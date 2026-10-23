@@ -70,6 +70,12 @@ describe('TournamentResult', () => {
     expect(screen.getByText('Spieler-p0 is the champion!')).toBeInTheDocument();
   });
 
+  it('names the champion gender-neutrally in German', () => {
+    setLocale('de');
+    result({ host: false, youId: 'p1' });
+    expect(screen.getByText('Turniersieg für Spieler-p0!')).toBeInTheDocument();
+  });
+
   it('gives the host Play again and everyone Back to start', async () => {
     result({ host: true, youId: 'p1' });
     await userEvent.setup().click(screen.getByRole('button', { name: 'Play again' }));
@@ -101,6 +107,6 @@ describe('TournamentResult', () => {
     const details = container.querySelector('details');
     expect(details).not.toBeNull();
     expect(details?.open).toBe(false);
-    expect(within(details as HTMLElement).getByText('Final bracket')).toBeInTheDocument();
+    expect(within(details as HTMLElement).getByText('Final results')).toBeInTheDocument();
   });
 });

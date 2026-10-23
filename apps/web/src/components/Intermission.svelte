@@ -60,7 +60,8 @@
           {/each}
         </div>
         {#if done.score}<p class="score">{t('tournament.score', { a: done.score.a, b: done.score.b })}</p>{/if}
-        <p class="verdict" role="status">
+        <!-- No live region: it would mount together with its text and stay silent; the h2 heads the screen. -->
+        <p class="verdict">
           {done.winner ? t('tournament.result.winner', { name: participantName(tournament, done.winner) }) : t('tournament.result.none')}
         </p>
         {#if how}<p class="how">{how}</p>{/if}

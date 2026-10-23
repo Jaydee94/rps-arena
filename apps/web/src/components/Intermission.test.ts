@@ -31,6 +31,7 @@ function show(tournament: PublicTournament, host = false) {
   return render(Intermission);
 }
 
+const verdict = (panel: HTMLElement) => panel.querySelector('.verdict') as HTMLElement;
 const resultPanel = () => screen.getByRole('heading', { level: 2 }).closest('section') as HTMLElement;
 
 describe('Intermission', () => {
@@ -41,17 +42,17 @@ describe('Intermission', () => {
 
   afterEach(() => vi.useRealTimers());
 
-  it('has one main, one h2 and one status line', () => {
+  it('has one main and one h2, and no live region that would mount together with its text', () => {
     const { container } = show(tournamentWith({}));
     expect(container.querySelectorAll('main')).toHaveLength(1);
     expect(container.querySelectorAll('h2')).toHaveLength(1);
-    expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
+    expect(container.querySelectorAll('[role="status"]')).toHaveLength(0);
   });
 
   it('shows the result of the pairing that just finished', () => {
     show(tournamentWith({}));
     const panel = resultPanel();
-    expect(within(panel).getByRole('status')).toHaveTextContent('Spieler-p0 wins!');
+    expect(verdict(panel)).toHaveTextContent('Spieler-p0 wins!');
     expect(within(panel).getByText('Score 2 : 1')).toBeInTheDocument();
     expect(within(panel).getByText('Spieler-p1')).toBeInTheDocument();
     expect(within(panel).getByText('Round 1')).toBeInTheDocument();
@@ -59,7 +60,7 @@ describe('Intermission', () => {
 
   it('says when a coin flip decided it', () => {
     show(tournamentWith({ winner: 'p1', decidedBy: 'coin', score: { a: 1, b: 1 } }));
-    expect(within(resultPanel()).getByRole('status')).toHaveTextContent('Spieler-p1 wins!');
+    expect(verdict(resultPanel())).toHaveTextContent('Spieler-p1 wins!');
     expect(within(resultPanel()).getByText('Decided by coin flip')).toBeInTheDocument();
   });
 
@@ -68,7 +69,7 @@ describe('Intermission', () => {
     expect(within(resultPanel()).getByText('Won by forfeit')).toBeInTheDocument();
     unmount();
     show(tournamentWith({ winner: null, decidedBy: 'forfeit', score: null }));
-    expect(within(resultPanel()).getByRole('status')).toHaveTextContent('Nobody wins this match');
+    expect(verdict(resultPanel())).toHaveTextContent('Nobody wins this match');
     expect(within(resultPanel()).getByText('Both forfeited')).toBeInTheDocument();
   });
 
