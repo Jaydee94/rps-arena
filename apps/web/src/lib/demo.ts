@@ -1,5 +1,5 @@
 /**
- * DEV-ONLY: `?demo=home|lobby|board|reveal|result|spectate|gallery|tournament-lobby|tournament-draw|tournament-intermission|tournament-finished|tournament-bracket|tournament-table|tournament-podium` renders a screen from mock data, so the look
+ * DEV-ONLY: `?demo=home|lobby|board|reveal|result|spectate|gallery|tournament-lobby|tournament-draw|tournament-intermission|tournament-finished|tournament-bracket|tournament-table|tournament-podium|fx|fxgallery` renders a screen from mock data, so the look
  * can be checked without a server. main.ts imports this module only behind `import.meta.env.DEV`,
  * so it never reaches a production build.
  *
@@ -13,8 +13,13 @@
  * third=3 (podium: three share 3rd place). `tournament-bracket` is an 8-player knockout in the intermission after a semifinal,
  * `tournament-table` a 6-player round robin with a tie-break, `tournament-podium` a finished 8-player knockout.
  * `board` and `spectate` take tournament=1 (an 8-player knockout semifinal with the tournament header; also format, n, long).
+ * Matchup effects (components/FxGallery.svelte, mounted instead of App via `demoRoot`): `fx` loops the reveal of one
+ * pair at full size with a replay button, winner=<gesture>&loser=<gesture> (or a=/b=; the same gesture twice is the
+ * draw), live=0 holds the end pose; `fxgallery` shows all pairs plus the draw as small cards grouped by attack,
+ * attack=<attack>|draw|all filters, live=1 loops the visible cards instead of the end pose.
  */
 import { allRelations, REVEAL_MS, type Pairing, type PlayerView, type PublicMatch, type PublicPlayer, type PublicSpectator, type RoomConfig, type RoomView, type RoundResult, type SeatId } from '@rps/shared';
+import type { Component } from 'svelte';
 import { setDemoState } from './connection';
 import { demoTournament, type DemoOutcome, type DemoTournamentOptions } from './demo-tournament';
 import { TOURNAMENT_MODES } from './tournament-ui';
@@ -333,6 +338,15 @@ function build(name: string, params: Params): RoomView | null {
     default:
       return null;
   }
+}
+
+/** Demos with a screen of their own (not App). */
+const ROOT_DEMOS = new Set(['fx', 'fxgallery']);
+
+/** The component to mount instead of App for the demo named in the URL; null for App. */
+export async function demoRoot(search: string = location.search): Promise<Component | null> {
+  const name = new URLSearchParams(search).get('demo');
+  return name && ROOT_DEMOS.has(name) ? (await import('../components/FxGallery.svelte')).default : null;
 }
 
 /** Applies the demo named in the URL. Returns true when a demo is active (then no socket is opened). */
