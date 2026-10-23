@@ -4175,7 +4175,7 @@
 
 /* ---- fx static: curse / hexed ---- */
 
-/* Shrunk, reeling, greyed under a dark veil, the hex stars still circling its face. */
+/* Shrunk, reeling, greyed under a dark veil, sealed: hex stars still circling its face, rune marks round its rim. */
 .player.loser .reveal-art.react-hexed {
   translate: 0 8px;
   scale: 0.88;

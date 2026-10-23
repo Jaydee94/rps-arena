@@ -1,7 +1,7 @@
 <script lang="ts">
   /*
    * Hexed (struck by curse): a dark veil falls over the sticker and a ring of pink hex stars keeps circling
-   * its face. --veil is the veil's end opacity and --orbit how far the star ring has turned: the static end
+   * its face, inside a dotted seal with rune marks branded round its rim. --veil is the veil's end opacity and --orbit how far the star ring has turned: the static end
    * pose and the last keyframe both read them (animations.css, "fx: curse / hexed" and
    * "fx static: curse / hexed"). Markup only.
    */
@@ -18,11 +18,28 @@
     const rad = ((angle - 90) * Math.PI) / 180;
     return { x: 50 + 30 * Math.cos(rad), y: 50 + 30 * Math.sin(rad) };
   });
+
+  /**
+   * Rune marks branded between the stars, near the rim (the glyphs of curse.svelte's rune ring), so the hexed end
+   * pose reads by its marks, not only by its dim colours.
+   */
+  const GLYPHS = ['M-4,-5 L4,-5 L0,5 Z', 'M-5,0 L5,0 M0,-5 L0,5', 'M-4,-4 L4,4 M4,-4 L-4,4'];
+  const RUNES = [36, 108, 180, 252, 324].map((angle, i) => {
+    const rad = ((angle - 90) * Math.PI) / 180;
+    return { at: `translate(${(50 + 38 * Math.cos(rad)).toFixed(1)} ${(50 + 38 * Math.sin(rad)).toFixed(1)}) rotate(${angle})`, d: GLYPHS[i % 3] };
+  });
 </script>
 
 <span class="hexed" aria-hidden="true" style:--veil="0.24" style:--orbit="160deg">
   <span class="hexed-veil"></span>
   <svg class="art hexed-orbit" viewBox="0 0 100 100" focusable="false">
+    <circle class="hexed-seal" cx="50" cy="50" r="44" />
+    {#each RUNES as rune (rune.at)}
+      <g transform={rune.at}>
+        <path class="hexed-rune-under" d={rune.d} />
+        <path class="hexed-rune" d={rune.d} />
+      </g>
+    {/each}
     {#each STARS as star, i (i)}
       <polygon
         class="pink"
@@ -58,6 +75,23 @@
   }
 
   .hexed-orbit {
+    stroke-width: 2.5;
+  }
+
+  /* The seal: a dotted pink circle just inside the rim. */
+  .hexed-seal {
+    stroke: var(--pink);
+    stroke-width: 3;
+    stroke-dasharray: 0.1 6;
+  }
+
+  /* Runes: dark glyphs on a pink underlay, readable on the light sticker and under the veil. */
+  .hexed-rune-under {
+    stroke: var(--pink);
+    stroke-width: 6;
+  }
+
+  .hexed-rune {
     stroke-width: 2.5;
   }
 </style>
