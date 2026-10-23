@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { SeatId } from '@rps/shared';
-  import { moveSeat, room, startMatch } from '../lib/connection';
+  import { moveSeat, playerRoom, startMatch } from '../lib/connection';
   import { t } from '../lib/i18n';
   import { canStart, isHost } from '../lib/seats';
   import CopyRow from './CopyRow.svelte';
   import RulesPanel from './RulesPanel.svelte';
   import SeatSlot from './SeatSlot.svelte';
+  import SpectatorBadge from './SpectatorBadge.svelte';
 
   const TEAM_SEATS: { team: 'a' | 'b'; seats: SeatId[] }[] = [
     { team: 'a', seats: ['a0', 'a1'] },
@@ -14,11 +15,11 @@
 
   let selected = $state<SeatId | null>(null);
 
-  const inviteLink = $derived($room ? `${location.origin}/?room=${$room.code}` : '');
+  const inviteLink = $derived($playerRoom ? `${location.origin}/?room=${$playerRoom.code}` : '');
 
   // Drop the pick-up when that seat was vacated meanwhile.
   $effect(() => {
-    if (selected !== null && !$room?.players[selected]) selected = null;
+    if (selected !== null && !$playerRoom?.players[selected]) selected = null;
   });
 
   function moveHere(to: SeatId) {
@@ -28,8 +29,8 @@
   }
 </script>
 
-{#if $room}
-  {@const view = $room}
+{#if $playerRoom}
+  {@const view = $playerRoom}
   {@const host = isHost(view)}
   {@const teamMode = view.config.mode === 'team2v2'}
   {#snippet slot(seat: SeatId)}
@@ -47,6 +48,7 @@
   <main class="lobby">
     <h2>{t('lobby.title')}</h2>
     <p>{t('lobby.mode', { mode: t(`mode.${view.config.mode}.name`), n: view.config.bestOf })}</p>
+    <SpectatorBadge spectators={view.spectators} />
 
     <section class="panel share">
       <p>{t('lobby.share')}</p>
@@ -86,10 +88,15 @@
 <style>
   .lobby {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
     max-width: 48rem;
     margin: 0 auto;
     width: 100%;
+  }
+
+  .lobby > :global(*) {
+    min-width: 0;
   }
 
   h2 {
@@ -117,6 +124,7 @@
 
   .share {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
   }
 
@@ -129,6 +137,7 @@
 
   .team {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
     gap: var(--space-3);
   }

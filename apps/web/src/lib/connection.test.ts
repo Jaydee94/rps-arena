@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
-import type { RoomView } from '@rps/shared';
+import type { PlayerView, SpectatorView } from '@rps/shared';
 
 type Handler = (payload?: unknown) => void;
 
@@ -37,14 +37,32 @@ vi.mock('socket.io-client', () => ({ io: fake.io }));
 const SESSION_KEY = 'rps.session';
 
 const VIEW = {
+  role: 'player',
   code: 'ABCD',
   config: { mode: 'classic', bestOf: 3 },
   you: 'a0',
   hostSeat: 'a0',
+  isHost: true,
   players: {},
+  spectators: [],
   match: null,
+  tournament: null,
   deadline: null,
-} satisfies RoomView;
+} satisfies PlayerView;
+
+const SPECTATOR_VIEW = {
+  role: 'spectator',
+  code: 'ABCD',
+  config: { mode: 'classic', bestOf: 3 },
+  hostSeat: 'a0',
+  isHost: false,
+  me: null,
+  players: {},
+  spectators: [],
+  match: null,
+  tournament: null,
+  deadline: null,
+} satisfies SpectatorView;
 
 async function load() {
   vi.resetModules();
@@ -117,6 +135,49 @@ describe('connection', () => {
     expect(get(room)).toEqual(VIEW);
   });
 
+  it('fills playerRoom and empties spectatorRoom for a player view', async () => {
+    const { connect, room, playerRoom, spectatorRoom } = await load();
+    connect();
+    expect(get(playerRoom)).toBeNull();
+    expect(get(spectatorRoom)).toBeNull();
+    fake.trigger('room:state', VIEW);
+    expect(get(room)).toEqual(VIEW);
+    expect(get(playerRoom)).toEqual(VIEW);
+    expect(get(spectatorRoom)).toBeNull();
+  });
+
+  it('fills spectatorRoom and empties playerRoom for a spectator view', async () => {
+    const { connect, room, playerRoom, spectatorRoom } = await load();
+    connect();
+    fake.trigger('room:state', VIEW);
+    fake.trigger('room:state', SPECTATOR_VIEW);
+    expect(get(room)).toEqual(SPECTATOR_VIEW);
+    expect(get(spectatorRoom)).toEqual(SPECTATOR_VIEW);
+    expect(get(playerRoom)).toBeNull();
+  });
+
+  it('stores the session on room:joined for a spectator like for a player', async () => {
+    const { connect } = await load();
+    connect();
+    fake.trigger('room:joined', { code: 'WXYZ', token: 'spec-tok', role: 'spectator', seat: null });
+    expect(JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? 'null')).toEqual({
+      code: 'WXYZ',
+      token: 'spec-tok',
+    });
+  });
+
+  it('rejoins a stored spectator session and gets the spectator view again', async () => {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code: 'ABCD', token: 'spec-tok' }));
+    const { connect, spectatorRoom, playerRoom } = await load();
+    connect();
+    fake.trigger('connect');
+    expect(fake.socket.emit).toHaveBeenCalledWith('room:rejoin', { code: 'ABCD', token: 'spec-tok' });
+    fake.trigger('room:state', SPECTATOR_VIEW);
+    expect(get(spectatorRoom)).toEqual(SPECTATOR_VIEW);
+    expect(get(playerRoom)).toBeNull();
+    expect(sessionStorage.getItem(SESSION_KEY)).not.toBeNull();
+  });
+
   it('updates lastError on room:error and clears it again', async () => {
     const { connect, lastError, clearError } = await load();
     connect();
@@ -170,7 +231,7 @@ describe('connection', () => {
   it('stores code and token on room:joined', async () => {
     const { connect } = await load();
     connect();
-    fake.trigger('room:joined', { code: 'WXYZ', token: 'tok', seat: 'b0' });
+    fake.trigger('room:joined', { code: 'WXYZ', token: 'tok', role: 'player', seat: 'b0' });
     expect(JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? 'null')).toEqual({
       code: 'WXYZ',
       token: 'tok',
@@ -200,7 +261,7 @@ describe('connection', () => {
     const { connect, room, lastError } = await load();
     connect();
     expect(() => fake.trigger('connect')).not.toThrow();
-    expect(() => fake.trigger('room:joined', { code: 'WXYZ', token: 'tok', seat: 'a0' })).not.toThrow();
+    expect(() => fake.trigger('room:joined', { code: 'WXYZ', token: 'tok', role: 'player', seat: 'a0' })).not.toThrow();
     expect(() => fake.trigger('room:error', { code: 'bad_token', message: '' })).not.toThrow();
     fake.trigger('room:state', VIEW);
     expect(get(room)).toEqual(VIEW);

@@ -44,6 +44,7 @@
 <style>
   .copy {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-1);
   }
 
@@ -57,8 +58,10 @@
     gap: var(--space-2);
   }
 
+  /* width: 100% (a percentage) keeps the field's intrinsic width out of the min-content size of its parents. */
   input {
     flex: 1 1 12rem;
+    width: 100%;
     min-width: 0;
     min-height: 2.75rem;
     padding: var(--space-1) var(--space-3);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ANNOUNCE_TIMEOUT_MS,
+  MAX_SPECTATORS,
   PICK_TIMEOUT_MS,
   ProtocolError,
   RECONNECT_GRACE_MS,
@@ -16,15 +17,20 @@ import {
   createRoom,
   isAbandoned,
   joinRoom,
+  leaveSpectator,
   markConnected,
   markDisconnected,
+  markSpectatorConnected,
+  markSpectatorDisconnected,
   moveSeat,
   rejoinRoom,
   rematch,
   seatOfSocket,
   startMatch,
   tick,
+  whoOfSocket,
 } from './engine';
+import { spectatorsOf } from './room';
 import type { Room } from './room';
 import { BOT_HISTORY_MAX } from './settle';
 
@@ -119,17 +125,19 @@ describe('joinRoom / startMatch / moveSeat', () => {
   it('fills b0 in a 1v1 room and then throws room_full', () => {
     const room = createRoom({ config: classic, nickname: 'Ann', avatar: 'fox' }, T0);
     const joined = joinRoom(room, 'Ben', 'owl', T0, 's2');
-    expect(joined.seat).toBe('b0');
+    expect(joined.who).toEqual({ role: 'player', seat: 'b0' });
     expect(joined.room.players.b0?.socketId).toBe('s2');
     expect(errorCode(() => joinRoom(joined.room, 'Cid', 'cat', T0))).toBe('room_full');
   });
 
-  it('a join after the match started is room_full', () => {
+  it('a join after the match started is a spectator, not a seat', () => {
     const room = createRoom({ config: team, nickname: 'Ann', avatar: 'fox' }, T0);
     const r = joinRoom(joinRoom(room, 'B', 'owl', T0).room, 'C', 'cat', T0).room;
     // Not startable yet, but force a running match to check the join rule.
     const running = { ...r, match: duelRoom().match };
-    expect(errorCode(() => joinRoom(running, 'D', 'dino', T0))).toBe('room_full');
+    const joined = joinRoom(running, 'D', 'dino', T0);
+    expect(joined.who.role).toBe('spectator');
+    expect(joined.room.players).toBe(running.players);
   });
 
   it('team2v2 starts only with all four seats taken', () => {
@@ -345,7 +353,7 @@ describe('tick', () => {
     let room = markDisconnected(duelRoom(), 'b0', T0);
     const token = room.players.b0!.token;
     const back = rejoinRoom(room, token, T0 + RECONNECT_GRACE_MS - 1, 's-new');
-    expect(back.seat).toBe('b0');
+    expect(back.who).toEqual({ role: 'player', seat: 'b0' });
     expect(back.previousSocketId).toBeNull();
     room = back.room;
     expect(room.players.b0).toMatchObject({ connected: true, disconnectedAt: null, socketId: 's-new' });
@@ -557,5 +565,261 @@ describe('abandonment rule (idle rounds)', () => {
     delete legacy.roundActed;
     const { room: after } = idleRounds(legacy as Room, 1);
     expect(after.idleRounds).toBe(1);
+  });
+});
+
+describe('spectators', () => {
+  /** Joins `room` as a spectator and returns the room and the new spectator's id. */
+  function watch(room: Room, name: string, socketId: string, now = T0): { room: Room; id: string } {
+    const joined = joinRoom(room, name, 'owl', now, socketId);
+    if (joined.who.role !== 'spectator') throw new Error('expected a spectator');
+    return { room: joined.room, id: joined.who.id };
+  }
+
+  /** The player-facing timing state a spectator must never change. */
+  const playerState = (room: Room) => ({
+    phaseDeadline: room.phaseDeadline,
+    idleRounds: room.idleRounds,
+    nextReady: room.nextReady,
+    match: room.match,
+    players: room.players,
+  });
+
+  function finishedDuel(): Room {
+    const room = duelRoom();
+    return {
+      ...room,
+      match: { ...room.match!, phase: 'finished', winner: 'a' },
+      deadline: null,
+      phaseDeadline: null,
+    };
+  }
+
+  it('(a) a full duel lobby before the start stays room_full', () => {
+    let room = createRoom({ config: classic, nickname: 'Ann', avatar: 'fox' }, T0);
+    room = joinRoom(room, 'Ben', 'owl', T0).room;
+    expect(errorCode(() => joinRoom(room, 'Cid', 'cat', T0, 's-c'))).toBe('room_full');
+  });
+
+  it('(b) a join after startMatch becomes a spectator; seats, match and timers stay untouched', () => {
+    const room = duelRoom();
+    const joined = joinRoom(room, ' Cid ', 'cat', T0 + 5, 's-c');
+    expect(joined.who.role).toBe('spectator');
+    const id = joined.who.role === 'spectator' ? joined.who.id : '';
+    expect(id).toMatch(/^[0-9a-f]{8}$/);
+    expect(joined.room.match).toBe(room.match);
+    expect(joined.room.players).toBe(room.players);
+    expect(joined.room.deadline).toBe(room.deadline);
+    expect(joined.room.phaseDeadline).toBe(room.phaseDeadline);
+    expect(joined.room.spectators).toHaveLength(1);
+    const spectator = joined.room.spectators![0]!;
+    expect(spectator).toMatchObject({
+      id,
+      nickname: 'Cid',
+      avatar: 'cat',
+      connected: true,
+      socketId: 's-c',
+      disconnectedAt: null,
+    });
+    expect(spectator.token).toMatch(/^[0-9a-f]{32}$/);
+    expect(spectator.token).not.toBe(room.players.a0?.token);
+    expect(whoOfSocket(joined.room, 's-c')).toEqual({ role: 'spectator', id });
+    expect(whoOfSocket(joined.room, 's-a0')).toEqual({ role: 'player', seat: 'a0' });
+    expect(whoOfSocket(joined.room, 'nobody')).toBeNull();
+    expect(seatOfSocket(joined.room, 's-c')).toBeNull();
+  });
+
+  it('(b2) a spectator join validates nickname and avatar like a seat join', () => {
+    expect(errorCode(() => joinRoom(duelRoom(), 'Cid', 'nope', T0))).toBe('invalid_input');
+    expect(errorCode(() => joinRoom(duelRoom(), '', 'owl', T0))).toBe('invalid_input');
+  });
+
+  it('(b3) a bot room in progress takes spectators too', () => {
+    const bot = createRoom({ config: classic, nickname: 'Ann', avatar: 'fox', vsBot: 'easy' }, T0);
+    expect(joinRoom(bot, 'Cid', 'cat', T0).who.role).toBe('spectator');
+  });
+
+  it('(c) a join after a finished match is a spectator as well', () => {
+    const room = finishedDuel();
+    const joined = joinRoom(room, 'Cid', 'cat', T0, 's-c');
+    expect(joined.who.role).toBe('spectator');
+    expect(joined.room.match).toBe(room.match);
+    expect(joined.room.deadline).toBeNull();
+  });
+
+  it('(d) the 17th spectator gets room_full; ids are distinct', () => {
+    let room = duelRoom();
+    const ids = new Set<string>();
+    for (let i = 0; i < MAX_SPECTATORS; i++) {
+      const joined = watch(room, `S${i}`, `s-${i}`);
+      room = joined.room;
+      ids.add(joined.id);
+    }
+    expect(spectatorsOf(room)).toHaveLength(MAX_SPECTATORS);
+    expect(ids.size).toBe(MAX_SPECTATORS);
+    expect(errorCode(() => joinRoom(room, 'Late', 'owl', T0, 's-late'))).toBe('room_full');
+    // A disconnected spectator keeps its slot during the grace period.
+    room = markSpectatorDisconnected(room, [...ids][0]!, T0);
+    expect(errorCode(() => joinRoom(room, 'Late', 'owl', T0 + 1, 's-late'))).toBe('room_full');
+    // Leaving frees it.
+    room = leaveSpectator(room, [...ids][1]!);
+    expect(joinRoom(room, 'Late', 'owl', T0 + 2, 's-late').who.role).toBe('spectator');
+  });
+
+  it('(e) connected spectators do not keep a room alive once every player is gone past grace', () => {
+    let room = watch(duelRoom(), 'Cid', 's-c').room;
+    room = markDisconnected(markDisconnected(room, 'a0', T0), 'b0', T0);
+    expect(isAbandoned(room, T0 + RECONNECT_GRACE_MS - 1)).toBe(false);
+    expect(isAbandoned(room, T0 + RECONNECT_GRACE_MS)).toBe(true);
+    for (let i = 0; i < 20 && room.deadline !== null && room.deadline <= T0 + RECONNECT_GRACE_MS; i++) {
+      room = tick(room, room.deadline, fixed(0));
+    }
+    expect(spectatorsOf(room)[0]?.connected).toBe(true);
+    expect(isAbandoned(room, T0 + RECONNECT_GRACE_MS)).toBe(true);
+    expect(errorCode(() => joinRoom(room, 'Late', 'owl', T0 + RECONNECT_GRACE_MS))).toBe(
+      'room_not_found',
+    );
+    // Nobody comes back into a room the ticker is about to delete, spectators included.
+    const token = spectatorsOf(room)[0]!.token;
+    expect(errorCode(() => rejoinRoom(room, token, T0 + RECONNECT_GRACE_MS, 's-c2'))).toBe(
+      'room_not_found',
+    );
+  });
+
+  it('(f) spectator disconnect, return and grace expiry never touch the players timing state', () => {
+    const watched = watch(duelRoom(), 'Cid', 's-c', T0 + 1);
+    const id = watched.id;
+    let room = watched.room;
+
+    // Disconnect: only the wake-up `deadline` may learn about the spectator.
+    let before = playerState(room);
+    room = markSpectatorDisconnected(room, id, T0 + 1);
+    expect(playerState(room)).toEqual(before);
+    expect(spectatorsOf(room)[0]).toMatchObject({ connected: false, disconnectedAt: T0 + 1, socketId: null });
+    expect(room.deadline).toBe(T0 + PICK_TIMEOUT_MS); // phase timeout still comes first
+
+    // Return.
+    before = playerState(room);
+    room = markSpectatorConnected(room, id, T0 + 2, 's-c2');
+    expect(playerState(room)).toEqual(before);
+    expect(spectatorsOf(room)[0]).toMatchObject({ connected: true, disconnectedAt: null, socketId: 's-c2' });
+    expect(room.deadline).toBe(T0 + PICK_TIMEOUT_MS);
+
+    // Gone again; the match runs on by its own timers.
+    room = markSpectatorDisconnected(room, id, T0 + 3);
+    room = tick(room, T0 + PICK_TIMEOUT_MS, fixed(0)); // round 1 times out
+    room = tick(room, T0 + PICK_TIMEOUT_MS + REVEAL_MS, fixed(0)); // round 2 starts
+    const graceEnd = T0 + 3 + RECONNECT_GRACE_MS;
+    expect(room.phaseDeadline).toBe(T0 + PICK_TIMEOUT_MS + REVEAL_MS + PICK_TIMEOUT_MS);
+    expect(room.deadline).toBe(graceEnd); // wake-up only
+    expect(spectatorsOf(room)).toHaveLength(1);
+
+    // Not due yet: identical room.
+    expect(tick(room, graceEnd - 1, fixed(0))).toBe(room);
+    // Grace expiry removes the spectator and nothing else.
+    before = playerState(room);
+    const expired = tick(room, graceEnd, fixed(0));
+    expect(playerState(expired)).toEqual(before);
+    expect(expired.roundActed).toBe(room.roundActed);
+    expect(spectatorsOf(expired)).toEqual([]);
+    expect(expired.deadline).toBe(room.phaseDeadline);
+    // Idempotent: a second replica running the same tick changes nothing.
+    expect(tick(expired, graceEnd, fixed(0))).toBe(expired);
+  });
+
+  it('(f2) connected spectators do not stop the idle abort', () => {
+    let room = watch(duelRoom(), 'Cid', 's-c').room;
+    for (let i = 0; i < 50 && room.deadline !== null; i++) room = tick(room, room.deadline, fixed(0));
+    expect(room.match).toMatchObject({ phase: 'finished', winner: null });
+    expect(room.idleRounds).toBe(3);
+    expect(room.deadline).toBeNull();
+  });
+
+  it('(f3) leaveSpectator removes only that spectator and keeps the players state', () => {
+    const watched = watch(duelRoom(), 'Cid', 's-c');
+    const first = watched.id;
+    let room = watched.room;
+    ({ room } = watch(room, 'Dee', 's-d'));
+    const before = playerState(room);
+    room = leaveSpectator(room, first);
+    expect(playerState(room)).toEqual(before);
+    expect(spectatorsOf(room).map((s) => s.nickname)).toEqual(['Dee']);
+    // Unknown ids are a no-op.
+    expect(leaveSpectator(room, 'ffffffff')).toBe(room);
+    expect(markSpectatorDisconnected(room, 'ffffffff', T0)).toBe(room);
+    expect(markSpectatorConnected(room, 'ffffffff', T0, 'x')).toBe(room);
+  });
+
+  it('(g) applyNext does not wait for spectators', () => {
+    let room = duelRoom();
+    ({ room } = watch(room, 'Cid', 's-c'));
+    ({ room } = watch(room, 'Dee', 's-d'));
+    room = applyPick(room, 'a0', { gesture: 'rock' }, T0);
+    room = applyPick(room, 'b0', { gesture: 'rock' }, T0);
+    room = applyNext(room, 'a0', T0 + 1);
+    expect(room.match?.phase).toBe('reveal');
+    room = applyNext(room, 'b0', T0 + 2);
+    expect(room.match).toMatchObject({ phase: 'pick', round: 2 });
+  });
+
+  it('(h) rejoin with a spectator token restores the spectator; past grace it is bad_token', () => {
+    const watched = watch(duelRoom(), 'Cid', 's-c');
+    const id = watched.id;
+    let room = watched.room;
+    const token = spectatorsOf(room)[0]!.token;
+
+    // Live takeover by a second tab reports the old socket.
+    const takeover = rejoinRoom(room, token, T0 + 1, 's-tab2');
+    expect(takeover.who).toEqual({ role: 'spectator', id });
+    expect(takeover.previousSocketId).toBe('s-c');
+    expect(whoOfSocket(takeover.room, 's-c')).toBeNull();
+    expect(playerState(takeover.room)).toEqual(playerState(room));
+
+    // Reload within the grace period.
+    room = markSpectatorDisconnected(room, id, T0 + 10);
+    const back = rejoinRoom(room, token, T0 + 10 + RECONNECT_GRACE_MS - 1, 's-new');
+    expect(back.who).toEqual({ role: 'spectator', id });
+    expect(back.previousSocketId).toBeNull();
+    expect(spectatorsOf(back.room)[0]).toMatchObject({ connected: true, disconnectedAt: null, socketId: 's-new' });
+    expect(spectatorsOf(back.room)[0]?.token).toBe(token);
+    expect(playerState(back.room)).toEqual(playerState(room));
+
+    // Past the grace period (whether or not the ticker removed it yet).
+    expect(errorCode(() => rejoinRoom(room, token, T0 + 10 + RECONNECT_GRACE_MS, 'x'))).toBe('bad_token');
+    const removed = { ...room, spectators: [] };
+    expect(errorCode(() => rejoinRoom(removed, token, T0 + 11, 'x'))).toBe('bad_token');
+    // A player token still restores the player.
+    expect(rejoinRoom(room, room.players.a0!.token, T0, 's-a0b').who).toEqual({ role: 'player', seat: 'a0' });
+  });
+
+  it('(i) rematch keeps the spectators as they are', () => {
+    let room = finishedDuel();
+    ({ room } = watch(room, 'Cid', 's-c'));
+    ({ room } = watch(room, 'Dee', 's-d'));
+    const again = rematch(room, 'a0', T0 + 7);
+    expect(again.match?.phase).toBe('pick');
+    expect(again.spectators).toEqual(room.spectators);
+    expect(again.players).toEqual(room.players);
+  });
+
+  it('(j) rooms stored without a spectators field still join and tick', () => {
+    const legacy = duelRoom() as Partial<Room>;
+    delete legacy.spectators;
+    const old = legacy as Room;
+    expect(spectatorsOf(old)).toEqual([]);
+    expect(tick(old, T0 + 1)).toBe(old);
+    const ticked = tick(old, T0 + PICK_TIMEOUT_MS, fixed(0));
+    expect(ticked.match?.phase).toBe('reveal');
+    expect(spectatorsOf(ticked)).toEqual([]);
+    const joined = joinRoom(old, 'Cid', 'cat', T0, 's-c');
+    expect(joined.who.role).toBe('spectator');
+    expect(spectatorsOf(joined.room)).toHaveLength(1);
+    expect(markDisconnected(old, 'b0', T0).deadline).toBe(T0 + PICK_TIMEOUT_MS);
+    expect(errorCode(() => rejoinRoom(old, 'nope', T0, 'x'))).toBe('bad_token');
+    expect(whoOfSocket(old, 's-x')).toBeNull();
+    // A legacy lobby still seats a joiner.
+    const lobby = createRoom({ config: classic, nickname: 'Ann', avatar: 'fox' }, T0) as Partial<Room>;
+    delete lobby.spectators;
+    expect(joinRoom(lobby as Room, 'Ben', 'owl', T0).who).toEqual({ role: 'player', seat: 'b0' });
   });
 });

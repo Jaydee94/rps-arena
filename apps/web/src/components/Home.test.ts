@@ -110,6 +110,12 @@ describe('Home', () => {
       expect(create.compareDocumentPosition(join) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
+    it('is the main landmark of the start screen, exactly once', () => {
+      render(Home);
+      expect(screen.getAllByRole('main')).toHaveLength(1);
+      expect(screen.getByRole('main')).toContainElement(screen.getByLabelText('Dein Name'));
+    });
+
     it('shows the short join label but keeps the full accessible name', () => {
       render(Home);
       expect(screen.getByRole('button', { name: 'Raum beitreten' })).toHaveTextContent('Rein!');
